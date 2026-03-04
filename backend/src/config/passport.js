@@ -8,8 +8,10 @@ passport.use(
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL: process.env.CALLBACK_URL,
+      scope: ["profile", "email"],
     },
     async (accessToken, refreshToken, profile, done) => {
+      console.log("Google Strategy Callback URL:", process.env.CALLBACK_URL);
       try {
         const { id, displayName, emails } = profile;
         const email = emails[0].value;

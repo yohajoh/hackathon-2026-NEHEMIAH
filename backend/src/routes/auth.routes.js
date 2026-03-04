@@ -31,6 +31,21 @@ router.post("/login", authLimiter, authController.login);
 
 router.get("/logout", authController.logout);
 
+// Google OAuth
+router.get("/google", (req, res, next) => {
+  console.log("Initiating Google Auth flow...");
+  passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
+});
+
+router.get(
+  "/google/callback",
+  passport.authenticate("google", { session: false, failureRedirect: "/login" }),
+  (req, res) => {
+    // Successful authentication, send JWT
+    sendTokenCookie(req.user, 200, res);
+  }
+);
+
 // Protected routes
 router.use(protect);
 
@@ -53,18 +68,6 @@ router.post(
   "/reset-password/:token",
   [body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters long")],
   authController.resetPassword
-);
-
-// Google OAuth
-router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
-
-router.get(
-  "/google/callback",
-  passport.authenticate("google", { session: false, failureRedirect: "/login" }),
-  (req, res) => {
-    // Successful authentication, send JWT
-    sendTokenCookie(req.user, 200, res);
-  }
 );
 
 export default router;
