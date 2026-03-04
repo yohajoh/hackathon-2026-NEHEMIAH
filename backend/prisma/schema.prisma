@@ -5,26 +5,224 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-model User { 
-  id    Int     @id @default(autoincrement()) 
-  email String  @unique
-  name  String?
-  posts Post[]
-} 
+enum Role {
+  ADMIN
+  STUDENT
+}
 
-model Post { 
-  id        Int     @id @default(autoincrement()) 
-  title     String
-  content   String?
-  published Boolean @default(false) 
-  author    User    @relation(fields: [authorId], references: [id]) 
-  authorId  Int
-} 
+enum Status {
+  // Define statuses based on the diagram's Status enum field
+  // Example: PENDING, BORROWED, RETURNED, COMPLETED
+  // Since the diagram does not provide specific values, you should populate this
+  PENDING
+  BORROWED
+  RETURNED
+  COMPLETED
+}
+
+enum BookType {
+  // To differentiate between physical and digital book types in relations
+  PHYSICAL
+  DIGITAL
+}
+
+enum NotificationType {
+  INFO
+  ALERT
+  SYSTEM
+}
+
+enum PDFAccess {
+  FREE
+  PAID
+  RESTRICTED
+}
+
+enum PaymentMethod {
+  CASH
+  CHAPA
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id                   String        @id @default(uuid()) @db.Uuid
+  student_id           String?       @unique // Unique optional field as per ASTU/123/12 example
+  name                 String
+  email                String        @unique // Mark unique for Auth
+  phone                String?       // Standard example suggests potential requirement, mark optional but you may tighten it
+  password_hash        String
+  role                 Role          @default(STUDENT) // Default based on diagram
+  is_confirmed         Boolean       @default(false)
+  is_blocked           Boolean       @default(false)
+  confirmation_token   String?
+  reset_token          String?
+  reset_expiry         DateTime?
+  created_at           DateTime      @default(now())
+
+  rentals              Rental[]
+  notifications        Notification[]
+  reviews              Review[]
+  wishlists            Wishlist[]
+  system_config_updates SystemConfig[]
+}
+
+model SystemConfig {
+  id                  Int      @id @default(autoincrement())
+  max_loan_days       Int
+  daily_fine          Decimal
+  max_books_per_user   Int
+  enable_notifications Boolean  @default(true)
+  last_updated_by_id  String   @db.Uuid
+  
+  updated_by_user     User     @relation(fields: [last_updated_by_id], references: [id])
+}
+
+model Category {
+  id   String @id @default(uuid()) @db.Uuid
+  name String
+  slug String @unique // Mark unique for slug fields
+
+  books         Book[]
+  digital_books DigitalBook[]
+}
+
+model Author {
+  id    String @id @default(uuid()) @db.Uuid
+  name  String
+  bio   String @db.Text
+  image String
+
+  books         Book[]
+  digital_books DigitalBook[]
+}
+
+model Notification {
+  id         String           @id @default(uuid()) @db.Uuid
+  user_id    String           @db.Uuid
+  message    String           @db.Text
+  type       NotificationType
+  is_read    Boolean          @default(false)
+  created_at DateTime         @default(now())
+
+  user       User     @relation(fields: [user_id], references: [id])
+}
+
+model Rental {
+  id               String    @id @default(uuid()) @db.Uuid
+  user_id          String    @db.Uuid
+  book_id          String    @db.Uuid // Diagram implies physical, but you may want BookType flexibility later
+  loan_date        DateTime  @default(now())
+  due_date         DateTime
+  return_date      DateTime? // diagram suggests it could be nullable, mark as optional
+  status           Status    @default(BORROWED)
+  fine             Decimal?  // Fines are only applicable sometimes, so make optional
+
+  user             User      @relation(fields: [user_id], references: [id])
+  physical_book    Book      @relation(fields: [book_id], references: [id])
+  payment          Payment?
+}
+
+model Payment {
+  id          String        @id @default(uuid()) @db.Uuid
+  rental_id   String        @unique @db.Uuid // unique for 1-1 relationship with Rental
+  tx_ref      String        @unique
+  amount      Decimal
+  method      PaymentMethod
+  status      PaymentStatus
+  paid_at     DateTime      @default(now())
+
+  rental      Rental   @relation(fields: [rental_id], references: [id])
+}
+
+model Book {
+  id                String      @id @default(uuid()) @db.Uuid
+  title             String
+  author_id         String      @db.Uuid
+  category_id       String      @db.Uuid
+  description       String      @db.Text
+  cover_image_url   String
+  copies            Int
+  available         Int
+  deleted_at        DateTime?   // For soft delete as mentioned in the diagram
+
+  author            Author      @relation(fields: [author_id], references: [id])
+  category          Category    @relation(fields: [category_id], references: [id])
+  images            BookImage[]
+  rentals           Rental[]
+  reviews           Review[]
+  wishlists         Wishlist[]
+}
+
+model DigitalBook {
+  id                String      @id @default(uuid()) @db.Uuid
+  title             String
+  author_id         String      @db.Uuid
+  category_id       String      @db.Uuid
+  description       String      @db.Text
+  cover_image_url   String
+  pdf_file          Bytes       // Stores binary data as BYTEA
+  pdf_name          String
+  pdf_access        PDFAccess
+  deleted_at        DateTime?
+
+  author            Author      @relation(fields: [author_id], references: [id])
+  category          Category    @relation(fields: [category_id], references: [id])
+  images            BookImage[]
+  reviews           Review[]
+  wishlists         Wishlist[]
+}
+
+model BookImage {
+  id              String       @id @default(uuid()) @db.Uuid
+  book_id         String       @db.Uuid // FK to either physical or digital
+  book_type       BookType     // Distinguishes if parent is Physical or Digital
+  image_url       String
+  sort_order      Int
+  
+  // Conditionally optional fields due to polymorphic relationship:
+  physical_book_id String?      @db.Uuid
+  digital_book_id  String?      @db.Uuid
+
+  physical_book   Book?        @relation(fields: [physical_book_id], references: [id])
+  digital_book    DigitalBook? @relation(fields: [digital_book_id], references: [id])
+}
+
+model Review {
+  id               String       @id @default(uuid()) @db.Uuid
+  user_id          String       @db.Uuid
+  physical_book_id String?      @db.Uuid
+  digital_book_id  String?      @db.Uuid
+  book_type        BookType
+  rating           Int          // Diagram suggests integer for rating
+  comment          String?      @db.Text
+  created_at       DateTime     @default(now())
+
+  user             User         @relation(fields: [user_id], references: [id])
+  physical_book    Book?        @relation(fields: [physical_book_id], references: [id])
+  digital_book     DigitalBook? @relation(fields: [digital_book_id], references: [id])
+}
+
+model Wishlist {
+  id               String       @id @default(uuid()) @db.Uuid
+  user_id          String       @db.Uuid
+  physical_book_id String?      @db.Uuid
+  digital_book_id  String?      @db.Uuid
+  book_type        BookType
+  created_at       DateTime     @default(now())
+
+  user             User         @relation(fields: [user_id], references: [id])
+  physical_book    Book?        @relation(fields: [physical_book_id], references: [id])
+  digital_book     DigitalBook? @relation(fields: [digital_book_id], references: [id])
+}
