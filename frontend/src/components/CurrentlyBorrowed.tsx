@@ -1,73 +1,116 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
-import { Star } from "lucide-react";
+import type { RentalItem } from "@/app/dashboard/page";
 
-export const CurrentlyBorrowed = () => {
+type Props = {
+  rental: RentalItem | null;
+  dailyFine?: number;
+  loading?: boolean;
+};
+
+const formatDate = (d: string) =>
+  new Date(d).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
+export const CurrentlyBorrowed = ({ rental, loading }: Props) => {
+  if (loading) {
+    return (
+      <div className="bg-card rounded-3xl p-6 border border-border/50 shadow-sm animate-pulse">
+        <div className="h-48 bg-muted/50 rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (!rental) {
+    return (
+      <div className="bg-card rounded-3xl p-8 border border-border/50 shadow-sm text-center">
+        <p className="text-secondary font-medium">You have no borrowed books.</p>
+        <p className="text-sm text-secondary/70 mt-2">
+          Visit the Books page to borrow a book.
+        </p>
+      </div>
+    );
+  }
+
+  const book = rental.physical_book;
+  const loanDate = formatDate(rental.loan_date);
+  const dueDate = formatDate(rental.due_date);
+  const daysLeft = rental.daysUntilDue ?? 0;
+  const isOverdue = rental.isOverdue ?? false;
+  const daysOverdue = rental.daysOverdue ?? 0;
+
   return (
     <div className="bg-card rounded-3xl p-6 border border-border/50 shadow-sm relative overflow-hidden group">
-      {/* Decorative Background Element */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
 
       <div className="relative flex flex-col md:flex-row gap-8">
-        {/* Book Cover */}
         <div className="w-full md:w-40 shrink-0">
           <div className="relative aspect-3/4 rounded-2xl overflow-hidden shadow-xl border-4 border-white/50">
-            <Image
-              src="/auth/image.png"
-              alt="Currently Borrowed Book"
-              fill
-              className="object-cover"
+            <img
+              src={book.cover_image_url || "/auth/image.png"}
+              alt={book.title}
+              className="w-full h-full object-cover"
             />
           </div>
         </div>
 
-        {/* Detailed Info */}
         <div className="flex-1 space-y-6">
           <div className="space-y-4">
             <div className="space-y-1">
               <h3 className="text-2xl font-serif font-extrabold text-primary">
-                የብርሃን እናት
+                {book.title}
               </h3>
-              <div className="flex items-center gap-3">
-                <p className="text-sm text-secondary font-medium">
-                  ዲያቆን ሄኖክ ኃይሌ
-                </p>
-                <div className="h-4 w-px bg-border" />
-                <div className="flex items-center gap-1 text-primary">
-                  <Star size={14} fill="currentColor" />
-                  <span className="text-xs font-bold">4.5</span>
-                </div>
-              </div>
             </div>
 
-            {/* Date Details */}
             <div className="flex flex-wrap gap-3">
               <div className="bg-muted/50 rounded-xl px-4 py-2 space-y-0.5 border border-border/30">
                 <p className="text-[10px] uppercase tracking-widest text-secondary font-bold">
                   Borrowed on
                 </p>
-                <p className="text-sm font-bold text-primary">Feb 20, 2026</p>
+                <p className="text-sm font-bold text-primary">{loanDate}</p>
               </div>
               <div className="bg-muted/50 rounded-xl px-4 py-2 space-y-0.5 border border-border/30">
                 <p className="text-[10px] uppercase tracking-widest text-secondary font-bold">
                   Due date
                 </p>
-                <p className="text-sm font-bold text-primary">March 6, 2026</p>
+                <p className="text-sm font-bold text-primary">{dueDate}</p>
               </div>
-              <div className="bg-orange-50 rounded-xl px-4 py-2 space-y-0.5 border border-orange-100">
-                <p className="text-[10px] uppercase tracking-widest text-orange-600 font-bold">
-                  Days remaining
+              <div
+                className={
+                  isOverdue
+                    ? "bg-red-50 rounded-xl px-4 py-2 space-y-0.5 border border-red-100"
+                    : "bg-orange-50 rounded-xl px-4 py-2 space-y-0.5 border border-orange-100"
+                }
+              >
+                <p
+                  className={
+                    isOverdue
+                      ? "text-[10px] uppercase tracking-widest text-red-600 font-bold"
+                      : "text-[10px] uppercase tracking-widest text-orange-600 font-bold"
+                  }
+                >
+                  {isOverdue ? "Days overdue" : "Days remaining"}
                 </p>
-                <p className="text-sm font-bold text-orange-700">2 days left</p>
+                <p
+                  className={
+                    isOverdue
+                      ? "text-sm font-bold text-red-700"
+                      : "text-sm font-bold text-orange-700"
+                  }
+                >
+                  {isOverdue ? `${daysOverdue} days` : `${daysLeft} days left`}
+                </p>
               </div>
             </div>
           </div>
 
-          <button className="w-full md:w-auto px-8 py-3 rounded-full bg-primary text-background font-bold text-sm shadow-lg hover:bg-accent transition-all active:scale-95">
-            Return Book
-          </button>
+          <p className="text-xs text-secondary">
+            Return this book to a librarian to complete the return.
+          </p>
         </div>
       </div>
     </div>

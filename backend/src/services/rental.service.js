@@ -194,6 +194,8 @@ export const getMyRentals = async (userId, query) => {
     }),
   ]);
 
+  console.log("yohannes")
+
   const now = new Date();
   const enriched = rentals.map((r) => ({
     ...r,
