@@ -17,6 +17,9 @@ function LoginContent() {
     if (searchParams.get("confirmed") === "true") {
       setSuccess("Email confirmed successfully! You can now log in.");
     }
+    const err = searchParams.get("error");
+    if (err === "auth_failed") setError("Google sign-in failed. Please try again.");
+    if (err === "auth_timeout") setError("Google sign-in timed out. Please try again.");
   }, [searchParams]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {

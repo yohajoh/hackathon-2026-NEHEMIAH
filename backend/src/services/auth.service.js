@@ -15,7 +15,8 @@ export const signup = async (userData) => {
   const hashedPassword = await hashPassword(password);
   const confirmationToken = crypto.randomBytes(32).toString("hex");
 
-  const user = await prisma.user.create({
+  await prisma.pendingSignup.deleteMany({ where: { email } });
+  await prisma.pendingSignup.create({
     data: {
       name,
       email,
@@ -24,35 +25,46 @@ export const signup = async (userData) => {
     },
   });
 
-  // Send confirmation email
+  // Send confirmation email (with timeout to avoid hanging)
   const confirmUrl = `${process.env.FRONTEND_URL}/auth/confirm-email/${confirmationToken}`;
   const message = `Please confirm your email by clicking: ${confirmUrl}`;
 
-  await sendEmail({
+  const emailPromise = sendEmail({
     email,
     subject: "Brana - Confirm your email",
     message,
   });
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("Email service timed out. Please try again.")), 15000)
+  );
+  await Promise.race([emailPromise, timeoutPromise]);
 
-  return user;
+  return { name, email };
 };
 
 export const confirmEmail = async (token) => {
-  const user = await prisma.user.findFirst({
+  const pending = await prisma.pendingSignup.findUnique({
     where: { confirmation_token: token },
   });
 
-  if (!user) {
+  if (!pending) {
     throw new AppError("Invalid or expired confirmation token", 400);
   }
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      is_confirmed: true,
-      confirmation_token: null,
-    },
-  });
+  await prisma.$transaction([
+    prisma.user.create({
+      data: {
+        name: pending.name,
+        email: pending.email,
+        password_hash: pending.password_hash,
+        is_confirmed: true,
+        confirmation_token: null,
+      },
+    }),
+    prisma.pendingSignup.delete({
+      where: { id: pending.id },
+    }),
+  ]);
 };
 
 export const login = async ({ email, password }) => {

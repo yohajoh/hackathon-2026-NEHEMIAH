@@ -11,24 +11,39 @@ passport.use(
       scope: ["profile", "email"],
     },
     async (accessToken, refreshToken, profile, done) => {
-      console.log("Google Strategy Callback URL:", process.env.CALLBACK_URL);
       try {
-        const { id, displayName, emails } = profile;
-        const email = emails[0].value;
+        const email = profile.emails?.[0]?.value;
+        if (!email) {
+          return done(new Error("No email provided by Google"), null);
+        }
+        const displayName = profile.displayName || email.split("@")[0];
 
         let user = await prisma.user.findUnique({ where: { email } });
 
-        if (!user) {
-          user = await prisma.user.create({
-            data: {
-              name: displayName,
-              email: email,
-              password_hash: "google-auth", // Place holder for OAuth users
-              is_confirmed: true, // Google accounts are implicitly confirmed
-            },
-          });
+        if (user) {
+          // Existing user: login (reject if blocked)
+          if (user.is_blocked) {
+            return done(new Error("Your account is blocked. Please contact admin."), null);
+          }
+          // If user signed up manually and hasn't confirmed, treat Google as verification
+          if (!user.is_confirmed) {
+            user = await prisma.user.update({
+              where: { id: user.id },
+              data: { is_confirmed: true, confirmation_token: null },
+            });
+          }
+          return done(null, user);
         }
 
+        // New user: register and login
+        user = await prisma.user.create({
+          data: {
+            name: displayName,
+            email,
+            password_hash: "google-auth",
+            is_confirmed: true,
+          },
+        });
         return done(null, user);
       } catch (error) {
         return done(error, null);

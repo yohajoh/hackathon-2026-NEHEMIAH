@@ -17,6 +17,10 @@ export const signup = async (req, res, next) => {
       data: { user },
     });
   } catch (error) {
+    console.error("Signup error:", error?.message || error);
+    if (error?.code === "P2021" || error?.message?.includes("does not exist")) {
+      return next(new AppError("Database setup incomplete. Please run: pnpm prisma db push", 500));
+    }
     next(error);
   }
 };
