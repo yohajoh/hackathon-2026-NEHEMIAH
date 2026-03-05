@@ -105,7 +105,15 @@ export const updateMe = async (req, res, next) => {
 
 export const updatePassword = async (req, res, next) => {
   try {
-    await authService.updatePassword(req.user.id, req.body.current_password, req.body.new_password);
+    // Support both camelCase and snake_case
+    const currentPassword = req.body.currentPassword || req.body.current_password;
+    const newPassword = req.body.newPassword || req.body.new_password;
+    
+    if (!currentPassword || !newPassword) {
+      throw new AppError("Current password and new password are required", 400);
+    }
+    
+    await authService.updatePassword(req.user.id, currentPassword, newPassword);
     res.status(200).json({
       status: "success",
       message: "Password updated successfully",

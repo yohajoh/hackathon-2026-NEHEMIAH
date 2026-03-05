@@ -55,7 +55,7 @@ app.use("/api/authors", authorRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/book-images", bookImageRoutes);
 app.use("/api/reviews", reviewRoutes);
-app.use("/api/wishlists", wishlistRoutes);
+app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/rentals", rentalRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/notifications", notificationRoutes);

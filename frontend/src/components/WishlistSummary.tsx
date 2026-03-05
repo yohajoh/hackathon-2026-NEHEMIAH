@@ -1,29 +1,69 @@
 "use client";
 
-import React from "react";
-import { BookMarked, CheckCircle2, Clock, Bell } from "lucide-react";
+import { BookMarked, CheckCircle2, Clock } from "lucide-react";
 
-export const WishlistSummary = () => {
+type WishlistItem = {
+  id: string;
+  bookAvailable: boolean;
+  bookDeleted: boolean;
+};
+
+type Props = {
+  wishlist: WishlistItem[];
+  loading?: boolean;
+};
+
+export const WishlistSummary = ({ wishlist, loading }: Props) => {
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-serif font-extrabold text-primary">
+            My Reading Wishlist
+          </h2>
+          <p className="text-sm text-secondary font-medium">
+            Save books for later. We&apos;ll notify you when they&apos;re available.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm animate-pulse"
+            >
+              <div className="h-20 bg-muted/50 rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const totalBooks = wishlist.length;
+  const availableNow = wishlist.filter((item) => item.bookAvailable && !item.bookDeleted).length;
+  const unavailable = wishlist.filter((item) => !item.bookAvailable && !item.bookDeleted).length;
+  const deleted = wishlist.filter((item) => item.bookDeleted).length;
+
   const stats = [
     {
       label: "Books On Wishlist",
-      value: "5",
+      value: totalBooks.toString(),
       icon: <BookMarked className="text-secondary" size={24} />,
     },
     {
       label: "Available Now",
-      value: "1",
+      value: availableNow.toString(),
       icon: <CheckCircle2 className="text-secondary" size={24} />,
     },
     {
-      label: "Coming Soon",
-      value: "4",
+      label: "Currently Unavailable",
+      value: unavailable.toString(),
       icon: <Clock className="text-secondary" size={24} />,
     },
     {
-      label: "Notify Me When Available",
-      value: "ON for all",
-      icon: <Bell className="text-secondary" size={24} />,
+      label: "No Longer Available",
+      value: deleted.toString(),
+      icon: <Clock className="text-secondary" size={24} />,
     },
   ];
 
@@ -34,8 +74,7 @@ export const WishlistSummary = () => {
           My Reading Wishlist
         </h2>
         <p className="text-sm text-secondary font-medium">
-          Save books for later. We&apos;ll notify you when they&apos;re
-          available.
+          Save books for later. We&apos;ll notify you when they&apos;re available.
         </p>
       </div>
 
