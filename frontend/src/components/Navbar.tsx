@@ -1,10 +1,17 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { User } from "lucide-react";
+import { fetchCurrentUser } from "@/lib/api";
 
 export const Navbar = () => {
+  const [user, setUser] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
+
+  useEffect(() => {
+    fetchCurrentUser().then(setUser);
+  }, []);
+
   return (
     <header className="sticky top-0 z-50 w-full pt-4 pb-2 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6">
@@ -43,15 +50,33 @@ export const Navbar = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-3">
-            <button className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-secondary hover:text-primary hover:border-primary transition-all">
-              <User size={18} />
-            </button>
-            <Link
-              href="/auth/login"
-              className="rounded-full bg-primary px-6 py-2 text-sm font-bold text-background shadow-md hover:bg-accent transition-all active:scale-95"
-            >
-              Log in
-            </Link>
+            {user ? (
+              <Link
+                href={user.role === "ADMIN" ? "/dashboard/admin" : "/dashboard"}
+                className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-secondary hover:text-primary hover:border-primary transition-all"
+              >
+                <User size={18} />
+                <span className="text-sm font-medium truncate max-w-[140px]">
+                  {user.name}
+                </span>
+              </Link>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  aria-label="User menu"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-secondary hover:text-primary hover:border-primary transition-all"
+                >
+                  <User size={18} />
+                </button>
+                <Link
+                  href="/auth/login"
+                  className="rounded-full bg-primary px-6 py-2 text-sm font-bold text-background shadow-md hover:bg-accent transition-all active:scale-95"
+                >
+                  Log in
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -33,11 +33,12 @@ function LoginContent() {
     const password = formData.get("password") as string;
 
     try {
-      await fetchApi("/auth/login", {
+      const data = await fetchApi("/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      router.push("/");
+      const role = data?.data?.user?.role ?? "STUDENT";
+      router.push(role === "ADMIN" ? "/dashboard/admin" : "/dashboard");
     } catch (err: any) {
       setError(err.message || "Invalid email or password");
     } finally {
