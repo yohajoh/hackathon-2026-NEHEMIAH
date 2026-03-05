@@ -38,7 +38,7 @@ function LoginContent() {
         body: JSON.stringify({ email, password }),
       });
       const role = data?.data?.user?.role ?? "STUDENT";
-      router.push(role === "ADMIN" ? "/dashboard/admin" : "/dashboard");
+      router.push(role === "ADMIN" ? "/dashboard/admin" : "/dashboard/student");
     } catch (err: any) {
       setError(err.message || "Invalid email or password");
     } finally {

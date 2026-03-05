@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Navbar } from "@/components/Navbar";
-import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { HistorySummary } from "@/components/HistorySummary";
 import { DetailedHistoryTable } from "@/components/DetailedHistoryTable";
 import { Pagination } from "@/components/Pagination";
@@ -36,7 +34,7 @@ export default function BorrowingHistoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const limit = 20;
+  const limit = 10;
 
   useEffect(() => {
     async function load() {
@@ -68,32 +66,33 @@ export default function BorrowingHistoryPage() {
   }, [page]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-primary/10">
-      <Navbar />
+    <div className="p-6 lg:p-12 space-y-12">
+      <div className="space-y-2">
+        <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-primary">
+          Borrowing History
+        </h1>
+        <p className="text-secondary font-medium">
+          View your complete borrowing history and track your reading journey.
+        </p>
+      </div>
 
-      <div className="grow flex flex-col lg:flex-row">
-        <DashboardSidebar />
+      {error && (
+        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600 border border-red-100">
+          {error}
+        </div>
+      )}
 
-        <main className="flex-1 p-6 lg:p-12 space-y-16">
-          {error && (
-            <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600 border border-red-100">
-              {error}
-            </div>
-          )}
+      <HistorySummary rentals={rentals} config={config} loading={loading} />
 
-          <HistorySummary rentals={rentals} config={config} loading={loading} />
-
-          <div className="space-y-8">
-            <DetailedHistoryTable rentals={rentals} config={config} loading={loading} />
-            {totalPages > 1 && (
-              <Pagination 
-                currentPage={page} 
-                totalPages={totalPages} 
-                onPageChange={setPage}
-              />
-            )}
-          </div>
-        </main>
+      <div className="space-y-8">
+        <DetailedHistoryTable rentals={rentals} config={config} loading={loading} />
+        {totalPages > 1 && (
+          <Pagination 
+            currentPage={page} 
+            totalPages={totalPages} 
+            onPageChange={setPage}
+          />
+        )}
       </div>
     </div>
   );

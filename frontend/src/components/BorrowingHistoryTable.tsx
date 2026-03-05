@@ -47,7 +47,7 @@ export const BorrowingHistoryTable = ({ rentals, loading }: Props) => {
           Borrowing History
         </h3>
         <Link
-          href="/dashboard/history"
+          href="/dashboard/student/history"
           className="flex items-center gap-1 text-sm font-bold text-secondary hover:text-primary transition-colors group"
         >
           See all
