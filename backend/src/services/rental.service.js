@@ -190,11 +190,9 @@ export const getMyRentals = async (userId, query) => {
     prisma.rental.groupBy({
       by: ['status'],
       where: { user_id: userId },
-      _count: { status: true },
+      _count: true,
     }),
   ]);
-
-  console.log("yohannes")
 
   const now = new Date();
   const enriched = rentals.map((r) => ({
@@ -211,7 +209,7 @@ export const getMyRentals = async (userId, query) => {
   }));
 
   const statusSummary = counts.reduce((acc, c) => {
-    acc[c.status] = c._count.status;
+    acc[c.status] = c._count;
     return acc;
   }, {});
 

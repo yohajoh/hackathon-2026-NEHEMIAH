@@ -169,6 +169,8 @@ export const getMe = async (userId) => {
       name: true,
       email: true,
       phone: true,
+      year: true,
+      department: true,
       role: true,
       student_id: true,
       is_confirmed: true,
@@ -186,7 +188,7 @@ export const getMe = async (userId) => {
 export const updateMe = async (userId, updateData) => {
   // Filter out fields that shouldn't be updated via this method
   const filteredData = {};
-  const allowedFields = ["name", "phone"];
+  const allowedFields = ["name", "phone", "year", "department"];
   allowedFields.forEach((field) => {
     if (updateData[field] !== undefined) {
       filteredData[field] = updateData[field];
@@ -201,6 +203,8 @@ export const updateMe = async (userId, updateData) => {
       name: true,
       email: true,
       phone: true,
+      year: true,
+      department: true,
       role: true,
       student_id: true,
     },

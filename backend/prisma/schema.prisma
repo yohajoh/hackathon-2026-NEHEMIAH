@@ -71,6 +71,8 @@ model User {
   name                 String
   email                String        @unique // Mark unique for Auth
   phone                String?       // Standard example suggests potential requirement, mark optional but you may tighten it
+  year                 String?       // Student year (e.g., "1st Year", "2nd Year", etc.)
+  department           String?       // Student department (e.g., "Computer Science", "Engineering", etc.)
   password_hash        String
   role                 Role          @default(STUDENT) // Default based on diagram
   is_confirmed         Boolean       @default(false)

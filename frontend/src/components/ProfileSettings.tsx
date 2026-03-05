@@ -8,6 +8,8 @@ type UserData = {
   name: string;
   email: string;
   phone: string | null;
+  year: string | null;
+  department: string | null;
   student_id: string | null;
   role: string;
 };
@@ -21,6 +23,8 @@ type Props = {
 export const ProfileSettings = ({ user, loading, onUpdate }: Props) => {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [year, setYear] = useState("");
+  const [department, setDepartment] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -28,6 +32,8 @@ export const ProfileSettings = ({ user, loading, onUpdate }: Props) => {
     if (user) {
       setName(user.name || "");
       setPhone(user.phone || "");
+      setYear(user.year || "");
+      setDepartment(user.department || "");
     }
   }, [user]);
 
@@ -38,7 +44,12 @@ export const ProfileSettings = ({ user, loading, onUpdate }: Props) => {
 
       const response = await fetchApi("/auth/update-me", {
         method: "PATCH",
-        body: JSON.stringify({ name, phone: phone || null }),
+        body: JSON.stringify({ 
+          name, 
+          phone: phone || null,
+          year: year || null,
+          department: department || null
+        }),
       });
 
       if (response?.data?.user) {
@@ -64,6 +75,8 @@ export const ProfileSettings = ({ user, loading, onUpdate }: Props) => {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl animate-pulse">
           <div className="md:col-span-2 h-16 bg-muted/50 rounded-xl" />
+          <div className="h-16 bg-muted/50 rounded-xl" />
+          <div className="h-16 bg-muted/50 rounded-xl" />
           <div className="h-16 bg-muted/50 rounded-xl" />
           <div className="h-16 bg-muted/50 rounded-xl" />
         </div>
@@ -131,6 +144,37 @@ export const ProfileSettings = ({ user, loading, onUpdate }: Props) => {
           />
         </div>
 
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-secondary uppercase tracking-widest px-1">
+            Year
+          </label>
+          <select
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+            className="w-full px-5 py-3.5 rounded-xl border border-border bg-card text-sm text-primary focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all"
+          >
+            <option value="">Select Year</option>
+            <option value="1st Year">1st Year</option>
+            <option value="2nd Year">2nd Year</option>
+            <option value="3rd Year">3rd Year</option>
+            <option value="4th Year">4th Year</option>
+            <option value="5th Year">5th Year</option>
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-secondary uppercase tracking-widest px-1">
+            Department
+          </label>
+          <input
+            type="text"
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+            placeholder="e.g., Computer Science"
+            className="w-full px-5 py-3.5 rounded-xl border border-border bg-card text-sm text-primary focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-secondary/30"
+          />
+        </div>
+
         <div className="md:col-span-2 space-y-2">
           <label className="text-xs font-bold text-secondary uppercase tracking-widest px-1">
             Email Address
@@ -151,6 +195,8 @@ export const ProfileSettings = ({ user, loading, onUpdate }: Props) => {
             onClick={() => {
               setName(user?.name || "");
               setPhone(user?.phone || "");
+              setYear(user?.year || "");
+              setDepartment(user?.department || "");
               setMessage(null);
             }}
             disabled={saving}

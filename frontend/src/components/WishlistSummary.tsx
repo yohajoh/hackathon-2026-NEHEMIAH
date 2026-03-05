@@ -16,25 +16,15 @@ type Props = {
 export const WishlistSummary = ({ wishlist, loading }: Props) => {
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-serif font-extrabold text-primary">
-            My Reading Wishlist
-          </h2>
-          <p className="text-sm text-secondary font-medium">
-            Save books for later. We&apos;ll notify you when they&apos;re available.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm animate-pulse"
-            >
-              <div className="h-20 bg-muted/50 rounded" />
-            </div>
-          ))}
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm animate-pulse"
+          >
+            <div className="h-20 bg-muted/50 rounded" />
+          </div>
+        ))}
       </div>
     );
   }
@@ -68,18 +58,8 @@ export const WishlistSummary = ({ wishlist, loading }: Props) => {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h2 className="text-2xl font-serif font-extrabold text-primary">
-          My Reading Wishlist
-        </h2>
-        <p className="text-sm text-secondary font-medium">
-          Save books for later. We&apos;ll notify you when they&apos;re available.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, index) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {stats.map((stat, index) => (
           <div
             key={index}
             className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm flex flex-col gap-4"
@@ -96,6 +76,5 @@ export const WishlistSummary = ({ wishlist, loading }: Props) => {
           </div>
         ))}
       </div>
-    </div>
   );
 };

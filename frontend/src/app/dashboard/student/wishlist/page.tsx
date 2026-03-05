@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Navbar } from "@/components/Navbar";
-import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { WishlistSummary } from "@/components/WishlistSummary";
 import { WishlistGrid } from "@/components/WishlistGrid";
 import { Pagination } from "@/components/Pagination";
@@ -81,7 +79,6 @@ export default function WishlistPage() {
   const handleRemove = async (itemId: string) => {
     try {
       await fetchApi(`/wishlist/${itemId}`, { method: "DELETE" });
-      // Reload wishlist after removal
       loadWishlist();
     } catch (e) {
       console.error("Remove error:", e);
@@ -90,38 +87,39 @@ export default function WishlistPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-primary/10">
-      <Navbar />
+    <div className="p-6 lg:p-12 space-y-12">
+      <div className="space-y-2">
+        <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-primary">
+          My Wishlist
+        </h1>
+        <p className="text-secondary font-medium">
+          Books you want to read. We&apos;ll notify you when they&apos;re available.
+        </p>
+      </div>
 
-      <div className="grow flex flex-col lg:flex-row">
-        <DashboardSidebar />
+      {error && (
+        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600 border border-red-100">
+          {error}
+        </div>
+      )}
 
-        <main className="flex-1 p-6 lg:p-12 space-y-16">
-          {error && (
-            <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600 border border-red-100">
-              {error}
-            </div>
-          )}
+      <WishlistSummary wishlist={wishlist} loading={loading} />
 
-          <WishlistSummary wishlist={wishlist} loading={loading} />
-
-          <div className="space-y-10">
-            <WishlistGrid 
-              wishlist={wishlist} 
-              loading={loading}
-              filter={filter}
-              onFilterChange={setFilter}
-              onRemove={handleRemove}
-            />
-            {totalPages > 1 && (
-              <Pagination 
-                currentPage={page} 
-                totalPages={totalPages} 
-                onPageChange={setPage}
-              />
-            )}
-          </div>
-        </main>
+      <div className="space-y-10">
+        <WishlistGrid 
+          wishlist={wishlist} 
+          loading={loading}
+          filter={filter}
+          onFilterChange={setFilter}
+          onRemove={handleRemove}
+        />
+        {totalPages > 1 && (
+          <Pagination 
+            currentPage={page} 
+            totalPages={totalPages} 
+            onPageChange={setPage}
+          />
+        )}
       </div>
     </div>
   );
