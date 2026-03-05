@@ -123,8 +123,8 @@ export const getBooks = async (query) => {
   }
 
   // Sort – support -field for descending
-  const ALLOWED_SORT_FIELDS = ['title', 'available', 'pages', 'created_at'];
-  let orderBy = [{ created_at: 'desc' }];
+  const ALLOWED_SORT_FIELDS = ['title', 'available', 'pages'];
+  let orderBy = [{ title: 'asc' }];
   if (query.sort) {
     const desc = query.sort.startsWith('-');
     const field = desc ? query.sort.slice(1) : query.sort;
@@ -384,8 +384,8 @@ export const getAdminBooks = async (query) => {
     ];
   }
 
-  const ALLOWED = ['title', 'available', 'copies', 'created_at', 'deleted_at'];
-  let orderBy = [{ created_at: 'desc' }];
+  const ALLOWED = ['title', 'available', 'copies'];
+  let orderBy = [{ title: 'asc' }];
   if (query.sort) {
     const desc = query.sort.startsWith('-');
     const field = desc ? query.sort.slice(1) : query.sort;
