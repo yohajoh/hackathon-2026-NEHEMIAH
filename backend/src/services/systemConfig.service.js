@@ -54,6 +54,8 @@ export const updateConfig = async (adminId, data, io) => {
     max_loan_days,
     daily_fine,
     max_books_per_user,
+    reservation_window_hr,
+    low_stock_threshold,
     enable_notifications,
   } = data;
 
@@ -61,6 +63,8 @@ export const updateConfig = async (adminId, data, io) => {
   const maxDays = parseInt(max_loan_days, 10);
   const dailyFineNum = parseFloat(daily_fine);
   const maxBooks = parseInt(max_books_per_user, 10);
+  const reservationWindow = parseInt(reservation_window_hr, 10);
+  const lowStockThreshold = parseInt(low_stock_threshold, 10);
 
   if (max_loan_days !== undefined) {
     if (isNaN(maxDays) || maxDays < 1 || maxDays > 365) {
@@ -75,6 +79,16 @@ export const updateConfig = async (adminId, data, io) => {
   if (max_books_per_user !== undefined) {
     if (isNaN(maxBooks) || maxBooks < 1 || maxBooks > 20) {
       throw new AppError('max_books_per_user must be between 1 and 20', 400);
+    }
+  }
+  if (reservation_window_hr !== undefined) {
+    if (isNaN(reservationWindow) || reservationWindow < 1 || reservationWindow > 168) {
+      throw new AppError('reservation_window_hr must be between 1 and 168', 400);
+    }
+  }
+  if (low_stock_threshold !== undefined) {
+    if (isNaN(lowStockThreshold) || lowStockThreshold < 0 || lowStockThreshold > 50) {
+      throw new AppError('low_stock_threshold must be between 0 and 50', 400);
     }
   }
 
@@ -94,6 +108,8 @@ export const updateConfig = async (adminId, data, io) => {
         max_loan_days: maxDays,
         daily_fine: dailyFineNum,
         max_books_per_user: maxBooks,
+        reservation_window_hr: reservationWindow || 24,
+        low_stock_threshold: lowStockThreshold || 2,
         enable_notifications: enable_notifications !== undefined ? Boolean(enable_notifications) : true,
         last_updated_by_id: adminId,
       },
@@ -106,6 +122,8 @@ export const updateConfig = async (adminId, data, io) => {
     if (max_loan_days !== undefined) updateData.max_loan_days = maxDays;
     if (daily_fine !== undefined) updateData.daily_fine = dailyFineNum;
     if (max_books_per_user !== undefined) updateData.max_books_per_user = maxBooks;
+    if (reservation_window_hr !== undefined) updateData.reservation_window_hr = reservationWindow;
+    if (low_stock_threshold !== undefined) updateData.low_stock_threshold = lowStockThreshold;
     if (enable_notifications !== undefined) updateData.enable_notifications = Boolean(enable_notifications);
 
     config = await prisma.systemConfig.update({

@@ -12,6 +12,8 @@
 import { prisma } from '../prisma.js';
 import { AppError } from '../middlewares/error.middleware.js';
 import { paginationMeta } from '../utils/apiFeatures.js';
+import { syncLowStockAlertForBook } from './inventoryAlert.service.js';
+import { uploadImageToCloudinary } from '../utils/cloudinary.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SHARED HELPERS
@@ -69,6 +71,64 @@ const BOOK_DETAIL_INCLUDE = {
   category: { select: { id: true, name: true, slug: true } },
   images: { orderBy: { sort_order: 'asc' } },
   _count: { select: { rentals: true, reviews: true, wishlists: true } },
+};
+
+const DEFAULT_COVER_IMAGE = 'https://placehold.co/400x600?text=Brana+Book';
+
+const resolveAuthorId = async (data) => {
+  if (data.author_id) {
+    const author = await prisma.author.findUnique({ where: { id: data.author_id } });
+    if (!author) throw new AppError('Author not found', 404);
+    return data.author_id;
+  }
+
+  if (data.author_name?.trim()) {
+    const normalizedName = data.author_name.trim();
+    const existing = await prisma.author.findFirst({
+      where: { name: { equals: normalizedName, mode: 'insensitive' } },
+    });
+    if (existing) return existing.id;
+
+    const created = await prisma.author.create({
+      data: {
+        name: normalizedName,
+        bio: `Auto-created author profile for ${normalizedName}.`,
+        image: 'https://placehold.co/200x200?text=Author',
+      },
+    });
+    return created.id;
+  }
+
+  throw new AppError('author_id or author_name is required', 400);
+};
+
+const resolveCategoryId = async (data) => {
+  if (data.category_id) {
+    const category = await prisma.category.findUnique({ where: { id: data.category_id } });
+    if (!category) throw new AppError('Category not found', 404);
+    return data.category_id;
+  }
+
+  if (data.category_name?.trim()) {
+    const normalizedName = data.category_name.trim();
+    const slug = normalizedName.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+    const existing = await prisma.category.findFirst({
+      where: {
+        OR: [
+          { name: { equals: normalizedName, mode: 'insensitive' } },
+          { slug },
+        ],
+      },
+    });
+    if (existing) return existing.id;
+
+    const created = await prisma.category.create({
+      data: { name: normalizedName, slug },
+    });
+    return created.id;
+  }
+
+  throw new AppError('category_id or category_name is required', 400);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -219,32 +279,51 @@ export const getBookById = async (id, userId = null) => {
  * Create a new physical book.
  * All copies start as available.
  */
-export const createBook = async (data) => {
-  const { title, author_id, category_id, description, cover_image_url, copies, pages } = data;
+export const createBook = async (data, imageFile = null) => {
+  const title = data.title?.trim();
+  if (!title) throw new AppError('title is required', 400);
 
-  // Validate related records exist
-  const [author, category] = await Promise.all([
-    prisma.author.findUnique({ where: { id: author_id } }),
-    prisma.category.findUnique({ where: { id: category_id } }),
+  const [author_id, category_id] = await Promise.all([
+    resolveAuthorId(data),
+    resolveCategoryId(data),
   ]);
-  if (!author) throw new AppError('Author not found', 404);
-  if (!category) throw new AppError('Category not found', 404);
 
-  const copiesInt = Math.max(1, parseInt(copies, 10));
+  const copiesRaw = data.copies ?? data.total;
+  const copiesInt = Math.max(1, parseInt(copiesRaw, 10) || 1);
+  const pagesInt = Math.max(1, parseInt(data.pages, 10) || 100);
+  const coverFromUpload = await uploadImageToCloudinary(imageFile, {
+    folder: 'brana/physical-books/covers',
+  });
+  const description = data.description?.trim() || 'No description provided.';
 
-  return prisma.book.create({
+  const created = await prisma.book.create({
     data: {
-      title: title.trim(),
+      title,
       author_id,
       category_id,
-      description: description.trim(),
-      cover_image_url,
+      description,
+      cover_image_url: coverFromUpload || data.cover_image_url || DEFAULT_COVER_IMAGE,
       copies: copiesInt,
       available: copiesInt, // all copies start available
-      pages: parseInt(pages, 10),
+      pages: pagesInt,
     },
     include: BOOK_DETAIL_INCLUDE,
   });
+
+  if (coverFromUpload) {
+    await prisma.bookImage.create({
+      data: {
+        book_id: created.id,
+        book_type: 'PHYSICAL',
+        image_url: coverFromUpload,
+        sort_order: 1,
+        physical_book_id: created.id,
+      },
+    });
+  }
+
+  await syncLowStockAlertForBook(created.id);
+  return created;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -255,7 +334,7 @@ export const createBook = async (data) => {
  * Update book metadata.
  * If copies changes, recalculates available proportionally.
  */
-export const updateBook = async (id, data) => {
+export const updateBook = async (id, data, imageFile = null) => {
   const book = await prisma.book.findFirst({ where: { id, deleted_at: null } });
   if (!book) throw new AppError('Book not found', 404);
 
@@ -265,24 +344,28 @@ export const updateBook = async (id, data) => {
   if (data.description) updateData.description = data.description.trim();
   if (data.cover_image_url) updateData.cover_image_url = data.cover_image_url;
   if (data.pages) updateData.pages = parseInt(data.pages, 10);
+  let uploadedCover = null;
+  if (imageFile) {
+    uploadedCover = await uploadImageToCloudinary(imageFile, {
+      folder: 'brana/physical-books/covers',
+    });
+    updateData.cover_image_url = uploadedCover;
+  }
 
   // Update category only if it exists
-  if (data.category_id) {
-    const cat = await prisma.category.findUnique({ where: { id: data.category_id } });
-    if (!cat) throw new AppError('Category not found', 404);
-    updateData.category_id = data.category_id;
+  if (data.category_id || data.category_name) {
+    updateData.category_id = await resolveCategoryId(data);
   }
 
   // Update author only if it exists
-  if (data.author_id) {
-    const auth = await prisma.author.findUnique({ where: { id: data.author_id } });
-    if (!auth) throw new AppError('Author not found', 404);
-    updateData.author_id = data.author_id;
+  if (data.author_id || data.author_name) {
+    updateData.author_id = await resolveAuthorId(data);
   }
 
   // If copies is changing, adjust available accordingly
-  if (data.copies !== undefined) {
-    const newCopies = parseInt(data.copies, 10);
+  const copyInput = data.copies ?? data.total;
+  if (copyInput !== undefined) {
+    const newCopies = parseInt(copyInput, 10);
     if (newCopies < 0) throw new AppError('Copies cannot be negative', 400);
     const borrowed = book.copies - book.available;
     const newAvailable = Math.max(0, newCopies - borrowed);
@@ -290,11 +373,32 @@ export const updateBook = async (id, data) => {
     updateData.available = newAvailable;
   }
 
-  return prisma.book.update({
+  const updated = await prisma.book.update({
     where: { id },
     data: updateData,
     include: BOOK_DETAIL_INCLUDE,
   });
+
+  if (uploadedCover) {
+    const lastImage = await prisma.bookImage.findFirst({
+      where: { physical_book_id: id, book_type: 'PHYSICAL' },
+      orderBy: { sort_order: 'desc' },
+      select: { sort_order: true },
+    });
+
+    await prisma.bookImage.create({
+      data: {
+        book_id: id,
+        book_type: 'PHYSICAL',
+        image_url: uploadedCover,
+        sort_order: (lastImage?.sort_order ?? 0) + 1,
+        physical_book_id: id,
+      },
+    });
+  }
+
+  await syncLowStockAlertForBook(id);
+  return updated;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -319,10 +423,12 @@ export const deleteBook = async (id) => {
     );
   }
 
-  return prisma.book.update({
+  const result = await prisma.book.update({
     where: { id },
     data: { deleted_at: new Date() },
   });
+  await syncLowStockAlertForBook(id);
+  return result;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -12,6 +12,7 @@
 import { prisma } from '../prisma.js';
 import { AppError } from '../middlewares/error.middleware.js';
 import { paginationMeta } from '../utils/apiFeatures.js';
+import { uploadImageToCloudinary } from '../utils/cloudinary.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -78,6 +79,64 @@ const DIGITAL_DETAIL_SELECT = /** @type {any} */ ({
   _count: { select: { reviews: true, wishlists: true } },
 });
 
+const DEFAULT_COVER_IMAGE = 'https://placehold.co/400x600?text=Brana+Digital';
+
+const resolveAuthorId = async (data) => {
+  if (data.author_id) {
+    const author = await prisma.author.findUnique({ where: { id: data.author_id } });
+    if (!author) throw new AppError('Author not found', 404);
+    return data.author_id;
+  }
+
+  if (data.author_name?.trim()) {
+    const normalizedName = data.author_name.trim();
+    const existing = await prisma.author.findFirst({
+      where: { name: { equals: normalizedName, mode: 'insensitive' } },
+    });
+    if (existing) return existing.id;
+
+    const created = await prisma.author.create({
+      data: {
+        name: normalizedName,
+        bio: `Auto-created author profile for ${normalizedName}.`,
+        image: 'https://placehold.co/200x200?text=Author',
+      },
+    });
+    return created.id;
+  }
+
+  throw new AppError('author_id or author_name is required', 400);
+};
+
+const resolveCategoryId = async (data) => {
+  if (data.category_id) {
+    const category = await prisma.category.findUnique({ where: { id: data.category_id } });
+    if (!category) throw new AppError('Category not found', 404);
+    return data.category_id;
+  }
+
+  if (data.category_name?.trim()) {
+    const normalizedName = data.category_name.trim();
+    const slug = normalizedName.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+    const existing = await prisma.category.findFirst({
+      where: {
+        OR: [
+          { name: { equals: normalizedName, mode: 'insensitive' } },
+          { slug },
+        ],
+      },
+    });
+    if (existing) return existing.id;
+
+    const created = await prisma.category.create({
+      data: { name: normalizedName, slug },
+    });
+    return created.id;
+  }
+
+  throw new AppError('category_id or category_name is required', 400);
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // LIST DIGITAL BOOKS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -94,7 +153,7 @@ const DIGITAL_DETAIL_SELECT = /** @type {any} */ ({
  *   ?sort=title|pages|created_at (prefix - for desc)
  *   ?page=1&limit=12
  */
-export const getDigitalBooks = async (query, requestUser = null) => {
+export const getDigitalBooks = async (query, _requestUser = null) => {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 12));
   const skip = (page - 1) * limit;
@@ -233,9 +292,13 @@ export const getPdfBytes = async (id, user) => {
     // throw new AppError('This PDF requires a paid subscription', 402);
   }
 
+  const canDownload = book.pdf_access !== 'RESTRICTED' || user.role === 'ADMIN';
+
   return {
     bytes: book.pdf_file,
     fileName: book.pdf_name || `${book.title}.pdf`,
+    canDownload,
+    access: book.pdf_access,
   };
 };
 
@@ -247,43 +310,61 @@ export const getPdfBytes = async (id, user) => {
  * Create a digital book with PDF file.
  * Accepts uploaded PDF via multer (buffer stored as BYTEA).
  */
-export const createDigitalBook = async (data, pdfFile = null) => {
-  const { title, author_id, category_id, description, cover_image_url, pdf_access, pages } = data;
+export const createDigitalBook = async (data, pdfFile = null, imageFile = null) => {
+  const title = data.title?.trim();
+  if (!title) throw new AppError('title is required', 400);
 
   if (!pdfFile) throw new AppError('PDF file is required', 400);
 
-  const [author, category] = await Promise.all([
-    prisma.author.findUnique({ where: { id: author_id } }),
-    prisma.category.findUnique({ where: { id: category_id } }),
+  const [author_id, category_id] = await Promise.all([
+    resolveAuthorId(data),
+    resolveCategoryId(data),
   ]);
-  if (!author) throw new AppError('Author not found', 404);
-  if (!category) throw new AppError('Category not found', 404);
 
   const validAccess = ['FREE', 'PAID', 'RESTRICTED'];
-  const access = pdf_access?.toUpperCase() || 'FREE';
+  const access = data.pdf_access?.toUpperCase() || 'FREE';
   if (!validAccess.includes(access)) throw new AppError('Invalid pdf_access value', 400);
+  const coverFromUpload = await uploadImageToCloudinary(imageFile, {
+    folder: 'brana/digital-books/covers',
+  });
+  const pagesInt = Math.max(1, parseInt(data.pages, 10) || 100);
+  const description = data.description?.trim() || 'No description provided.';
 
-  return prisma.digitalBook.create({
+  const created = await prisma.digitalBook.create({
     data: {
-      title: title.trim(),
+      title,
       author_id,
       category_id,
-      description: description.trim(),
-      cover_image_url,
+      description,
+      cover_image_url: coverFromUpload || data.cover_image_url || DEFAULT_COVER_IMAGE,
       pdf_file: pdfFile.buffer,
       pdf_name: pdfFile.originalname,
       pdf_access: /** @type {any} */ (access),
-      pages: parseInt(pages, 10),
+      pages: pagesInt,
     },
     select: DIGITAL_DETAIL_SELECT,
   });
+
+  if (coverFromUpload) {
+    await prisma.bookImage.create({
+      data: {
+        book_id: created.id,
+        book_type: 'DIGITAL',
+        image_url: coverFromUpload,
+        sort_order: 1,
+        digital_book_id: created.id,
+      },
+    });
+  }
+
+  return created;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UPDATE
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const updateDigitalBook = async (id, data, pdfFile = null) => {
+export const updateDigitalBook = async (id, data, pdfFile = null, imageFile = null) => {
   const book = await prisma.digitalBook.findFirst({ where: { id, deleted_at: null } });
   if (!book) throw new AppError('Digital book not found', 404);
 
@@ -292,6 +373,13 @@ export const updateDigitalBook = async (id, data, pdfFile = null) => {
   if (data.description) updateData.description = data.description.trim();
   if (data.cover_image_url) updateData.cover_image_url = data.cover_image_url;
   if (data.pages) updateData.pages = parseInt(data.pages, 10);
+  let uploadedCover = null;
+  if (imageFile) {
+    uploadedCover = await uploadImageToCloudinary(imageFile, {
+      folder: 'brana/digital-books/covers',
+    });
+    updateData.cover_image_url = uploadedCover;
+  }
 
   if (data.pdf_access) {
     const validAccess = ['FREE', 'PAID', 'RESTRICTED'];
@@ -300,16 +388,12 @@ export const updateDigitalBook = async (id, data, pdfFile = null) => {
     updateData.pdf_access = /** @type {any} */ (access);
   }
 
-  if (data.category_id) {
-    const cat = await prisma.category.findUnique({ where: { id: data.category_id } });
-    if (!cat) throw new AppError('Category not found', 404);
-    updateData.category_id = data.category_id;
+  if (data.category_id || data.category_name) {
+    updateData.category_id = await resolveCategoryId(data);
   }
 
-  if (data.author_id) {
-    const auth = await prisma.author.findUnique({ where: { id: data.author_id } });
-    if (!auth) throw new AppError('Author not found', 404);
-    updateData.author_id = data.author_id;
+  if (data.author_id || data.author_name) {
+    updateData.author_id = await resolveAuthorId(data);
   }
 
   if (pdfFile) {
@@ -317,11 +401,31 @@ export const updateDigitalBook = async (id, data, pdfFile = null) => {
     updateData.pdf_name = pdfFile.originalname;
   }
 
-  return prisma.digitalBook.update({
+  const updated = await prisma.digitalBook.update({
     where: { id },
     data: updateData,
     select: DIGITAL_DETAIL_SELECT,
   });
+
+  if (uploadedCover) {
+    const lastImage = await prisma.bookImage.findFirst({
+      where: { digital_book_id: id, book_type: 'DIGITAL' },
+      orderBy: { sort_order: 'desc' },
+      select: { sort_order: true },
+    });
+
+    await prisma.bookImage.create({
+      data: {
+        book_id: id,
+        book_type: 'DIGITAL',
+        image_url: uploadedCover,
+        sort_order: (lastImage?.sort_order ?? 0) + 1,
+        digital_book_id: id,
+      },
+    });
+  }
+
+  return updated;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

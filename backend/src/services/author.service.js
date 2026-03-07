@@ -11,6 +11,7 @@
 import { prisma } from '../prisma.js';
 import { AppError } from '../middlewares/error.middleware.js';
 import { paginationMeta } from '../utils/apiFeatures.js';
+import { uploadImageToCloudinary } from '../utils/cloudinary.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LIST AUTHORS
@@ -119,7 +120,9 @@ export const createAuthor = async (data, imageFile = null) => {
 
   let image = data.image || '';
   if (imageFile) {
-    image = `data:${imageFile.mimetype};base64,${imageFile.buffer.toString('base64')}`;
+    image = await uploadImageToCloudinary(imageFile, {
+      folder: 'brana/authors',
+    });
   }
   if (!image) throw new AppError('Author image is required', 400);
 
@@ -149,7 +152,9 @@ export const updateAuthor = async (id, data, imageFile = null) => {
   if (data.bio) updateData.bio = data.bio.trim();
 
   if (imageFile) {
-    updateData.image = `data:${imageFile.mimetype};base64,${imageFile.buffer.toString('base64')}`;
+    updateData.image = await uploadImageToCloudinary(imageFile, {
+      folder: 'brana/authors',
+    });
   } else if (data.image) {
     updateData.image = data.image;
   }

@@ -6,6 +6,7 @@
 import { Router } from 'express';
 import * as bookController from '../controllers/book.controller.js';
 import { protect, restrictTo } from '../middlewares/auth.middleware.js';
+import { uploadImage } from '../utils/upload.js';
 
 const router = Router();
 
@@ -20,8 +21,8 @@ router.get('/:id', protect, bookController.getBook);
 router.use(protect, restrictTo('ADMIN'));
 
 router.get('/admin/list', bookController.getAdminBooks);
-router.post('/', bookController.createBook);
-router.patch('/:id', bookController.updateBook);
+router.post('/', uploadImage.single('image'), bookController.createBook);
+router.patch('/:id', uploadImage.single('image'), bookController.updateBook);
 router.delete('/:id', bookController.deleteBook);
 
 export default router;

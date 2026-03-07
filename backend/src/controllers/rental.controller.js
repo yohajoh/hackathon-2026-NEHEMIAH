@@ -3,6 +3,7 @@
  */
 
 import * as rentalService from '../services/rental.service.js';
+import { logAdminActivity } from '../services/adminActivity.service.js';
 
 const getIo = (req) => req.app.locals.io;
 
@@ -28,6 +29,15 @@ export const borrowBook = async (req, res) => {
 
 export const returnBook = async (req, res) => {
   const result = await rentalService.returnBook(req.params.id, getIo(req));
+  await logAdminActivity({
+    adminUserId: req.user.id,
+    action: 'RETURN',
+    entityType: 'RENTAL',
+    entityId: req.params.id,
+    description: `Processed return for rental ${req.params.id}`,
+    metadata: { status: result.newStatus, fine: result.fine ?? 0 },
+    req,
+  });
   res.json({ status: 'success', data: result });
 };
 
@@ -38,10 +48,27 @@ export const getOverdueRentals = async (req, res) => {
 
 export const sendOverdueReminders = async (req, res) => {
   const result = await rentalService.sendOverdueReminders(getIo(req));
+  await logAdminActivity({
+    adminUserId: req.user.id,
+    action: 'REMIND',
+    entityType: 'RENTAL',
+    description: `Sent ${result.remindersSent} overdue reminder notification(s).`,
+    metadata: result,
+    req,
+  });
   res.json({ status: 'success', data: result });
 };
 
 export const extendRental = async (req, res) => {
   const result = await rentalService.extendRental(req.params.id, req.body, getIo(req));
+  await logAdminActivity({
+    adminUserId: req.user.id,
+    action: 'EXTEND',
+    entityType: 'RENTAL',
+    entityId: req.params.id,
+    description: `Extended rental ${req.params.id} by ${req.body?.extra_days || 0} day(s).`,
+    metadata: { due_date: result.due_date },
+    req,
+  });
   res.json({ status: 'success', data: { rental: result } });
 };

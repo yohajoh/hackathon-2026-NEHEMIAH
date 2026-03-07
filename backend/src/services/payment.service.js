@@ -11,6 +11,7 @@
  *
  * Also supports CASH payments (admin records offline).
  */
+/* eslint-disable n/no-unsupported-features/node-builtins */
 
 import { prisma } from '../prisma.js';
 import { AppError } from '../middlewares/error.middleware.js';
@@ -23,10 +24,62 @@ import crypto from 'crypto';
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Generate unique transaction reference */
-const generateTxRef = (userId) => {
+const generateTxRef = (_userId) => {
   const timestamp = Date.now();
   const random = crypto.randomBytes(4).toString('hex').toUpperCase();
   return `BRANA-${timestamp}-${random}`;
+};
+
+const initializeChapaPayment = async ({
+  amount,
+  email,
+  firstName,
+  lastName,
+  txRef,
+  rentalId,
+}) => {
+  const chapaSecret = process.env.CHAPA_SECRET_KEY;
+  if (!chapaSecret) {
+    return {
+      checkout_url: `https://checkout.chapa.co/checkout/payment/${txRef}`,
+    };
+  }
+
+  const callbackUrl =
+    process.env.CHAPA_WEBHOOK_URL || `${process.env.BACKEND_URL || "http://localhost:5000"}/api/payments/webhook`;
+  const returnUrl = process.env.CHAPA_RETURN_URL || process.env.FRONTEND_URL || "http://localhost:3000";
+
+  const payload = {
+    amount: Number(amount).toFixed(2),
+    currency: "ETB",
+    email,
+    first_name: firstName || "Student",
+    last_name: lastName || "User",
+    tx_ref: txRef,
+    callback_url: callbackUrl,
+    return_url: returnUrl,
+    customization: {
+      title: "Brana Fine Payment",
+      description: `Fine payment for rental ${rentalId}`,
+    },
+  };
+
+  const response = await fetch("https://api.chapa.co/v1/transaction/initialize", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${chapaSecret}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok || result?.status === "failed") {
+    throw new AppError(result?.message || "Failed to initialize Chapa payment", 502);
+  }
+
+  return result?.data || {};
 };
 
 /** Verify Chapa HMAC signature */
@@ -138,9 +191,15 @@ export const initiatePayment = async (rentalId, userId, { method = 'CHAPA' } = {
     };
   }
 
-  // In production, integrate Chapa SDK:
-  // const chapaResponse = await chapa.initialize({ amount, tx_ref, email, first_name, ... });
-  const chapaUrl = `https://checkout.chapa.co/checkout/payment/${tx_ref}`;
+  const chapaData = await initializeChapaPayment({
+    amount: rental.fine,
+    email: rental.user.email,
+    firstName: rental.user.name?.split(" ")?.[0] || "Student",
+    lastName: rental.user.name?.split(" ")?.slice(1).join(" ") || "User",
+    txRef: tx_ref,
+    rentalId,
+  });
+  const chapaUrl = chapaData.checkout_url || `https://checkout.chapa.co/checkout/payment/${tx_ref}`;
 
   return { payment, chapaUrl };
 };
@@ -161,7 +220,9 @@ export const handleWebhook = async (rawPayload, payload, signature, io) => {
     throw new AppError('Invalid webhook signature', 401);
   }
 
-  const { tx_ref, status } = payload;
+  const normalized = payload?.data ? payload.data : payload;
+  const tx_ref = normalized?.tx_ref || normalized?.trx_ref || normalized?.reference;
+  const status = normalized?.status;
   if (!tx_ref) throw new AppError('Missing tx_ref in webhook payload', 400);
 
   const payment = await prisma.payment.findUnique({

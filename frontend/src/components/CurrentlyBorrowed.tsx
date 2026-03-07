@@ -29,9 +29,7 @@ export const CurrentlyBorrowed = ({ rental, loading }: Props) => {
     return (
       <div className="bg-card rounded-3xl p-8 border border-border/50 shadow-sm text-center">
         <p className="text-secondary font-medium">You have no borrowed books.</p>
-        <p className="text-sm text-secondary/70 mt-2">
-          Visit the Books page to borrow a book.
-        </p>
+        <p className="text-sm text-secondary/70 mt-2">Visit the Books page to borrow a book.</p>
       </div>
     );
   }
@@ -61,22 +59,16 @@ export const CurrentlyBorrowed = ({ rental, loading }: Props) => {
         <div className="flex-1 space-y-6">
           <div className="space-y-4">
             <div className="space-y-1">
-              <h3 className="text-2xl font-serif font-extrabold text-primary">
-                {book.title}
-              </h3>
+              <h3 className="text-2xl font-serif font-extrabold text-primary">{book.title}</h3>
             </div>
 
             <div className="flex flex-wrap gap-3">
               <div className="bg-muted/50 rounded-xl px-4 py-2 space-y-0.5 border border-border/30">
-                <p className="text-[10px] uppercase tracking-widest text-secondary font-bold">
-                  Borrowed on
-                </p>
+                <p className="text-[10px] uppercase tracking-widest text-secondary font-bold">Borrowed on</p>
                 <p className="text-sm font-bold text-primary">{loanDate}</p>
               </div>
               <div className="bg-muted/50 rounded-xl px-4 py-2 space-y-0.5 border border-border/30">
-                <p className="text-[10px] uppercase tracking-widest text-secondary font-bold">
-                  Due date
-                </p>
+                <p className="text-[10px] uppercase tracking-widest text-secondary font-bold">Due date</p>
                 <p className="text-sm font-bold text-primary">{dueDate}</p>
               </div>
               <div
@@ -95,22 +87,14 @@ export const CurrentlyBorrowed = ({ rental, loading }: Props) => {
                 >
                   {isOverdue ? "Days overdue" : "Days remaining"}
                 </p>
-                <p
-                  className={
-                    isOverdue
-                      ? "text-sm font-bold text-red-700"
-                      : "text-sm font-bold text-orange-700"
-                  }
-                >
+                <p className={isOverdue ? "text-sm font-bold text-red-700" : "text-sm font-bold text-orange-700"}>
                   {isOverdue ? `${daysOverdue} days` : `${daysLeft} days left`}
                 </p>
               </div>
             </div>
           </div>
 
-          <p className="text-xs text-secondary">
-            Return this book to a librarian to complete the return.
-          </p>
+          <p className="text-xs text-secondary">Return this book to a librarian to complete the return.</p>
         </div>
       </div>
     </div>

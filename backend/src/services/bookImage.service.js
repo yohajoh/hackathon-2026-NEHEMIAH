@@ -11,6 +11,7 @@
 
 import { prisma } from '../prisma.js';
 import { AppError } from '../middlewares/error.middleware.js';
+import { uploadImageToCloudinary } from '../utils/cloudinary.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -84,11 +85,19 @@ export const addBookImages = async (bookType, bookId, imageFiles) => {
   });
   let nextOrder = (maxResult?.sort_order ?? 0) + 1;
 
-  const data = imageFiles.map((file) => ({
+  const uploadedUrls = await Promise.all(
+    imageFiles.map((file) =>
+      uploadImageToCloudinary(file, {
+        folder: bt === 'PHYSICAL' ? 'brana/physical-books/gallery' : 'brana/digital-books/gallery',
+      }),
+    ),
+  );
+
+  const data = uploadedUrls.map((url) => ({
     book_id: bookId,
     book_type: /** @type {any} */ (bt),
     [field]: bookId,
-    image_url: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+    image_url: url,
     sort_order: nextOrder++,
   }));
 

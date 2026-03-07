@@ -9,6 +9,10 @@ import {
   Heart,
   Settings,
   LogOut,
+  Bell,
+  Wallet,
+  CalendarClock,
+  Library,
 } from "lucide-react";
 import { fetchCurrentUser, API_BASE_URL } from "@/lib/api";
 
@@ -51,6 +55,26 @@ export const DashboardSidebar = () => {
         name: "Wish List", 
         href: `${baseRoute}/wishlist`, 
         icon: <Heart size={20} /> 
+      },
+      {
+        name: "Reservations",
+        href: `${baseRoute}/reservations`,
+        icon: <CalendarClock size={20} />,
+      },
+      {
+        name: "Digital Library",
+        href: `${baseRoute}/digital`,
+        icon: <Library size={20} />,
+      },
+      {
+        name: "Payments",
+        href: `${baseRoute}/payments`,
+        icon: <Wallet size={20} />,
+      },
+      {
+        name: "Notifications",
+        href: `${baseRoute}/notifications`,
+        icon: <Bell size={20} />,
       },
       {
         name: "Account Settings",

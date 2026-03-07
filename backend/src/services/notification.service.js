@@ -159,7 +159,7 @@ export const getMyNotifications = async (userId, query) => {
   else if (query.is_read === 'false') where.is_read = false;
 
   // Filter by type
-  const validTypes = ['INFO', 'ALERT', 'SYSTEM'];
+  const validTypes = ['INFO', 'ALERT', 'SYSTEM', 'REMINDER', 'RESERVATION', 'WISHLIST', 'NEW_BOOK', 'OVERDUE'];
   if (query.type && validTypes.includes(query.type.toUpperCase())) {
     where.type = /** @type {any} */ (query.type.toUpperCase());
   }
@@ -207,7 +207,7 @@ export const getAllNotifications = async (query) => {
   if (query.is_read === 'true') where.is_read = true;
   else if (query.is_read === 'false') where.is_read = false;
 
-  const validTypes = ['INFO', 'ALERT', 'SYSTEM'];
+  const validTypes = ['INFO', 'ALERT', 'SYSTEM', 'REMINDER', 'RESERVATION', 'WISHLIST', 'NEW_BOOK', 'OVERDUE'];
   if (query.type && validTypes.includes(query.type.toUpperCase())) {
     where.type = /** @type {any} */ (query.type.toUpperCase());
   }

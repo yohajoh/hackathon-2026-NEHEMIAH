@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Book,
   Users,
@@ -10,18 +11,20 @@ import {
   BookMarked,
   ChevronDown,
 } from "lucide-react";
+import { fetchApi } from "@/lib/api";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
+  const [userStats, setUserStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [sendingReminders, setSendingReminders] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/stats/overview")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.status === "success") {
-          setStats(data.data);
-        }
+    Promise.all([fetchApi("/stats/overview"), fetchApi("/stats/users")])
+      .then(([overviewData, usersData]) => {
+        setStats(overviewData?.data || null);
+        setUserStats(usersData?.data || null);
         setLoading(false);
       })
       .catch((err) => {
@@ -29,6 +32,18 @@ export default function DashboardPage() {
         setLoading(false);
       });
   }, []);
+
+  const handleSendReminder = async () => {
+    setSendingReminders(true);
+    try {
+      await fetchApi("/rentals/admin/send-reminders", { method: "POST" });
+      await fetchApi("/stats/overview").then((data) => setStats(data?.data || null));
+    } catch (err) {
+      console.error("Failed to send reminders:", err);
+    } finally {
+      setSendingReminders(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -82,8 +97,12 @@ export default function DashboardPage() {
             <p className="text-[#2B1A10]/60 font-medium text-sm mb-5">
               Overdue Books
             </p>
-            <button className="bg-[#8B6B4A] text-white px-5 py-2.5 rounded-xl font-bold hover:bg-[#6D5339] transition-all w-full text-sm">
-              Send Reminder
+            <button
+              onClick={handleSendReminder}
+              disabled={sendingReminders}
+              className="bg-[#8B6B4A] text-white px-5 py-2.5 rounded-xl font-bold hover:bg-[#6D5339] transition-all w-full text-sm disabled:opacity-60"
+            >
+              {sendingReminders ? "Sending..." : "Send Reminder"}
             </button>
           </div>
 
@@ -95,7 +114,10 @@ export default function DashboardPage() {
             <p className="text-[#2B1A10]/60 font-medium text-sm mb-5">
               Pending Requests
             </p>
-            <button className="bg-[#8B6B4A] text-white px-5 py-2.5 rounded-xl font-bold hover:bg-[#6D5339] transition-all w-full text-sm">
+            <button
+              onClick={() => router.push("/dashboard/admin/borrowings?status=PENDING")}
+              className="bg-[#8B6B4A] text-white px-5 py-2.5 rounded-xl font-bold hover:bg-[#6D5339] transition-all w-full text-sm"
+            >
               Approve Request
             </button>
           </div>
@@ -108,10 +130,29 @@ export default function DashboardPage() {
             <p className="text-[#2B1A10]/60 font-medium text-sm mb-5">
               Pending returns
             </p>
-            <button className="bg-[#8B6B4A] text-white px-5 py-2.5 rounded-xl font-bold hover:bg-[#6D5339] transition-all w-full text-sm">
+            <button
+              onClick={() => router.push("/dashboard/admin/borrowings?status=RETURNED")}
+              className="bg-[#8B6B4A] text-white px-5 py-2.5 rounded-xl font-bold hover:bg-[#6D5339] transition-all w-full text-sm"
+            >
               Confirm Return
             </button>
           </div>
+        </div>
+        <div className="mt-4 bg-white p-4 rounded-2xl border border-[#E1D2BD]/50 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold text-[#AE9E85] uppercase tracking-wider">
+              Active Reservations
+            </p>
+            <p className="text-2xl font-black text-[#2B1A10]">
+              {overview.rentals.reservations || 0}
+            </p>
+          </div>
+          <button
+            onClick={() => router.push("/dashboard/admin/reservations")}
+            className="bg-[#2B1A10] text-white px-4 py-2 rounded-xl text-sm font-bold"
+          >
+            Manage Queue
+          </button>
         </div>
       </section>
 
@@ -178,9 +219,9 @@ export default function DashboardPage() {
                 Top Reader
               </p>
               <p className="text-sm font-bold text-[#2B1A10]">
-                John doe{" "}
+                {userStats?.topBorrowers?.[0]?.user?.name || "No data"}{" "}
                 <span className="text-xs font-normal text-[#AE9E85]">
-                  (5 books)
+                  ({userStats?.topBorrowers?.[0]?.rentalCount || 0} books)
                 </span>
               </p>
             </div>

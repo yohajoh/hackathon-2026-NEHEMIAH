@@ -2,6 +2,7 @@ import * as authService from "../services/auth.service.js";
 import { AppError } from "../middlewares/error.middleware.js";
 import { sendTokenCookie } from "../utils/token.utils.js";
 import { validationResult } from "express-validator";
+import { logAdminActivity } from "../services/adminActivity.service.js";
 
 export const signup = async (req, res, next) => {
   const errors = validationResult(req);
@@ -139,6 +140,14 @@ export const getAllUsers = async (req, res, next) => {
 export const blockUser = async (req, res, next) => {
   try {
     await authService.blockUser(req.params.id);
+    await logAdminActivity({
+      adminUserId: req.user.id,
+      action: "BLOCK",
+      entityType: "USER",
+      entityId: req.params.id,
+      description: `Blocked user ${req.params.id}`,
+      req,
+    });
     res.status(200).json({
       status: "success",
       message: "User blocked successfully",
@@ -151,9 +160,37 @@ export const blockUser = async (req, res, next) => {
 export const unblockUser = async (req, res, next) => {
   try {
     await authService.unblockUser(req.params.id);
+    await logAdminActivity({
+      adminUserId: req.user.id,
+      action: "UNBLOCK",
+      entityType: "USER",
+      entityId: req.params.id,
+      description: `Unblocked user ${req.params.id}`,
+      req,
+    });
     res.status(200).json({
       status: "success",
       message: "User unblocked successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteUser = async (req, res, next) => {
+  try {
+    await authService.deleteUser(req.params.id, req.user.id);
+    await logAdminActivity({
+      adminUserId: req.user.id,
+      action: "DELETE",
+      entityType: "USER",
+      entityId: req.params.id,
+      description: `Deleted user ${req.params.id}`,
+      req,
+    });
+    res.status(200).json({
+      status: "success",
+      message: "User deleted successfully",
     });
   } catch (error) {
     next(error);

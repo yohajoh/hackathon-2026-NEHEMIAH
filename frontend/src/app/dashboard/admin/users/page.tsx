@@ -1,16 +1,46 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trash2, Search, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { fetchApi } from "@/lib/api";
 
 interface User {
   id: string;
   name: string;
   email: string;
   student_id?: string;
-  year?: number;
+  year?: number | string;
   phone?: string;
   is_blocked?: boolean;
+}
+
+interface UserInsights {
+  user: User & {
+    department?: string;
+    is_confirmed?: boolean;
+    created_at?: string;
+  };
+  stats: {
+    totalRentals: number;
+    activeOverdue: number;
+    returnedOnTime: number;
+    onTimeRate: number;
+    wishlistCount: number;
+    reviewCount: number;
+    statusSummary: Record<string, number>;
+  };
+  favoriteCategories: Array<{ name: string; count: number }>;
+  history: Array<{
+    id: string;
+    bookTitle: string;
+    status: string;
+    loanDate: string;
+    dueDate: string;
+    returnDate?: string | null;
+    fine: number;
+    isLate: boolean;
+    daysLate: number;
+  }>;
 }
 
 const ITEMS_PER_PAGE = 8;
@@ -21,15 +51,16 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [insights, setInsights] = useState<UserInsights | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/auth/users", { credentials: "include" })
-      .then((res) => res.json())
+    fetchApi("/auth/users")
       .then((data) => {
         if (data.status === "success" && Array.isArray(data.data?.users)) {
           setUsers(data.data.users);
-        } else if (Array.isArray(data.users)) {
-          setUsers(data.users);
         }
         setLoading(false);
       })
@@ -38,6 +69,20 @@ export default function AdminUsersPage() {
         setLoading(false);
       });
   }, []);
+
+  const openUserInsights = async (user: User) => {
+    setSelectedUser(user);
+    setInsightLoading(true);
+    try {
+      const data = await fetchApi(`/admin/users/${user.id}/insights`);
+      setInsights(data?.data ?? null);
+    } catch (error) {
+      console.error("Failed to load user insights", error);
+      setInsights(null);
+    } finally {
+      setInsightLoading(false);
+    }
+  };
 
   const filtered = users.filter((u) => {
     const q = search.toLowerCase();
@@ -58,17 +103,33 @@ export default function AdminUsersPage() {
     if (!confirm("Are you sure you want to delete this user?")) return;
     setDeletingId(id);
     try {
-      const res = await fetch(`http://localhost:5000/api/auth/users/${id}`, {
+      await fetchApi(`/auth/users/${id}`, {
         method: "DELETE",
-        credentials: "include",
       });
-      if (res.ok) {
-        setUsers((prev) => prev.filter((u) => u.id !== id));
-      }
+      setUsers((prev) => prev.filter((u) => u.id !== id));
     } catch (err) {
       console.error("Delete failed:", err);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleToggleBlock = async (user: User) => {
+    setTogglingId(user.id);
+    const endpoint = user.is_blocked
+      ? `/auth/users/${user.id}/unblock`
+      : `/auth/users/${user.id}/block`;
+    try {
+      await fetchApi(endpoint, { method: "PATCH" });
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === user.id ? { ...u, is_blocked: !u.is_blocked } : u,
+        ),
+      );
+    } catch (err) {
+      console.error("Toggle block failed:", err);
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -112,7 +173,7 @@ export default function AdminUsersPage() {
         ) : (
           <>
             {/* Table Header */}
-            <div className="grid grid-cols-[2fr_2fr_1.5fr_0.8fr_1.2fr_auto_auto] gap-4 px-6 py-3 border-b border-[#E1D2BD]/50 bg-[#FDFAF6]">
+            <div className="grid grid-cols-[2fr_2fr_1.5fr_0.8fr_1.2fr_1fr_auto_auto] gap-4 px-6 py-3 border-b border-[#E1D2BD]/50 bg-[#FDFAF6]">
               <span className="text-[11px] font-bold text-[#AE9E85] uppercase tracking-wider">
                 Name
               </span>
@@ -128,6 +189,9 @@ export default function AdminUsersPage() {
               <span className="text-[11px] font-bold text-[#AE9E85] uppercase tracking-wider">
                 Phone No
               </span>
+              <span className="text-[11px] font-bold text-[#AE9E85] uppercase tracking-wider">
+                Status
+              </span>
               <span className="w-8"></span>
               <span className="w-28"></span>
             </div>
@@ -141,7 +205,8 @@ export default function AdminUsersPage() {
               paginated.map((user) => (
                 <div
                   key={user.id}
-                  className="grid grid-cols-[2fr_2fr_1.5fr_0.8fr_1.2fr_auto_auto] gap-4 items-center px-6 py-4 border-b border-[#E1D2BD]/30 hover:bg-[#FDFAF6] transition-colors last:border-0"
+                  onClick={() => openUserInsights(user)}
+                  className="grid grid-cols-[2fr_2fr_1.5fr_0.8fr_1.2fr_1fr_auto_auto] gap-4 items-center px-6 py-4 border-b border-[#E1D2BD]/30 hover:bg-[#FDFAF6] transition-colors last:border-0"
                 >
                   <span className="text-sm font-bold text-[#2B1A10] truncate">
                     {user.name}
@@ -158,16 +223,39 @@ export default function AdminUsersPage() {
                   <span className="text-sm text-[#2B1A10]/70">
                     {user.phone || "—"}
                   </span>
+                  <span
+                    className={`text-xs font-bold px-2.5 py-1 rounded-lg w-fit ${
+                      user.is_blocked
+                        ? "bg-red-50 text-red-700"
+                        : "bg-green-50 text-green-700"
+                    }`}
+                  >
+                    {user.is_blocked ? "Blocked" : "Active"}
+                  </span>
                   <button
-                    onClick={() => handleDelete(user.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(user.id);
+                    }}
                     disabled={deletingId === user.id}
                     className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-40"
                     title="Delete user"
                   >
                     <Trash2 size={16} strokeWidth={1.5} />
                   </button>
-                  <button className="w-28 px-3 py-1.5 text-xs font-bold text-[#2B1A10] border border-[#C2B199] rounded-lg hover:bg-[#C2B199]/20 transition-all whitespace-nowrap">
-                    borrow history
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleBlock(user);
+                    }}
+                    disabled={togglingId === user.id}
+                    className="w-28 px-3 py-1.5 text-xs font-bold text-[#2B1A10] border border-[#C2B199] rounded-lg hover:bg-[#C2B199]/20 transition-all whitespace-nowrap disabled:opacity-40"
+                  >
+                    {togglingId === user.id
+                      ? "Updating..."
+                      : user.is_blocked
+                        ? "Unblock"
+                        : "Block"}
                   </button>
                 </div>
               ))
@@ -214,6 +302,89 @@ export default function AdminUsersPage() {
           </button>
         </div>
       )}
+
+      {selectedUser && (
+        <div className="fixed inset-0 z-50 bg-black/20" onClick={() => setSelectedUser(null)}>
+          <aside
+            onClick={(e) => e.stopPropagation()}
+            className="absolute right-0 top-0 h-full w-full md:w-[40%] bg-[#FDF8F0] border-l border-[#E1D2BD] p-6 overflow-y-auto"
+          >
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <h2 className="text-2xl font-serif font-black text-[#2B1A10]">{selectedUser.name}</h2>
+                <p className="text-sm text-[#AE9E85]">{selectedUser.email}</p>
+              </div>
+              <button
+                onClick={() => setSelectedUser(null)}
+                className="w-9 h-9 rounded-xl border border-[#E1D2BD] flex items-center justify-center text-[#AE9E85] hover:text-[#2B1A10]"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {insightLoading ? (
+              <p className="text-sm text-[#AE9E85]">Loading user progress...</p>
+            ) : insights ? (
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 gap-3">
+                  <Card label="Total Rentals" value={String(insights.stats.totalRentals)} />
+                  <Card label="On-Time Rate" value={`${insights.stats.onTimeRate}%`} />
+                  <Card label="Active Overdue" value={String(insights.stats.activeOverdue)} />
+                  <Card label="Wishlist" value={String(insights.stats.wishlistCount)} />
+                </div>
+
+                <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 p-4">
+                  <h3 className="text-sm font-bold text-[#2B1A10] mb-3">Favorite Categories</h3>
+                  {insights.favoriteCategories.length === 0 ? (
+                    <p className="text-xs text-[#AE9E85]">No category data yet</p>
+                  ) : (
+                    insights.favoriteCategories.map((cat) => (
+                      <div key={cat.name} className="flex items-center justify-between py-1.5 text-sm">
+                        <span className="text-[#2B1A10]">{cat.name}</span>
+                        <span className="text-[#AE9E85]">{cat.count}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-[#E1D2BD]/40">
+                    <h3 className="text-sm font-bold text-[#2B1A10]">Borrowing History</h3>
+                  </div>
+                  <div className="max-h-[380px] overflow-y-auto">
+                    {insights.history.length === 0 ? (
+                      <p className="p-4 text-xs text-[#AE9E85]">No history</p>
+                    ) : (
+                      insights.history.map((item) => (
+                        <div key={item.id} className="p-4 border-b border-[#E1D2BD]/30 last:border-0">
+                          <p className="text-sm font-bold text-[#2B1A10]">{item.bookTitle}</p>
+                          <p className="text-xs text-[#AE9E85]">
+                            Due {new Date(item.dueDate).toLocaleDateString()} • {item.status}
+                          </p>
+                          <p className={`text-xs mt-1 ${item.isLate ? "text-red-700" : "text-green-700"}`}>
+                            {item.isLate ? `Late by ${item.daysLate} day(s)` : "Returned on time"}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-[#AE9E85]">No detail found.</p>
+            )}
+          </aside>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Card({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 p-3">
+      <p className="text-[11px] font-bold text-[#AE9E85] uppercase tracking-wider">{label}</p>
+      <p className="text-lg font-black text-[#2B1A10]">{value}</p>
     </div>
   );
 }

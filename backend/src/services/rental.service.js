@@ -27,6 +27,8 @@ import { prisma } from '../prisma.js';
 import { AppError } from '../middlewares/error.middleware.js';
 import { paginationMeta } from '../utils/apiFeatures.js';
 import { createNotification, notifyAdmins } from './notification.service.js';
+import { notifyNextInQueue, markReservationFulfilledForBorrow } from './reservation.service.js';
+import { syncLowStockAlertForBook } from './inventoryAlert.service.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -331,6 +333,11 @@ export const borrowBook = async (userId, { book_id, loan_days }, io) => {
     }),
   ]);
 
+  await Promise.all([
+    markReservationFulfilledForBorrow(userId, book_id),
+    syncLowStockAlertForBook(book_id),
+  ]);
+
   // ── Notifications ──────────────────────────────────────────────────────────
 
   const dueDateStr = dueDate.toLocaleDateString('en-US', {
@@ -402,6 +409,11 @@ export const returnBook = async (rentalId, io) => {
       where: { id: rental.book_id },
       data: { available: { increment: 1 } },
     }),
+  ]);
+
+  await Promise.all([
+    notifyNextInQueue(rental.book_id, io),
+    syncLowStockAlertForBook(rental.book_id),
   ]);
 
   // ── Notifications ──────────────────────────────────────────────────────────

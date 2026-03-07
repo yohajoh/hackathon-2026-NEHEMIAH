@@ -101,5 +101,6 @@ router.patch("/update-password", authController.updatePassword);
 router.get("/users", restrictTo("ADMIN"), authController.getAllUsers);
 router.patch("/users/:id/block", restrictTo("ADMIN"), authController.blockUser);
 router.patch("/users/:id/unblock", restrictTo("ADMIN"), authController.unblockUser);
+router.delete("/users/:id", restrictTo("ADMIN"), authController.deleteUser);
 
 export default router;

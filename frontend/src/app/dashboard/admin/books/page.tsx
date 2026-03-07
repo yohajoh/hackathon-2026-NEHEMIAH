@@ -11,6 +11,7 @@ import {
   X,
   Upload,
 } from "lucide-react";
+import { fetchApi } from "@/lib/api";
 
 type Tab = "all" | "physical" | "digital" | "categories";
 
@@ -22,6 +23,7 @@ interface Book {
   total?: number;
   available?: number;
   status?: string;
+  pdf_access?: "FREE" | "PAID" | "RESTRICTED";
   type?: "physical" | "digital";
 }
 
@@ -52,6 +54,7 @@ export default function AdminBooksPage() {
     category: "",
     copies: "",
     description: "",
+    pdf_access: "RESTRICTED" as "FREE" | "PAID" | "RESTRICTED",
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -63,23 +66,17 @@ export default function AdminBooksPage() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch("http://localhost:5000/api/books?limit=200", {
-        credentials: "include",
-      })
-        .then((r) => r.json())
-        .catch(() => null),
-      fetch("http://localhost:5000/api/digital-books?limit=200", {
-        credentials: "include",
-      })
-        .then((r) => r.json())
-        .catch(() => null),
-      fetch("http://localhost:5000/api/categories", { credentials: "include" })
-        .then((r) => r.json())
-        .catch(() => null),
+      fetchApi("/books?limit=200").catch(() => null),
+      fetchApi("/digital-books?limit=200").catch(() => null),
+      fetchApi("/categories").catch(() => null),
     ]).then(([booksData, digitalData, catData]) => {
       if (booksData?.data?.books)
         setPhysicalBooks(
-          booksData.data.books.map((b: any) => ({ ...b, type: "physical" })),
+          booksData.data.books.map((b: any) => ({
+            ...b,
+            total: b.copies ?? b.total,
+            type: "physical",
+          })),
         );
       else if (booksData?.books)
         setPhysicalBooks(
@@ -88,7 +85,11 @@ export default function AdminBooksPage() {
 
       if (digitalData?.data?.books)
         setDigitalBooks(
-          digitalData.data.books.map((b: any) => ({ ...b, type: "digital" })),
+          digitalData.data.books.map((b: any) => ({
+            ...b,
+            total: 0,
+            type: "digital",
+          })),
         );
       else if (digitalData?.books)
         setDigitalBooks(
@@ -185,6 +186,7 @@ export default function AdminBooksPage() {
       category: "",
       copies: "",
       description: "",
+      pdf_access: "RESTRICTED",
     });
     setImageFile(null);
     setImagePreview(null);
@@ -234,6 +236,7 @@ export default function AdminBooksPage() {
       } else {
         if (imageFile) fd.append("image", imageFile);
         if (pdfFile) fd.append("pdf", pdfFile);
+        fd.append("pdf_access", form.pdf_access);
         const res = await fetch("http://localhost:5000/api/digital-books", {
           method: "POST",
           body: fd,
@@ -401,17 +404,23 @@ export default function AdminBooksPage() {
                       {book.category?.name || "—"}
                     </span>
                     <span className="text-sm text-[#2B1A10]/70 text-center">
-                      {book.total ?? "—"}
+                      {book.type === "digital" ? "Digital" : (book.total ?? "—")}
                     </span>
                     <span
                       className={`text-xs font-bold px-2.5 py-1 rounded-lg w-fit ${
-                        book.available === 0 || book.status === "BORROWED"
+                        book.type === "digital"
+                          ? "bg-[#F3EFE6] text-[#2B1A10]"
+                          : book.available === 0 || book.status === "BORROWED"
                           ? "bg-red-50 text-red-600"
                           : "bg-green-50 text-green-700"
                       }`}
                     >
-                      {book.status ||
-                        (book.available === 0 ? "Out of Stock" : "Available")}
+                      {book.type === "digital"
+                        ? book.pdf_access === "RESTRICTED"
+                          ? "Read Only"
+                          : "Download Allowed"
+                        : book.status ||
+                          (book.available === 0 ? "Out of Stock" : "Available")}
                     </span>
                     <div className="flex items-center gap-2">
                       <button className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-[#2B1A10] hover:bg-[#F3EFE6] transition-all">
@@ -620,6 +629,27 @@ export default function AdminBooksPage() {
                   className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10] resize-none focus:outline-none focus:ring-2 focus:ring-[#8B6B4A]/30 focus:border-[#8B6B4A] transition-all"
                 />
               </div>
+
+              {modalTab === "digital" && (
+                <div>
+                  <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">
+                    Access Mode
+                  </label>
+                  <select
+                    value={form.pdf_access}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        pdf_access: e.target.value as "FREE" | "PAID" | "RESTRICTED",
+                      }))
+                    }
+                    className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10] focus:outline-none focus:ring-2 focus:ring-[#8B6B4A]/30 focus:border-[#8B6B4A] transition-all"
+                  >
+                    <option value="RESTRICTED">Read Only</option>
+                    <option value="FREE">Allow Download</option>
+                  </select>
+                </div>
+              )}
 
               {/* Image Upload */}
               <div>

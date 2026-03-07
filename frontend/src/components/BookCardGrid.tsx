@@ -18,6 +18,8 @@ type Book = {
     average: number;
     total: number;
   };
+  type?: "physical" | "digital";
+  pdf_access?: "FREE" | "PAID" | "RESTRICTED";
 };
 
 type Props = {
@@ -62,7 +64,7 @@ export const BookCardGrid = ({ books, loading }: Props) => {
         <div key={book.id} className="group flex flex-col items-center">
           {/* Cover Image Container */}
           <Link
-            href={`/books/${book.id}`}
+            href={book.type === "digital" ? `/books/${book.id}?type=digital` : `/books/${book.id}`}
             className="relative aspect-[3/4] w-full rounded-2xl overflow-hidden shadow-md group-hover:shadow-xl group-hover:-translate-y-1 transition-all duration-300 border border-border/40"
           >
             <Image
@@ -73,16 +75,23 @@ export const BookCardGrid = ({ books, loading }: Props) => {
             />
 
             {/* Availability Badge */}
-            <div
-              className={`absolute top-2 right-2 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 backdrop-blur-sm ${
-                book.available > 0
-                  ? "bg-green-500/90 text-white"
-                  : "bg-red-500/90 text-white"
-              }`}
-            >
-              <BookIcon size={10} />
-              {book.available > 0 ? `${book.available} left` : "Unavailable"}
-            </div>
+            {book.type === "digital" ? (
+              <div className="absolute top-2 right-2 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 backdrop-blur-sm bg-[#8B6B4A]/90 text-white">
+                <BookIcon size={10} />
+                {book.pdf_access === "RESTRICTED" ? "Read Only" : "Download"}
+              </div>
+            ) : (
+              <div
+                className={`absolute top-2 right-2 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 backdrop-blur-sm ${
+                  book.available > 0
+                    ? "bg-green-500/90 text-white"
+                    : "bg-red-500/90 text-white"
+                }`}
+              >
+                <BookIcon size={10} />
+                {book.available > 0 ? `${book.available} left` : "Unavailable"}
+              </div>
+            )}
 
             {/* Hover Overlay */}
             <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -95,13 +104,13 @@ export const BookCardGrid = ({ books, loading }: Props) => {
           {/* Book Info */}
           <div className="mt-4 w-full space-y-1 text-center">
             <div className="flex items-center justify-center gap-2">
-              <Link href={`/books/${book.id}`}>
+              <Link href={book.type === "digital" ? `/books/${book.id}?type=digital` : `/books/${book.id}`}>
                 <h3 className="text-sm font-serif font-bold text-primary group-hover:text-secondary transition-colors line-clamp-1">
                   {book.title}
                 </h3>
               </Link>
               {book.rating.total > 0 && (
-                <div className="flex items-center gap-1 text-primary">
+                <div className="flex items-center gap-1 text-[#E58A00]">
                   <Star size={12} fill="currentColor" />
                   <span className="text-[10px] font-bold">
                     {book.rating.average.toFixed(1)}

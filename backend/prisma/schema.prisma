@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -18,17 +12,14 @@ enum Role {
 }
 
 enum Status {
-  // Define statuses based on the diagram's Status enum field
-  // Example: PENDING, BORROWED, RETURNED, COMPLETED
-  // Since the diagram does not provide specific values, you should populate this
   PENDING
   BORROWED
+  OVERDUE
   RETURNED
   COMPLETED
 }
 
 enum BookType {
-  // To differentiate between physical and digital book types in relations
   PHYSICAL
   DIGITAL
 }
@@ -37,6 +28,11 @@ enum NotificationType {
   INFO
   ALERT
   SYSTEM
+  REMINDER
+  RESERVATION
+  WISHLIST
+  NEW_BOOK
+  OVERDUE
 }
 
 enum PDFAccess {
@@ -56,64 +52,100 @@ enum PaymentStatus {
   FAILED
 }
 
+enum ReservationStatus {
+  QUEUED
+  NOTIFIED
+  FULFILLED
+  EXPIRED
+  CANCELLED
+}
+
+enum BookCondition {
+  NEW
+  GOOD
+  WORN
+  DAMAGED
+  LOST
+}
+
+enum InventoryAlertType {
+  LOW_STOCK
+  EXTENDED_OVERDUE
+}
+
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 model PendingSignup {
-  id                   String   @id @default(uuid()) @db.Uuid
-  name                 String
-  email                String
-  password_hash        String
-  confirmation_token   String   @unique
-  created_at           DateTime @default(now())
+  id                 String   @id @default(uuid()) @db.Uuid
+  name               String
+  email              String
+  password_hash      String
+  confirmation_token String   @unique
+  created_at         DateTime @default(now())
 }
 
 model User {
-  id                   String        @id @default(uuid()) @db.Uuid
-  student_id           String?       @unique // Unique optional field as per ASTU/123/12 example
-  name                 String
-  email                String        @unique // Mark unique for Auth
-  phone                String?       // Standard example suggests potential requirement, mark optional but you may tighten it
-  year                 String?       // Student year (e.g., "1st Year", "2nd Year", etc.)
-  department           String?       // Student department (e.g., "Computer Science", "Engineering", etc.)
-  password_hash        String
-  role                 Role          @default(STUDENT) // Default based on diagram
-  is_confirmed         Boolean       @default(false)
-  is_blocked           Boolean       @default(false)
-  confirmation_token   String?
-  reset_token          String?
-  reset_expiry         DateTime?
-  created_at           DateTime      @default(now())
+  id                     String             @id @default(uuid()) @db.Uuid
+  student_id             String?            @unique
+  name                   String
+  email                  String             @unique
+  phone                  String?
+  year                   String?
+  department             String?
+  password_hash          String
+  role                   Role               @default(STUDENT)
+  is_confirmed           Boolean            @default(false)
+  is_blocked             Boolean            @default(false)
+  confirmation_token     String?
+  reset_token            String?
+  reset_expiry           DateTime?
+  created_at             DateTime           @default(now())
 
-  rentals              Rental[]
-  notifications        Notification[]
-  reviews              Review[]
-  wishlists            Wishlist[]
-  system_config_updates SystemConfig[]
+  rentals                Rental[]
+  reservations           Reservation[]
+  notifications          Notification[]
+  reviews                Review[]
+  wishlists              Wishlist[]
+  system_config_updates  SystemConfig[]     @relation("SystemConfigUpdatedBy")
+  admin_activity_logs    AdminActivityLog[] @relation("AdminActivityBy")
+  resolved_stock_alerts  InventoryAlert[]   @relation("InventoryAlertResolvedBy")
+
+  @@index([role])
+  @@index([is_blocked])
 }
 
 model SystemConfig {
-  id                  Int      @id @default(autoincrement())
-  max_loan_days       Int
-  daily_fine          Decimal
-  max_books_per_user   Int
-  enable_notifications Boolean  @default(true)
-  last_updated_by_id  String   @db.Uuid
-  
-  updated_by_user     User     @relation(fields: [last_updated_by_id], references: [id])
+  id                    Int      @id @default(autoincrement())
+  max_loan_days         Int
+  daily_fine            Decimal
+  max_books_per_user    Int
+  reservation_window_hr Int      @default(24)
+  low_stock_threshold   Int      @default(2)
+  enable_notifications  Boolean  @default(true)
+  last_updated_by_id    String   @db.Uuid
+  created_at            DateTime @default(now())
+
+  updated_by_user       User     @relation("SystemConfigUpdatedBy", fields: [last_updated_by_id], references: [id])
 }
 
 model Category {
-  id   String @id @default(uuid()) @db.Uuid
-  name String
-  slug String @unique // Mark unique for slug fields
+  id    String @id @default(uuid()) @db.Uuid
+  name  String
+  slug  String @unique
 
   books         Book[]
   digital_books DigitalBook[]
 }
 
 model Author {
-  id    String @id @default(uuid()) @db.Uuid
+  id    String  @id @default(uuid()) @db.Uuid
   name  String
-  bio   String @db.Text
-  image String
+  bio   String  @db.Text
+  image String?
 
   books         Book[]
   digital_books DigitalBook[]
@@ -128,53 +160,78 @@ model Notification {
   created_at DateTime         @default(now())
 
   user       User     @relation(fields: [user_id], references: [id])
+
+  @@index([user_id, is_read])
+  @@index([created_at])
 }
 
 model Rental {
   id               String    @id @default(uuid()) @db.Uuid
   user_id          String    @db.Uuid
-  book_id          String    @db.Uuid // Diagram implies physical, but you may want BookType flexibility later
+  book_id          String    @db.Uuid
+  copy_id          String?   @db.Uuid
   loan_date        DateTime  @default(now())
   due_date         DateTime
-  return_date      DateTime? // diagram suggests it could be nullable, mark as optional
+  return_date      DateTime?
   status           Status    @default(BORROWED)
-  fine             Decimal?  // Fines are only applicable sometimes, so make optional
+  fine             Decimal?
 
   user             User      @relation(fields: [user_id], references: [id])
   physical_book    Book      @relation(fields: [book_id], references: [id])
+  copy             BookCopy? @relation(fields: [copy_id], references: [id])
   payment          Payment?
+
+  @@index([user_id, status])
+  @@index([book_id, status])
+  @@index([status, due_date])
+  @@index([loan_date])
 }
 
 model Payment {
   id          String        @id @default(uuid()) @db.Uuid
-  rental_id   String        @unique @db.Uuid // unique for 1-1 relationship with Rental
+  rental_id   String        @unique @db.Uuid
   tx_ref      String        @unique
   amount      Decimal
   method      PaymentMethod
-  status      PaymentStatus
+  status      PaymentStatus @default(PENDING)
   paid_at     DateTime      @default(now())
 
   rental      Rental   @relation(fields: [rental_id], references: [id])
+
+  @@index([status, paid_at])
 }
 
 model Book {
-  id                String      @id @default(uuid()) @db.Uuid
+  id                String           @id @default(uuid()) @db.Uuid
   title             String
-  author_id         String      @db.Uuid
-  category_id       String      @db.Uuid
-  description       String      @db.Text
+  author_id         String           @db.Uuid
+  category_id       String           @db.Uuid
+  description       String           @db.Text
   cover_image_url   String
   copies            Int
   available         Int
   pages             Int
-  deleted_at        DateTime?   // For soft delete as mentioned in the diagram
+  isbn              String?          @unique
+  publication_year  Int?
+  publisher         String?
+  language          String?
+  deleted_at        DateTime?
 
   author            Author      @relation(fields: [author_id], references: [id])
   category          Category    @relation(fields: [category_id], references: [id])
   images            BookImage[]
   rentals           Rental[]
+  copies_detail     BookCopy[]
+  reservations      Reservation[]
+  inventory_alerts  InventoryAlert[]
   reviews           Review[]
   wishlists         Wishlist[]
+
+  @@index([author_id])
+  @@index([category_id])
+  @@index([available])
+  @@index([deleted_at])
+  @@index([publication_year])
 }
 
 model DigitalBook {
@@ -184,10 +241,11 @@ model DigitalBook {
   category_id       String      @db.Uuid
   description       String      @db.Text
   cover_image_url   String
-  pdf_file          Bytes       // Stores binary data as BYTEA
+  pdf_file          Bytes
   pdf_name          String
   pdf_access        PDFAccess
   pages             Int
+  publication_year  Int?
   deleted_at        DateTime?
 
   author            Author      @relation(fields: [author_id], references: [id])
@@ -195,21 +253,27 @@ model DigitalBook {
   images            BookImage[]
   reviews           Review[]
   wishlists         Wishlist[]
+
+  @@index([author_id])
+  @@index([category_id])
+  @@index([deleted_at])
+  @@index([publication_year])
 }
 
 model BookImage {
-  id              String       @id @default(uuid()) @db.Uuid
-  book_id         String       @db.Uuid // FK to either physical or digital
-  book_type       BookType     // Distinguishes if parent is Physical or Digital
-  image_url       String
-  sort_order      Int
-  
-  // Conditionally optional fields due to polymorphic relationship:
+  id               String       @id @default(uuid()) @db.Uuid
+  book_id          String       @db.Uuid
+  book_type        BookType
+  image_url        String
+  sort_order       Int
   physical_book_id String?      @db.Uuid
   digital_book_id  String?      @db.Uuid
 
   physical_book   Book?        @relation(fields: [physical_book_id], references: [id])
   digital_book    DigitalBook? @relation(fields: [digital_book_id], references: [id])
+
+  @@index([physical_book_id, sort_order])
+  @@index([digital_book_id, sort_order])
 }
 
 model Review {
@@ -225,6 +289,11 @@ model Review {
   user             User         @relation(fields: [user_id], references: [id])
   physical_book    Book?        @relation(fields: [physical_book_id], references: [id])
   digital_book     DigitalBook? @relation(fields: [digital_book_id], references: [id])
+
+  @@unique([user_id, physical_book_id])
+  @@unique([user_id, digital_book_id])
+  @@index([physical_book_id, created_at])
+  @@index([digital_book_id, created_at])
 }
 
 model Wishlist {
@@ -238,4 +307,84 @@ model Wishlist {
   user             User         @relation(fields: [user_id], references: [id])
   physical_book    Book?        @relation(fields: [physical_book_id], references: [id])
   digital_book     DigitalBook? @relation(fields: [digital_book_id], references: [id])
+
+  @@unique([user_id, physical_book_id])
+  @@unique([user_id, digital_book_id])
+  @@index([user_id, created_at])
+}
+
+model Reservation {
+  id                 String            @id @default(uuid()) @db.Uuid
+  user_id            String            @db.Uuid
+  book_id            String            @db.Uuid
+  queue_position     Int
+  status             ReservationStatus @default(QUEUED)
+  reserved_at        DateTime          @default(now())
+  notified_at        DateTime?
+  expires_at         DateTime?
+  fulfilled_at       DateTime?
+  cancelled_at       DateTime?
+
+  user               User              @relation(fields: [user_id], references: [id])
+  book               Book              @relation(fields: [book_id], references: [id])
+
+  @@unique([book_id, queue_position])
+  @@index([user_id, status])
+  @@index([book_id, status, reserved_at])
+}
+
+model BookCopy {
+  id                    String        @id @default(uuid()) @db.Uuid
+  book_id               String        @db.Uuid
+  copy_code             String        @unique
+  condition             BookCondition @default(GOOD)
+  is_available          Boolean       @default(true)
+  acquired_at           DateTime      @default(now())
+  last_condition_update DateTime      @default(now())
+  notes                 String?       @db.Text
+  deleted_at            DateTime?
+
+  book                  Book          @relation(fields: [book_id], references: [id])
+  rentals               Rental[]
+
+  @@index([book_id, condition])
+  @@index([book_id, is_available])
+}
+
+model InventoryAlert {
+  id                  String             @id @default(uuid()) @db.Uuid
+  book_id             String             @db.Uuid
+  type                InventoryAlertType
+  severity            AlertSeverity      @default(MEDIUM)
+  threshold           Int?
+  current_available   Int?
+  message             String             @db.Text
+  is_resolved         Boolean            @default(false)
+  created_at          DateTime           @default(now())
+  resolved_at         DateTime?
+  resolved_by_user_id String?            @db.Uuid
+
+  book                Book               @relation(fields: [book_id], references: [id])
+  resolved_by_user    User?              @relation("InventoryAlertResolvedBy", fields: [resolved_by_user_id], references: [id])
+
+  @@index([book_id, is_resolved])
+  @@index([type, created_at])
+}
+
+model AdminActivityLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  admin_user_id String   @db.Uuid
+  action        String
+  entity_type   String
+  entity_id     String?
+  description   String   @db.Text
+  metadata      Json?
+  ip_address    String?
+  user_agent    String?
+  created_at    DateTime @default(now())
+
+  admin         User     @relation("AdminActivityBy", fields: [admin_user_id], references: [id])
+
+  @@index([admin_user_id, created_at])
+  @@index([entity_type, entity_id])
 }

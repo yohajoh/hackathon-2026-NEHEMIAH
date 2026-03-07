@@ -48,6 +48,7 @@ export const getOverviewStats = async () => {
     overdueRentals,
     pendingRequests,
     pendingReturns,
+    activeReservations,
     completedRentals,
     finesThisMonth,
     finesLastMonth,
@@ -73,6 +74,11 @@ export const getOverviewStats = async () => {
     }),
     prisma.rental.count({ where: /** @type {any} */ ({ status: "PENDING" }) }),
     prisma.rental.count({ where: /** @type {any} */ ({ status: "RETURNED" }) }),
+    prisma.reservation.count({
+      where: {
+        status: { in: ["QUEUED", "NOTIFIED"] },
+      },
+    }),
     prisma.rental.count({
       where: /** @type {any} */ ({ status: "COMPLETED" }),
     }),
@@ -151,6 +157,7 @@ export const getOverviewStats = async () => {
       overdue: overdueRentals,
       pendingRequests,
       pendingReturns,
+      reservations: activeReservations,
       completed: completedRentals,
     },
     revenue: {

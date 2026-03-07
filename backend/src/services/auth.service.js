@@ -233,6 +233,10 @@ export const getAllUsers = async () => {
       id: true,
       name: true,
       email: true,
+      student_id: true,
+      phone: true,
+      year: true,
+      department: true,
       role: true,
       is_confirmed: true,
       is_blocked: true,
@@ -240,4 +244,52 @@ export const getAllUsers = async () => {
     },
     orderBy: { created_at: "desc" },
   });
+};
+
+export const deleteUser = async (userId, currentAdminId) => {
+  if (userId === currentAdminId) {
+    throw new AppError("You cannot delete your own account", 400);
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      _count: {
+        select: {
+          rentals: true,
+          reservations: true,
+          notifications: true,
+          reviews: true,
+          wishlists: true,
+          system_config_updates: true,
+          admin_activity_logs: true,
+          resolved_stock_alerts: true,
+        },
+      },
+    },
+  });
+
+  if (!user) throw new AppError("User not found", 404);
+
+  if (user.role === "ADMIN") {
+    const admins = await prisma.user.count({ where: { role: "ADMIN" } });
+    if (admins <= 1) {
+      throw new AppError("Cannot delete the last admin account", 409);
+    }
+  }
+
+  if (user._count.rentals > 0 || user._count.reservations > 0 || user._count.system_config_updates > 0) {
+    throw new AppError(
+      "Cannot delete this user because related records exist. Block the account instead.",
+      409,
+    );
+  }
+
+  return prisma.$transaction([
+    prisma.notification.deleteMany({ where: { user_id: userId } }),
+    prisma.review.deleteMany({ where: { user_id: userId } }),
+    prisma.wishlist.deleteMany({ where: { user_id: userId } }),
+    prisma.pendingSignup.deleteMany({ where: { email: user.email } }),
+    prisma.user.delete({ where: { id: userId } }),
+  ]);
 };

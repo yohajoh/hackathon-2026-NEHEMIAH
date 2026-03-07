@@ -1,182 +1,384 @@
 import { prisma } from "../src/prisma.js";
+import { hashPassword } from "../src/utils/password.utils.js";
 
-async function main() {
-  console.log("🚀 Starting database seed with specific User ID...");
+const DAY_MS = 24 * 60 * 60 * 1000;
+const PLACEHOLDER_COVER = "https://placehold.co/400x600?text=Brana+Book";
+const SEED_COUNT = 10;
 
-  // 1. CLEANUP
+async function clearDatabase() {
+  await prisma.adminActivityLog.deleteMany();
+  await prisma.inventoryAlert.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.rental.deleteMany();
+  await prisma.reservation.deleteMany();
   await prisma.review.deleteMany();
   await prisma.wishlist.deleteMany();
   await prisma.bookImage.deleteMany();
+  await prisma.bookCopy.deleteMany();
   await prisma.book.deleteMany();
   await prisma.digitalBook.deleteMany();
-  await prisma.author.deleteMany();
-  await prisma.category.deleteMany();
   await prisma.systemConfig.deleteMany();
   await prisma.pendingSignup.deleteMany();
+  await prisma.author.deleteMany();
+  await prisma.category.deleteMany();
   await prisma.user.deleteMany();
+}
 
-  // 2. AUTHORS (10)
-  const authors = await Promise.all([
-    prisma.author.create({ data: { name: "Haddis Alemayehu", bio: "Famous for Ethiopian classics.", image: "https://placehold.co/200x200?text=Author1" } }),
-    prisma.author.create({ data: { name: "Robert Kiyosaki", bio: "Financial literacy expert.", image: "https://placehold.co/200x200?text=Author2" } }),
-    prisma.author.create({ data: { name: "Simon Sinek", bio: "Leadership strategist.", image: "https://placehold.co/200x200?text=Author3" } }),
-    prisma.author.create({ data: { name: "J.K. Rowling", bio: "Fantasy world creator.", image: "https://placehold.co/200x200?text=Author4" } }),
-    prisma.author.create({ data: { name: "Abraham Gebre", bio: "ASTU Academic Researcher.", image: "https://placehold.co/200x200?text=Author5" } }),
-    prisma.author.create({ data: { name: "Dale Carnegie", bio: "Self-improvement pioneer.", image: "https://placehold.co/200x200?text=Author6" } }),
-    prisma.author.create({ data: { name: "Malcolm Gladwell", bio: "Social science author.", image: "https://placehold.co/200x200?text=Author7" } }),
-    prisma.author.create({ data: { name: "James Clear", bio: "Habit formation expert.", image: "https://placehold.co/200x200?text=Author8" } }),
-    prisma.author.create({ data: { name: "Tsegaye Gebre-Medhin", bio: "Poet Laureate of Ethiopia.", image: "https://placehold.co/200x200?text=Author9" } }),
-    prisma.author.create({ data: { name: "Martin Fowler", bio: "Software architecture expert.", image: "https://placehold.co/200x200?text=Author10" } }),
-  ]);
+async function main() {
+  console.log(`Seeding database with ${SEED_COUNT} records per table...`);
+  await clearDatabase();
 
-  // 3. CATEGORIES (10)
-  const categories = await Promise.all([
-    "Fiction", "Finance", "Technology", "Self-Help", "History", 
-    "Science", "Literature", "Biography", "Philosophy", "Business"
-  ].map(name => prisma.category.create({ 
-    data: { name, slug: name.toLowerCase().replace(/ /g, '-') } 
-  })));
+  const hashedPassword = await hashPassword("password123");
 
-  // 4. USERS (10) - Using your specific ID for the first user
-  const users = await Promise.all([
-    // YOUR ACCOUNT
-    prisma.user.create({
+  const users = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    const isAdmin = i < 2;
+    const user = await prisma.user.create({
       data: {
-        id: "db212f22-6707-4acd-8b95-0609db003ae1",
-        name: "Yohannes Belete",
-        email: "ybelete490@gmail.com",
-        student_id: "ASTU/001/14",
-        password_hash: "hashed_pass_123", // Update this with your actual hash if needed
-        role: "ADMIN",
-        is_confirmed: true
-      }
-    }),
-    // 9 other students
-    ...Array.from({ length: 9 }).map((_, i) => 
-      prisma.user.create({
+        id: i === 0 ? "db212f22-6707-4acd-8b95-0609db003ae1" : undefined,
+        name: isAdmin ? `Admin ${i + 1}` : `Student ${i + 1}`,
+        email: isAdmin
+          ? i === 0
+            ? "ybelete490@gmail.com"
+            : `admin${i + 1}@brana.local`
+          : `student${i + 1}@astu.edu.et`,
+        student_id: isAdmin ? null : `ASTU/${String(100 + i)}/14`,
+        phone: `+251900000${String(i).padStart(3, "0")}`,
+        year: isAdmin ? null : `${(i % 4) + 1}`,
+        department: isAdmin ? "Library" : ["Engineering", "CS", "Business", "Theology"][i % 4],
+        password_hash: hashedPassword,
+        role: isAdmin ? "ADMIN" : "STUDENT",
+        is_confirmed: true,
+        is_blocked: i === 9,
+      },
+    });
+    users.push(user);
+  }
+
+  const pendingSignups = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    pendingSignups.push(
+      await prisma.pendingSignup.create({
         data: {
-          name: `Student ${i + 2}`,
-          email: `student${i + 2}@astu.edu.et`,
-          student_id: `ASTU/${102 + i}/14`,
-          password_hash: "hashed_pass_123",
-          role: "STUDENT",
-          is_confirmed: true
-        }
-      })
-    )
-  ]);
+          name: `Pending User ${i + 1}`,
+          email: `pending${i + 1}@astu.edu.et`,
+          password_hash: hashedPassword,
+          confirmation_token: `confirm-token-${i + 1}-${Date.now()}`,
+        },
+      }),
+    );
+  }
 
-  // 5. PHYSICAL BOOKS (10)
-  const books = await Promise.all(Array.from({ length: 10 }).map((_, i) => 
-    prisma.book.create({
-      data: {
-        title: `Brana Physical Collection ${i + 1}`,
-        author_id: authors[i % 10].id,
-        category_id: categories[i % 10].id,
-        description: "Core physical text available at ASTU library.",
-        cover_image_url: "https://placehold.co/400x600",
-        copies: 5,
-        available: 5,
-        pages: 250 + (i * 10)
-      }
-    })
-  ));
+  const categoryNames = [
+    "Theology",
+    "Discipleship",
+    "Leadership",
+    "Evangelism",
+    "Prayer",
+    "History",
+    "Technology",
+    "Business",
+    "Finance",
+    "Literature",
+  ];
+  const categories = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    categories.push(
+      await prisma.category.create({
+        data: {
+          name: categoryNames[i],
+          slug: categoryNames[i].toLowerCase().replace(/\s+/g, "-"),
+        },
+      }),
+    );
+  }
 
-  // 6. DIGITAL BOOKS (10)
-  const digitalBooks = await Promise.all(Array.from({ length: 10 }).map((_, i) => 
-    prisma.digitalBook.create({
-      data: {
-        title: `Digital Resource ${i + 1}`,
-        author_id: authors[i % 10].id,
-        category_id: categories[i % 10].id,
-        description: "E-book for instant reading.",
-        cover_image_url: "https://placehold.co/400x600",
-        pdf_file: Buffer.from("dummy_content"),
-        pdf_name: `resource_${i}.pdf`,
-        pdf_access: i % 2 === 0 ? "FREE" : "PAID",
-        pages: 100 + (i * 5)
-      }
-    })
-  ));
+  const authors = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    authors.push(
+      await prisma.author.create({
+        data: {
+          name: `Author ${i + 1}`,
+          bio: `Biography of Author ${i + 1}. Known for impactful writing in community learning.`,
+          image: `https://placehold.co/200x200?text=Author+${i + 1}`,
+        },
+      }),
+    );
+  }
 
-  // 7. RENTALS (10) - Linked to your User ID
-  const rentals = await Promise.all(Array.from({ length: 10 }).map((_, i) => 
-    prisma.rental.create({
-      data: {
-        user_id: users[i % users.length].id, // This ensures some are linked to you
-        book_id: books[i].id,
-        due_date: new Date(Date.now() + (14 * 24 * 60 * 60 * 1000)),
-        status: "BORROWED"
-      }
-    })
-  ));
+  const books = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    const copies = 3 + (i % 4);
+    const borrowed = i % 3;
+    books.push(
+      await prisma.book.create({
+        data: {
+          title: `Physical Book ${i + 1}`,
+          author_id: authors[i].id,
+          category_id: categories[i].id,
+          description: `Physical catalog entry ${i + 1} for Brana library.`,
+          cover_image_url: PLACEHOLDER_COVER,
+          copies,
+          available: Math.max(0, copies - borrowed),
+          pages: 140 + i * 15,
+          publication_year: 2010 + i,
+          publisher: `Publisher ${i + 1}`,
+          language: "English",
+          isbn: `9780000000${String(i).padStart(3, "0")}`,
+        },
+      }),
+    );
+  }
 
-  // 8. PAYMENTS (10)
-  await Promise.all(rentals.map((rental, i) => 
-    prisma.payment.create({
-      data: {
-        rental_id: rental.id,
-        tx_ref: `REF-${Date.now()}-${i}`,
-        amount: 0.00,
-        method: i % 2 === 0 ? "CASH" : "CHAPA",
-        status: "SUCCESS"
-      }
-    })
-  ));
+  const digitalBooks = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    digitalBooks.push(
+      await prisma.digitalBook.create({
+        data: {
+          title: `Digital Book ${i + 1}`,
+          author_id: authors[i].id,
+          category_id: categories[i].id,
+          description: `Digital edition ${i + 1} with searchable text.`,
+          cover_image_url: PLACEHOLDER_COVER,
+          pdf_file: Buffer.from(`PDF content for digital book ${i + 1}`),
+          pdf_name: `digital-book-${i + 1}.pdf`,
+          pdf_access: i % 3 === 0 ? "PAID" : i % 2 === 0 ? "RESTRICTED" : "FREE",
+          pages: 100 + i * 10,
+          publication_year: 2012 + i,
+        },
+      }),
+    );
+  }
 
-  // 9. REVIEWS (10)
-  await Promise.all(Array.from({ length: 10 }).map((_, i) => 
-    prisma.review.create({
-      data: {
-        user_id: users[0].id, // All reviews by you for testing
-        physical_book_id: i < 5 ? books[i].id : null,
-        digital_book_id: i >= 5 ? digitalBooks[i].id : null,
-        book_type: i < 5 ? "PHYSICAL" : "DIGITAL",
-        rating: 5,
-        comment: "Highly recommended for engineering students."
-      }
-    })
-  ));
+  const bookCopies = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    bookCopies.push(
+      await prisma.bookCopy.create({
+        data: {
+          book_id: books[i].id,
+          copy_code: `BC-${String(i + 1).padStart(4, "0")}`,
+          condition: ["NEW", "GOOD", "WORN", "DAMAGED", "LOST"][i % 5],
+          is_available: i % 3 !== 0,
+          notes: `Condition note for copy ${i + 1}`,
+          acquired_at: new Date(Date.now() - (i + 30) * DAY_MS),
+          last_condition_update: new Date(Date.now() - i * DAY_MS),
+        },
+      }),
+    );
+  }
 
-  // 10. WISHLIST (10)
-  await Promise.all(Array.from({ length: 10 }).map((_, i) => 
-    prisma.wishlist.create({
-      data: {
-        user_id: users[0].id, // Wishlist items for your account
-        digital_book_id: digitalBooks[i].id,
-        book_type: "DIGITAL"
-      }
-    })
-  ));
+  const reservations = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    const reservedAt = new Date(Date.now() - i * DAY_MS);
+    const status = ["QUEUED", "NOTIFIED", "FULFILLED", "EXPIRED", "CANCELLED"][i % 5];
+    reservations.push(
+      await prisma.reservation.create({
+        data: {
+          user_id: users[(i % 8) + 2].id,
+          book_id: books[i].id,
+          queue_position: 1,
+          status,
+          reserved_at: reservedAt,
+          notified_at: status === "NOTIFIED" || status === "FULFILLED" ? new Date(reservedAt.getTime() + DAY_MS) : null,
+          expires_at: status === "NOTIFIED" || status === "EXPIRED" ? new Date(reservedAt.getTime() + 2 * DAY_MS) : null,
+          fulfilled_at: status === "FULFILLED" ? new Date(reservedAt.getTime() + 2 * DAY_MS) : null,
+          cancelled_at: status === "CANCELLED" ? new Date(reservedAt.getTime() + DAY_MS) : null,
+        },
+      }),
+    );
+  }
 
-  // 11. NOTIFICATIONS (10)
-  await Promise.all(Array.from({ length: 10 }).map((_, i) => 
-    prisma.notification.create({
-      data: {
-        user_id: users[0].id, // Notifications in your inbox
-        message: `System Alert: Your rental for book ${i+1} is active.`,
-        type: i % 2 === 0 ? "INFO" : "ALERT"
-      }
-    })
-  ));
+  const rentals = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    const loanDate = new Date(Date.now() - (i + 7) * DAY_MS);
+    const dueDate = new Date(loanDate.getTime() + 7 * DAY_MS);
+    const status = ["BORROWED", "PENDING", "RETURNED", "COMPLETED", "OVERDUE"][i % 5];
+    const returned = status === "RETURNED" || status === "COMPLETED" || status === "PENDING";
 
-  // 12. SYSTEM CONFIG
-  await prisma.systemConfig.create({
-    data: {
-      max_loan_days: 14,
-      daily_fine: 5.00,
-      max_books_per_user: 3,
-      enable_notifications: true,
-      last_updated_by_id: users[0].id,
-    }
+    rentals.push(
+      await prisma.rental.create({
+        data: {
+          user_id: users[(i % 8) + 2].id,
+          book_id: books[i].id,
+          copy_id: bookCopies[i].id,
+          loan_date: loanDate,
+          due_date: dueDate,
+          return_date: returned ? new Date(dueDate.getTime() + (i % 3) * DAY_MS) : null,
+          status,
+          fine: status === "PENDING" || status === "OVERDUE" ? (i + 1) * 5 : null,
+        },
+      }),
+    );
+  }
+
+  const payments = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    payments.push(
+      await prisma.payment.create({
+        data: {
+          rental_id: rentals[i].id,
+          tx_ref: `TX-${Date.now()}-${i + 1}`,
+          amount: i % 2 === 0 ? 0 : (i + 1) * 5,
+          method: i % 2 === 0 ? "CASH" : "CHAPA",
+          status: i % 3 === 0 ? "PENDING" : i % 3 === 1 ? "SUCCESS" : "FAILED",
+          paid_at: new Date(Date.now() - i * DAY_MS),
+        },
+      }),
+    );
+  }
+
+  const reviews = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    const isPhysical = i < 5;
+    reviews.push(
+      await prisma.review.create({
+        data: {
+          user_id: users[i].id,
+          physical_book_id: isPhysical ? books[i].id : null,
+          digital_book_id: isPhysical ? null : digitalBooks[i].id,
+          book_type: isPhysical ? "PHYSICAL" : "DIGITAL",
+          rating: (i % 5) + 1,
+          comment: `Review ${i + 1}: helpful resource for students.`,
+          created_at: new Date(Date.now() - i * DAY_MS),
+        },
+      }),
+    );
+  }
+
+  const wishlists = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    const isPhysical = i < 5;
+    wishlists.push(
+      await prisma.wishlist.create({
+        data: {
+          user_id: users[(i % 8) + 2].id,
+          physical_book_id: isPhysical ? books[i].id : null,
+          digital_book_id: isPhysical ? null : digitalBooks[i].id,
+          book_type: isPhysical ? "PHYSICAL" : "DIGITAL",
+          created_at: new Date(Date.now() - i * DAY_MS),
+        },
+      }),
+    );
+  }
+
+  const bookImages = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    const isPhysical = i < 5;
+    bookImages.push(
+      await prisma.bookImage.create({
+        data: {
+          book_id: isPhysical ? books[i].id : digitalBooks[i].id,
+          book_type: isPhysical ? "PHYSICAL" : "DIGITAL",
+          image_url: `https://placehold.co/600x800?text=Cover+${i + 1}`,
+          sort_order: i + 1,
+          physical_book_id: isPhysical ? books[i].id : null,
+          digital_book_id: isPhysical ? null : digitalBooks[i].id,
+        },
+      }),
+    );
+  }
+
+  const notifications = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    notifications.push(
+      await prisma.notification.create({
+        data: {
+          user_id: users[i].id,
+          message: `Notification ${i + 1}: system event update.`,
+          type: ["INFO", "ALERT", "SYSTEM", "REMINDER", "OVERDUE"][i % 5],
+          is_read: i % 2 === 0,
+          created_at: new Date(Date.now() - i * DAY_MS),
+        },
+      }),
+    );
+  }
+
+  const inventoryAlerts = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    const resolved = i % 2 === 0;
+    inventoryAlerts.push(
+      await prisma.inventoryAlert.create({
+        data: {
+          book_id: books[i].id,
+          type: i % 2 === 0 ? "LOW_STOCK" : "EXTENDED_OVERDUE",
+          severity: ["LOW", "MEDIUM", "HIGH"][i % 3],
+          threshold: 2,
+          current_available: books[i].available,
+          message: `Alert ${i + 1}: inventory attention required.`,
+          is_resolved: resolved,
+          created_at: new Date(Date.now() - i * DAY_MS),
+          resolved_at: resolved ? new Date(Date.now() - (i - 1) * DAY_MS) : null,
+          resolved_by_user_id: resolved ? users[0].id : null,
+        },
+      }),
+    );
+  }
+
+  const adminActivityLogs = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    adminActivityLogs.push(
+      await prisma.adminActivityLog.create({
+        data: {
+          admin_user_id: users[i % 2].id,
+          action: ["CREATE_BOOK", "UPDATE_BOOK", "RETURN_BOOK", "CONFIG_UPDATE", "BLOCK_USER"][i % 5],
+          entity_type: ["Book", "Rental", "User", "SystemConfig", "Category"][i % 5],
+          entity_id: [books[i].id, rentals[i].id, users[i].id, null, categories[i].id][i % 5],
+          description: `Admin activity log ${i + 1}`,
+          metadata: { source: "seed", index: i + 1 },
+          ip_address: `192.168.1.${100 + i}`,
+          user_agent: "Brana Seed Script",
+          created_at: new Date(Date.now() - i * DAY_MS),
+        },
+      }),
+    );
+  }
+
+  const systemConfigs = [];
+  for (let i = 0; i < SEED_COUNT; i++) {
+    systemConfigs.push(
+      await prisma.systemConfig.create({
+        data: {
+          max_loan_days: 7 + i,
+          daily_fine: 2 + i,
+          max_books_per_user: 2 + (i % 4),
+          reservation_window_hr: 24 + i,
+          low_stock_threshold: 1 + (i % 3),
+          enable_notifications: i % 2 === 0,
+          last_updated_by_id: users[i % 2].id,
+          created_at: new Date(Date.now() - i * DAY_MS),
+        },
+      }),
+    );
+  }
+
+  console.log("Seed complete.");
+  console.table({
+    users: users.length,
+    pendingSignups: pendingSignups.length,
+    categories: categories.length,
+    authors: authors.length,
+    books: books.length,
+    digitalBooks: digitalBooks.length,
+    bookCopies: bookCopies.length,
+    reservations: reservations.length,
+    rentals: rentals.length,
+    payments: payments.length,
+    reviews: reviews.length,
+    wishlists: wishlists.length,
+    bookImages: bookImages.length,
+    notifications: notifications.length,
+    inventoryAlerts: inventoryAlerts.length,
+    adminActivityLogs: adminActivityLogs.length,
+    systemConfigs: systemConfigs.length,
   });
-
-  console.log("✅ Seed complete. User 'ybelete490@gmail.com' is now the primary data owner.");
 }
 
 main()
-  .catch((e) => { console.error("❌ Seed failure:", e); process.exit(1); })
-  .finally(async () => { await prisma.$disconnect(); });
+  .catch((error) => {
+    console.error("Seed failed:", error);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

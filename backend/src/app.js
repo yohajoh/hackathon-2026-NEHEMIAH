@@ -20,6 +20,9 @@ import paymentRoutes from "./routes/payment.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import systemConfigRoutes from "./routes/systemConfig.routes.js";
 import statsRoutes from "./routes/stats.routes.js";
+import reservationRoutes from "./routes/reservation.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
+import studentRoutes from "./routes/student.routes.js";
 
 import { globalErrorHandler, AppError } from "./middlewares/error.middleware.js";
 
@@ -44,7 +47,14 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: "10mb" }));
+app.use(
+  express.json({
+    limit: "10mb",
+    verify: (req, res, buf) => {
+      req.rawBody = buf?.toString?.() || "";
+    },
+  }),
+);
 app.use(cookieParser());
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
@@ -61,6 +71,9 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/system-config", systemConfigRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/reservations", reservationRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/student", studentRoutes);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get("/api/health", (req, res) => {
