@@ -3,10 +3,10 @@
 import React from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import type { RentalItem } from "@/app/dashboard/page";
+import type { Rental } from "@/lib/hooks/useQueries";
 
 type Props = {
-  rentals: RentalItem[];
+  rentals: Rental[];
   loading?: boolean;
 };
 
@@ -26,14 +26,14 @@ export const BorrowingHistoryTable = ({ rentals, loading }: Props) => {
   const rows = rentals.map((r) => {
     const returned = r.return_date ? formatDate(r.return_date) : "—";
     const days =
-      r.return_date
+      r.return_date && r.loan_date
         ? daysBetween(r.loan_date, r.return_date)
         : 0;
     const amount = r.payment?.amount ?? r.fine ?? 0;
     return {
       id: r.id,
-      title: r.physical_book.title,
-      borrowedDate: formatDate(r.loan_date),
+      title: r.physical_book?.title || r.book?.title || "Unknown",
+      borrowedDate: r.loan_date ? formatDate(r.loan_date) : "—",
       returnedDate: returned,
       daysKept: r.return_date ? `${days} days` : "—",
       amountPaid: amount > 0 ? `${Number(amount).toFixed(1)} birr` : "0 birr",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { API_BASE_URL, fetchApi } from "@/lib/api";
 
 const REPORTS = [
@@ -22,6 +23,9 @@ export default function AdminReportsPage() {
     try {
       const data = await fetchApi(`/admin/reports/export?type=${type}&format=json`);
       setRows(data?.data?.rows || []);
+    } catch (error) {
+      toast.error("Failed to load report data");
+      setRows([]);
     } finally {
       setLoading(false);
     }

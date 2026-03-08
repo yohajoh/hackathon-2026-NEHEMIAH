@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { useCurrentUser, useUpdateProfile } from "@/lib/hooks/useQueries";
 import { ProfileSettings } from "@/components/ProfileSettings";
 import { SecuritySettings } from "@/components/SecuritySettings";
-import { fetchCurrentUser } from "@/lib/api";
 
 export type UserData = {
   id: string;
@@ -17,27 +17,13 @@ export type UserData = {
 };
 
 export default function SettingsPage() {
-  const [user, setUser] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: userData, isLoading, error } = useCurrentUser();
+  const updateProfile = useUpdateProfile();
 
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        const userData = await fetchCurrentUser();
-        setUser(userData as UserData);
-      } catch (e) {
-        console.error("Failed to load user:", e);
-        setError(e instanceof Error ? e.message : "Failed to load user data");
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadUser();
-  }, []);
+  const user = userData?.data?.user as UserData | undefined;
 
   const handleUserUpdate = (updatedUser: UserData) => {
-    setUser(updatedUser);
+    // The cache will be automatically invalidated by the mutation
   };
 
   return (
@@ -54,16 +40,16 @@ export default function SettingsPage() {
 
       {error && (
         <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600 border border-red-100">
-          {error}
+          {error instanceof Error ? error.message : "Failed to load user data"}
         </div>
       )}
 
       <div className="space-y-16 max-w-4xl">
-        <ProfileSettings user={user} loading={loading} onUpdate={handleUserUpdate} />
+        <ProfileSettings user={user || null} loading={isLoading} onUpdate={handleUserUpdate} />
 
         <div className="h-px bg-border/40 w-full" />
 
-        <SecuritySettings user={user} loading={loading} />
+        <SecuritySettings user={user || null} loading={isLoading} />
       </div>
     </div>
   );

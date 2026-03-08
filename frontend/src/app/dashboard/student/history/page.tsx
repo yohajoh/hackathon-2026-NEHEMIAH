@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useMyRentals, useSystemConfig } from "@/lib/hooks/useQueries";
 import { HistorySummary } from "@/components/HistorySummary";
 import { DetailedHistoryTable } from "@/components/DetailedHistoryTable";
 import { Pagination } from "@/components/Pagination";
-import { fetchApi } from "@/lib/api";
 
 export type RentalItem = {
   id: string;
@@ -28,71 +28,29 @@ export type SystemConfig = {
 };
 
 export default function BorrowingHistoryPage() {
-  const [rentals, setRentals] = useState<RentalItem[]>([]);
-  const [config, setConfig] = useState<SystemConfig | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const limit = 10;
 
-  useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true);
-        const [rentalsRes, configRes] = await Promise.all([
-          fetchApi(`/rentals/mine?page=${page}&limit=${limit}`),
-          fetchApi("/system-config"),
-        ]);
-        
-        if (rentalsRes && Array.isArray(rentalsRes.rentals)) {
-          setRentals(rentalsRes.rentals);
-          if (rentalsRes.meta) {
-            setTotalPages(rentalsRes.meta.totalPages || 1);
-          }
-        }
-        
-        if (configRes?.data?.config) {
-          setConfig(configRes.data.config);
-        }
-      } catch (e) {
-        console.error("History load error:", e);
-        setError(e instanceof Error ? e.message : "Failed to load history");
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, [page]);
+  const { data: rentalsData, isLoading } = useMyRentals(`page=${page}&limit=${limit}`);
+  const { data: configData } = useSystemConfig();
+
+  const rentals: RentalItem[] = (rentalsData?.rentals || []) as unknown as RentalItem[];
+  const config: SystemConfig | null = configData?.data?.config as unknown as SystemConfig | null;
+
+  const totalPages = Math.max(1, Math.ceil(rentals.length / limit));
 
   return (
     <div className="p-6 lg:p-12 space-y-12">
       <div className="space-y-2">
-        <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-primary">
-          Borrowing History
-        </h1>
-        <p className="text-secondary font-medium">
-          View your complete borrowing history and track your reading journey.
-        </p>
+        <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-primary">Borrowing History</h1>
+        <p className="text-secondary font-medium">View your complete borrowing history and track your reading journey.</p>
       </div>
 
-      {error && (
-        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600 border border-red-100">
-          {error}
-        </div>
-      )}
-
-      <HistorySummary rentals={rentals} config={config} loading={loading} />
+      <HistorySummary rentals={rentals} config={config} loading={isLoading} />
 
       <div className="space-y-8">
-        <DetailedHistoryTable rentals={rentals} config={config} loading={loading} />
-        {totalPages > 1 && (
-          <Pagination 
-            currentPage={page} 
-            totalPages={totalPages} 
-            onPageChange={setPage}
-          />
-        )}
+        <DetailedHistoryTable rentals={rentals} config={config} loading={isLoading} />
+        {totalPages > 1 && <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />}
       </div>
     </div>
   );

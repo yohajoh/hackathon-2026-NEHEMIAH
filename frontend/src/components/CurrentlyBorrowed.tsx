@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import type { RentalItem } from "@/app/dashboard/page";
+import type { Rental } from "@/lib/hooks/useQueries";
 
 type Props = {
-  rental: RentalItem | null;
+  rental: Rental | null;
   dailyFine?: number;
   loading?: boolean;
 };
@@ -35,11 +35,13 @@ export const CurrentlyBorrowed = ({ rental, loading }: Props) => {
   }
 
   const book = rental.physical_book;
-  const loanDate = formatDate(rental.loan_date);
-  const dueDate = formatDate(rental.due_date);
+  const loanDate = rental.loan_date ? formatDate(rental.loan_date) : "—";
+  const dueDate = rental.due_date ? formatDate(rental.due_date) : "—";
   const daysLeft = rental.daysUntilDue ?? 0;
   const isOverdue = rental.isOverdue ?? false;
   const daysOverdue = rental.daysOverdue ?? 0;
+  const bookTitle = book?.title || rental.book?.title || "Unknown Book";
+  const bookCover = book?.cover_image_url || rental.book?.cover_image || "/auth/image.png";
 
   return (
     <div className="bg-card rounded-3xl p-6 border border-border/50 shadow-sm relative overflow-hidden group">
@@ -49,8 +51,8 @@ export const CurrentlyBorrowed = ({ rental, loading }: Props) => {
         <div className="w-full md:w-40 shrink-0">
           <div className="relative aspect-3/4 rounded-2xl overflow-hidden shadow-xl border-4 border-white/50">
             <img
-              src={book.cover_image_url || "/auth/image.png"}
-              alt={book.title}
+              src={bookCover}
+              alt={bookTitle}
               className="w-full h-full object-cover"
             />
           </div>
@@ -59,7 +61,7 @@ export const CurrentlyBorrowed = ({ rental, loading }: Props) => {
         <div className="flex-1 space-y-6">
           <div className="space-y-4">
             <div className="space-y-1">
-              <h3 className="text-2xl font-serif font-extrabold text-primary">{book.title}</h3>
+              <h3 className="text-2xl font-serif font-extrabold text-primary">{bookTitle}</h3>
             </div>
 
             <div className="flex flex-wrap gap-3">

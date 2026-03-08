@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import type { RentalItem, SystemConfig } from "@/app/dashboard/page";
+import type { Rental, SystemConfig } from "@/lib/hooks/useQueries";
 
 type Props = {
-  rental: RentalItem | null;
+  rental: Rental | null;
   totalOwed: number;
   config: SystemConfig | null;
   loading?: boolean;
@@ -27,7 +27,7 @@ export const AmountOwed = ({ rental, totalOwed, config, loading }: Props) => {
   }
 
   const dailyFine = config ? Number(config.daily_fine) : 0;
-  const daysBorrowed = rental
+  const daysBorrowed = rental && rental.loan_date
     ? daysBetween(rental.loan_date, rental.return_date || new Date().toISOString())
     : 0;
 

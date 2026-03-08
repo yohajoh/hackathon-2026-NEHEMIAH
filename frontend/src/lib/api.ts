@@ -25,7 +25,7 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
   // Build headers conditionally to avoid unnecessary preflight requests
   const headers: Record<string, string> = {
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   };
   // Only set JSON content-type when sending a body or on non-GET methods
   const method = (options.method || "GET").toUpperCase();

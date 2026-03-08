@@ -134,6 +134,7 @@ model SystemConfig {
   low_stock_threshold   Int      @default(2)
   never_returned_days   Int      @default(60)
   enable_notifications  Boolean  @default(true)
+  reminder_days_before_due Int   @default(3)
   last_updated_by_id    String   @db.Uuid
   created_at            DateTime @default(now())
 

@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense } from "react";
 import Image from "next/image";
-import { fetchApi, API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/api";
+import { useDigitalBooksList } from "@/lib/hooks/useQueries";
+import { LoadingCard } from "@/components/ui/Loading";
 
 type DigitalBook = {
   id: string;
@@ -13,15 +15,9 @@ type DigitalBook = {
   category: { name: string };
 };
 
-export default function StudentDigitalLibraryPage() {
-  const [books, setBooks] = useState<DigitalBook[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchApi("/digital-books?limit=200")
-      .then((res) => setBooks(res?.books || []))
-      .finally(() => setLoading(false));
-  }, []);
+function DigitalLibraryContent() {
+  const { data: booksData, isLoading } = useDigitalBooksList("limit=200");
+  const books: DigitalBook[] = (booksData?.data as unknown as { books?: DigitalBook[] })?.books || [];
 
   const openReader = (id: string, download = false) => {
     const url = `${API_BASE_URL}/digital-books/${id}/pdf${download ? "?download=true" : ""}`;
@@ -35,8 +31,10 @@ export default function StudentDigitalLibraryPage() {
         <p className="text-secondary font-medium">Read digital books online and download when allowed.</p>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="py-16 text-center text-secondary text-sm">Loading digital books...</div>
+      ) : books.length === 0 ? (
+        <div className="py-16 text-center text-secondary text-sm">No digital books available.</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {books.map((book) => (
@@ -68,5 +66,13 @@ export default function StudentDigitalLibraryPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function StudentDigitalLibraryPage() {
+  return (
+    <Suspense fallback={<div className="p-6 lg:p-12"><LoadingCard /></div>}>
+      <DigitalLibraryContent />
+    </Suspense>
   );
 }

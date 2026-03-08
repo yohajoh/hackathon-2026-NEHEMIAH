@@ -5,10 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { User } from "lucide-react";
 import { fetchCurrentUser } from "@/lib/api";
+import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
+import { AdminNotificationDropdown } from "@/components/notifications/AdminNotificationDropdown";
 
 export const Navbar = () => {
   const pathname = usePathname();
   const [user, setUser] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
+  const isStudentDashboard = pathname.startsWith("/dashboard/student");
+  const isAdminDashboard = pathname.startsWith("/dashboard/admin");
 
   useEffect(() => {
     fetchCurrentUser().then(setUser);
@@ -68,6 +72,8 @@ export const Navbar = () => {
           </nav>
 
           <div className="flex items-center gap-3">
+            {isStudentDashboard && <NotificationDropdown />}
+            {isAdminDashboard && <AdminNotificationDropdown />}
             {user ? (
               <Link
                 href={user.role === "ADMIN" ? "/dashboard/admin" : "/dashboard/student"}

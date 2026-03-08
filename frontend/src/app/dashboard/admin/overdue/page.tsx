@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { fetchApi } from "@/lib/api";
+import { useOverdueRentals, useOverdueRanking, useSendReminders } from "@/lib/hooks/useQueries";
 
 type OverdueRental = {
   id: string;
@@ -20,32 +19,12 @@ type OverdueRank = {
 };
 
 export default function AdminOverduePage() {
-  const [rows, setRows] = useState<OverdueRental[]>([]);
-  const [ranking, setRanking] = useState<OverdueRank[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: overdueData, isLoading: overdueLoading } = useOverdueRentals();
+  const { data: rankingData } = useOverdueRanking();
+  const sendReminders = useSendReminders();
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [overdueRes, rankingRes] = await Promise.all([
-        fetchApi("/rentals/admin/overdue?limit=200"),
-        fetchApi("/rentals/admin/overdue-ranking?limit=10"),
-      ]);
-      setRows(overdueRes?.rentals || []);
-      setRanking(rankingRes?.ranking || []);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const sendReminders = async () => {
-    await fetchApi("/rentals/admin/send-reminders", { method: "POST" });
-    await loadData();
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
+  const rows: OverdueRental[] = (overdueData?.rentals || []) as unknown as OverdueRental[];
+  const ranking: OverdueRank[] = (rankingData?.ranking || []) as unknown as OverdueRank[];
 
   const maxDays = Math.max(1, ...ranking.map((r) => r.totalDaysOverdue));
 
@@ -56,8 +35,8 @@ export default function AdminOverduePage() {
           <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#2B1A10]">Overdue Dashboard</h1>
           <p className="text-[#AE9E85] font-medium">Track overdue records, ranking, and fine exposure.</p>
         </div>
-        <button onClick={sendReminders} className="px-4 py-2.5 bg-[#2B1A10] text-white text-sm font-bold rounded-xl">
-          Send Reminders
+        <button onClick={() => sendReminders.mutate()} disabled={sendReminders.isPending} className="px-4 py-2.5 bg-[#2B1A10] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+          {sendReminders.isPending ? "Sending..." : "Send Reminders"}
         </button>
       </div>
 
@@ -81,7 +60,7 @@ export default function AdminOverduePage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-hidden">
-        <div className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr] gap-4 px-6 py-3 border-b border-[#E1D2BD]/50 bg-[#FDFAF6] text-[11px] font-bold text-[#AE9E85] uppercase tracking-wider">
+        <div className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr] gap-4 px-6 py-3 border-b border-[#E1D2BD]/50 bg-[#FDFAF6] text-[11px] font-bold text-[#AE9E85] uppercase">
           <span>Student</span>
           <span>Book</span>
           <span>Due Date</span>
@@ -89,17 +68,14 @@ export default function AdminOverduePage() {
           <span>Estimated Fine</span>
         </div>
 
-        {loading ? (
+        {overdueLoading ? (
           <div className="py-16 text-center text-[#AE9E85] text-sm">Loading...</div>
         ) : rows.length === 0 ? (
           <div className="py-16 text-center text-[#AE9E85] text-sm">No overdue rentals</div>
         ) : (
           rows.map((item) => (
             <div key={item.id} className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr] gap-4 items-center px-6 py-4 border-b border-[#E1D2BD]/30 last:border-0">
-              <div>
-                <p className="text-sm font-bold text-[#2B1A10]">{item.user.name}</p>
-                <p className="text-xs text-[#AE9E85]">{item.user.email}</p>
-              </div>
+              <div><p className="text-sm font-bold text-[#2B1A10]">{item.user.name}</p><p className="text-xs text-[#AE9E85]">{item.user.email}</p></div>
               <span className="text-sm text-[#2B1A10]">{item.physical_book.title}</span>
               <span className="text-sm text-[#2B1A10]/70">{new Date(item.due_date).toLocaleDateString()}</span>
               <span className="text-sm font-bold text-red-700">{item.daysOverdue}</span>

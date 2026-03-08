@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { fetchApi } from "@/lib/api";
+import { useMemo, useState, useEffect } from "react";
+import { toast } from "sonner";
+import { useStatsOverview, useStatsTargets, useUpdateTargets } from "@/lib/hooks/useQueries";
 
 type WeeklyPoint = { week_start: string; count: number };
 
@@ -98,41 +99,41 @@ function LineChart({ points }: { points: WeeklyPoint[] }) {
 }
 
 export default function DashboardPage() {
-  const [overview, setOverview] = useState<Overview>(defaultOverview);
   const [form, setForm] = useState({
     target_rentals: "",
     target_active_readers: "",
     target_on_time_returns: "",
     target_new_books: "",
   });
-  const [loading, setLoading] = useState(true);
-  const [savingTargets, setSavingTargets] = useState(false);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [overviewRes, targetRes] = await Promise.all([
-        fetchApi("/stats/overview"),
-        fetchApi("/stats/targets/current"),
-      ]);
-      setOverview((overviewRes?.data || defaultOverview) as Overview);
-      const target = targetRes?.data?.target;
-      if (target) {
-        setForm({
-          target_rentals: String(target.target_rentals ?? 0),
-          target_active_readers: String(target.target_active_readers ?? 0),
-          target_on_time_returns: String(target.target_on_time_returns ?? 0),
-          target_new_books: String(target.target_new_books ?? 0),
-        });
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: overviewData, isLoading: overviewLoading } = useStatsOverview();
+  const { data: targetsData } = useStatsTargets();
+  const updateTargets = useUpdateTargets();
 
+  const overview = useMemo(() => {
+    return (overviewData?.data as Overview) || defaultOverview;
+  }, [overviewData]);
+
+  const target = targetsData?.data?.target as {
+    target_rentals?: number;
+    target_active_readers?: number;
+    target_on_time_returns?: number;
+    target_new_books?: number;
+  } | undefined;
+
+  // Load targets into form when data is available
   useEffect(() => {
-    load();
-  }, []);
+    if (target) {
+      setForm({
+        target_rentals: String(target.target_rentals ?? 0),
+        target_active_readers: String(target.target_active_readers ?? 0),
+        target_on_time_returns: String(target.target_on_time_returns ?? 0),
+        target_new_books: String(target.target_new_books ?? 0),
+      });
+    }
+  }, [target]);
+
+  const loading = overviewLoading;
 
   const summary = useMemo(
     () => [
@@ -148,20 +149,16 @@ export default function DashboardPage() {
 
   const saveTargets = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavingTargets(true);
     try {
-      await fetchApi("/stats/targets/current", {
-        method: "PUT",
-        body: JSON.stringify({
-          target_rentals: Number(form.target_rentals || 0),
-          target_active_readers: Number(form.target_active_readers || 0),
-          target_on_time_returns: Number(form.target_on_time_returns || 0),
-          target_new_books: Number(form.target_new_books || 0),
-        }),
+      await updateTargets.mutateAsync({
+        target_rentals: Number(form.target_rentals || 0),
+        target_active_readers: Number(form.target_active_readers || 0),
+        target_on_time_returns: Number(form.target_on_time_returns || 0),
+        target_new_books: Number(form.target_new_books || 0),
       });
-      await load();
-    } finally {
-      setSavingTargets(false);
+      toast.success("Targets saved successfully");
+    } catch (error) {
+      toast.error("Failed to save targets");
     }
   };
 
@@ -206,8 +203,8 @@ export default function DashboardPage() {
               <Field label="On-Time Returns" value={form.target_on_time_returns} onChange={(v) => setForm((p) => ({ ...p, target_on_time_returns: v }))} />
               <Field label="New Books" value={form.target_new_books} onChange={(v) => setForm((p) => ({ ...p, target_new_books: v }))} />
             </div>
-            <button type="submit" disabled={savingTargets} className="px-4 py-2.5 rounded-xl bg-[#2B1A10] text-white text-sm font-bold disabled:opacity-50">
-              {savingTargets ? "Saving..." : "Save Targets"}
+            <button type="submit" disabled={updateTargets.isPending} className="px-4 py-2.5 rounded-xl bg-[#2B1A10] text-white text-sm font-bold disabled:opacity-50">
+              {updateTargets.isPending ? "Saving..." : "Save Targets"}
             </button>
           </form>
         </>

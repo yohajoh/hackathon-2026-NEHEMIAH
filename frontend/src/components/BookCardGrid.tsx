@@ -12,7 +12,7 @@ type Book = {
   pages: number;
   copies: number;
   available: number;
-  author: { id: string; name: string; image: string | null };
+  author: { id: string; name: string; image?: string | null };
   category: { id: string; name: string; slug: string };
   rating: {
     average: number;

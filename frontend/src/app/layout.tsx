@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Inter, Lora } from "next/font/google";
 import "./globals.css";
+import { QueryProvider } from "@/components/providers/QueryProvider";
+import { SocketProvider } from "@/components/providers/SocketProvider";
+import { ToastProvider } from "@/components/providers/ToastProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -25,7 +28,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} ${lora.variable} antialiased`}>
-        {children}
+        <QueryProvider>
+          <SocketProvider>
+            <ToastProvider />
+            {children}
+          </SocketProvider>
+        </QueryProvider>
       </body>
     </html>
   );

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useMemo } from "react";
+import { fetchCurrentUser } from "@/lib/api";
+import { useMyRentals, useSystemConfig, useStudentOverview, useRecommendations, usePopularity, Rental, SystemConfig } from "@/lib/hooks/useQueries";
 import { CurrentlyBorrowed } from "@/components/CurrentlyBorrowed";
 import { AmountOwed } from "@/components/AmountOwed";
 import { BorrowingHistoryTable } from "@/components/BorrowingHistoryTable";
-import { fetchApi, fetchCurrentUser } from "@/lib/api";
 
 export type RentalItem = {
   id: string;
@@ -20,102 +21,61 @@ export type RentalItem = {
   payment?: { amount: number; status: string } | null;
 };
 
-export type SystemConfig = {
-  id: number;
-  max_loan_days: number;
-  daily_fine: string | number;
-  max_books_per_user: number;
-  enable_notifications: boolean;
-};
-
 export default function DashboardPage() {
   const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
-  const [rentals, setRentals] = useState<RentalItem[]>([]);
-  const [config, setConfig] = useState<SystemConfig | null>(null);
-  const [overviewStats, setOverviewStats] = useState<{
-    reservationCount: number;
-    unreadNotifications: number;
-    onTimeRate: number;
-    dueSoon: number;
-  } | null>(null);
-  const [recommendations, setRecommendations] = useState<
-    Array<{ id: string; title: string; author?: { name: string }; available: number }>
-  >([]);
-  const [favoriteCategories, setFavoriteCategories] = useState<Array<{ name: string; count: number }>>([]);
-  const [popularity, setPopularity] = useState<{
-    trending: Array<{ book: { id: string; title: string; author?: { name: string } }; rentalCount: number }>;
-    topRated: Array<{ book: { id: string; title: string; author?: { name: string } }; avgRating: number }>;
-  }>({ trending: [], topRated: [] });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const userRes = await fetchCurrentUser();
-        setUser(userRes ?? null);
+  const { data: rentalsData, isLoading: rentalsLoading } = useMyRentals();
+  const { data: configData } = useSystemConfig();
+  const { data: overviewData } = useStudentOverview();
+  const { data: recommendationsData } = useRecommendations();
+  const { data: popularityData } = usePopularity();
 
-        const [rentalsRes, configRes, overviewRes, recommendationRes, popularityRes] = await Promise.all([
-          fetchApi("/rentals/mine?limit=20"),
-          fetchApi("/system-config"),
-          fetchApi("/student/overview"),
-          fetchApi("/student/recommendations?limit=6"),
-          fetchApi("/student/popularity?limit=6"),
-        ]);
+  const rentals: Rental[] = (rentalsData?.rentals || []) as unknown as Rental[];
+  const config: SystemConfig | null = configData?.data?.config as unknown as SystemConfig | null;
 
-        if (rentalsRes && Array.isArray(rentalsRes.rentals)) {
-          setRentals(rentalsRes.rentals);
-        }
+  const overviewStats = useMemo(() => {
+    const data = overviewData?.data as {
+      stats?: { reservationCount?: number; unreadNotifications?: number; onTimeRate?: number; dueSoon?: number };
+      topCategories?: Array<{ name: string; count: number }>;
+    } | undefined;
+    return {
+      reservationCount: data?.stats?.reservationCount || 0,
+      unreadNotifications: data?.stats?.unreadNotifications || 0,
+      onTimeRate: data?.stats?.onTimeRate || 0,
+      dueSoon: data?.stats?.dueSoon || 0,
+      topCategories: data?.topCategories || [],
+    };
+  }, [overviewData]);
 
-        if (configRes?.data?.config) {
-          setConfig(configRes.data.config);
-        }
-        if (overviewRes?.data?.stats) {
-          setOverviewStats({
-            reservationCount: overviewRes.data.stats.reservationCount || 0,
-            unreadNotifications: overviewRes.data.stats.unreadNotifications || 0,
-            onTimeRate: overviewRes.data.stats.onTimeRate || 0,
-            dueSoon: overviewRes.data.stats.dueSoon || 0,
-          });
-        }
-        if (overviewRes?.data?.topCategories) {
-          setFavoriteCategories(overviewRes.data.topCategories);
-        }
-        if (recommendationRes?.data?.physical) {
-          setRecommendations(recommendationRes.data.physical);
-        }
-        if (popularityRes?.data) {
-          setPopularity({
-            trending: popularityRes.data.trending || [],
-            topRated: popularityRes.data.topRated || [],
-          });
-        }
-      } catch (e) {
-        console.error("Dashboard load error:", e);
-        setError(e instanceof Error ? e.message : "Failed to load dashboard");
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+  const recommendations = useMemo(() => {
+    const data = recommendationsData?.data as { physical?: Array<{ id: string; title: string; author?: { name: string }; available: number }> };
+    return data?.physical || [];
+  }, [recommendationsData]);
+
+  const popularity = useMemo(() => {
+    const data = popularityData?.data as {
+      trending?: Array<{ book: { id: string; title: string; author?: { name: string } }; rentalCount: number }>;
+      topRated?: Array<{ book: { id: string; title: string; author?: { name: string } }; avgRating: number }>;
+    };
+    return {
+      trending: data?.trending || [],
+      topRated: data?.topRated || [],
+    };
+  }, [popularityData]);
+
+  const loading = rentalsLoading;
 
   const borrowed = rentals.filter((r) => r.status === "BORROWED");
   const currentBook = borrowed[0] ?? null;
   const returnedOrCompleted = rentals.filter((r) => r.status === "RETURNED" || r.status === "COMPLETED");
 
-  const pendingFine = rentals
-    .filter((r) => r.status === "PENDING" && r.fine != null)
-    .reduce((sum, r) => sum + Number(r.fine), 0);
-
-  const overdueEstimated = borrowed
-    .filter((r) => r.isOverdue && r.daysOverdue != null)
-    .reduce((sum, r) => {
-      const days = r.daysOverdue ?? 0;
-      const rate = config?.daily_fine ? Number(config.daily_fine) : 0;
-      return sum + days * rate;
-    }, 0);
-
+  const pendingFine = rentals.filter((r) => r.status === "PENDING" && r.fine != null).reduce((sum, r) => sum + Number(r.fine), 0);
+  const overdueEstimated = borrowed.filter((r) => r.isOverdue && r.daysOverdue != null).reduce((sum, r) => {
+    const days = r.daysOverdue ?? 0;
+    const rate = config?.daily_fine ? Number(config.daily_fine) : 0;
+    return sum + days * rate;
+  }, 0);
   const totalOwed = pendingFine + overdueEstimated;
 
   return (
@@ -133,11 +93,7 @@ export default function DashboardPage() {
         <div className="xl:col-span-2 space-y-8">
           <div className="space-y-6">
             <h2 className="text-xl font-serif font-bold text-primary">Currently Borrowed Book</h2>
-            <CurrentlyBorrowed
-              rental={currentBook}
-              dailyFine={config?.daily_fine ? Number(config.daily_fine) : undefined}
-              loading={loading}
-            />
+            <CurrentlyBorrowed rental={currentBook} dailyFine={config?.daily_fine ? Number(config.daily_fine) : undefined} loading={loading} />
           </div>
         </div>
         <div className="xl:col-span-1">
@@ -152,19 +108,19 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="bg-white border border-border/50 rounded-2xl p-4">
             <p className="text-xs uppercase tracking-wider font-bold text-secondary">Due Soon</p>
-            <p className="text-2xl font-black text-primary">{overviewStats?.dueSoon ?? 0}</p>
+            <p className="text-2xl font-black text-primary">{overviewStats.dueSoon}</p>
           </div>
           <div className="bg-white border border-border/50 rounded-2xl p-4">
             <p className="text-xs uppercase tracking-wider font-bold text-secondary">On-Time Rate</p>
-            <p className="text-2xl font-black text-primary">{overviewStats?.onTimeRate ?? 0}%</p>
+            <p className="text-2xl font-black text-primary">{overviewStats.onTimeRate}%</p>
           </div>
           <div className="bg-white border border-border/50 rounded-2xl p-4">
             <p className="text-xs uppercase tracking-wider font-bold text-secondary">Reservations</p>
-            <p className="text-2xl font-black text-primary">{overviewStats?.reservationCount ?? 0}</p>
+            <p className="text-2xl font-black text-primary">{overviewStats.reservationCount}</p>
           </div>
           <div className="bg-white border border-border/50 rounded-2xl p-4">
             <p className="text-xs uppercase tracking-wider font-bold text-secondary">Unread Alerts</p>
-            <p className="text-2xl font-black text-primary">{overviewStats?.unreadNotifications ?? 0}</p>
+            <p className="text-2xl font-black text-primary">{overviewStats.unreadNotifications}</p>
           </div>
         </div>
       </section>
@@ -179,9 +135,7 @@ export default function DashboardPage() {
               <div key={book.id} className="bg-white border border-border/50 rounded-2xl p-4">
                 <p className="text-sm font-bold text-primary line-clamp-1">{book.title}</p>
                 <p className="text-xs text-secondary">{book.author?.name ?? "Author"}</p>
-                <p className="text-xs mt-2 font-semibold text-primary/80">
-                  {book.available > 0 ? `${book.available} copies available` : "Currently unavailable"}
-                </p>
+                <p className="text-xs mt-2 font-semibold text-primary/80">{book.available > 0 ? `${book.available} copies available` : "Currently unavailable"}</p>
               </div>
             ))}
           </div>
@@ -190,14 +144,12 @@ export default function DashboardPage() {
 
       <section className="space-y-4">
         <h2 className="text-xl font-serif font-bold text-primary">Favorite Categories</h2>
-        {favoriteCategories.length === 0 ? (
+        {overviewStats.topCategories.length === 0 ? (
           <div className="text-sm text-secondary">No category insights yet.</div>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {favoriteCategories.map((cat) => (
-              <span key={cat.name} className="px-3 py-1.5 rounded-full bg-white border border-border text-sm text-primary">
-                {cat.name} ({cat.count})
-              </span>
+            {overviewStats.topCategories.map((cat) => (
+              <span key={cat.name} className="px-3 py-1.5 rounded-full bg-white border border-border text-sm text-primary">{cat.name} ({cat.count})</span>
             ))}
           </div>
         )}
@@ -212,10 +164,7 @@ export default function DashboardPage() {
             ) : (
               popularity.trending.map((item) => (
                 <div key={item.book.id} className="bg-white border border-border/50 rounded-xl p-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-primary">{item.book.title}</p>
-                    <p className="text-xs text-secondary">{item.book.author?.name ?? "Author"}</p>
-                  </div>
+                  <div><p className="text-sm font-bold text-primary">{item.book.title}</p><p className="text-xs text-secondary">{item.book.author?.name ?? "Author"}</p></div>
                   <span className="text-xs font-bold text-primary">{item.rentalCount} rentals</span>
                 </div>
               ))
@@ -230,10 +179,7 @@ export default function DashboardPage() {
             ) : (
               popularity.topRated.map((item) => (
                 <div key={item.book.id} className="bg-white border border-border/50 rounded-xl p-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-primary">{item.book.title}</p>
-                    <p className="text-xs text-secondary">{item.book.author?.name ?? "Author"}</p>
-                  </div>
+                  <div><p className="text-sm font-bold text-primary">{item.book.title}</p><p className="text-xs text-secondary">{item.book.author?.name ?? "Author"}</p></div>
                   <span className="text-xs font-bold text-primary">{item.avgRating.toFixed(1)} ★</span>
                 </div>
               ))
