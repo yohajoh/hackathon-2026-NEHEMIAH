@@ -33,7 +33,7 @@ const steps = [
 
 export const HowItWorks = () => {
   return (
-    <section className="w-full py-24 bg-background">
+    <section className="w-full py-24 bg-background mb-10">
       <div className="mx-auto max-w-7xl px-6">
         <div className="text-center mb-16">
           <h2 className="text-4xl font-serif font-extrabold text-primary mb-4">

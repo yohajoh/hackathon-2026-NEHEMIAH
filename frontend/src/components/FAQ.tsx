@@ -41,7 +41,7 @@ export const FAQ = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(3); // Set Birana question open by default
 
   return (
-    <section className="w-full py-24 bg-card/10">
+    <section className="w-full py-24 bg-card/10 mb-15">
       <div className="mx-auto max-w-4xl px-6">
         <SectionHeader title="Frequently Asked Questions" centered />
 

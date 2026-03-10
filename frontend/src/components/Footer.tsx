@@ -1,25 +1,30 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
 import { Facebook, Twitter, Instagram, Mail, Phone } from "lucide-react";
+import { RiTiktokLine } from "react-icons/ri";
+import Image from "next/image";
+import { LiaTelegram } from "react-icons/lia";
 
 export const Footer = () => {
   return (
-    <footer className="w-full bg-card pt-16 pb-8 border-t border-border">
+    <footer className="w-full bg-secondary/5 pt-24 pb-8 -mt-20 relative z-0">
       <div className="mx-auto max-w-7xl px-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-8 mt-8 justify-items-center">
           {/* Brand and Description */}
           <div className="col-span-1 md:col-span-1 space-y-6">
             <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-secondary/30 bg-background text-base font-bold text-primary">
-                Br
-              </div>
-              <span className="text-2xl font-serif font-bold tracking-tight text-primary">
-                Birana
+              <Image
+                src="/icons/book.svg"
+                alt="Book icon"
+                width={36}
+                height={36}
+              />
+              <span className="text-3xl font-serif font-bold tracking-tight text-primary">
+                ብራና
               </span>
             </Link>
-            <p className="text-sm text-secondary leading-relaxed">
+            <p className="text-sm text-secondary leading-relaxed max-w-2xs">
               We are here to make your reading life easier through a modern
               digital book rental system.
             </p>
@@ -28,26 +33,38 @@ export const Footer = () => {
                 href="#"
                 className="p-2 rounded-full bg-background border border-border text-secondary hover:text-primary hover:border-primary transition-all"
               >
-                <Facebook size={18} />
+                <Facebook size={24} />
               </a>
               <a
                 href="#"
                 className="p-2 rounded-full bg-background border border-border text-secondary hover:text-primary hover:border-primary transition-all"
               >
-                <Twitter size={18} />
+                <Twitter size={24} />
               </a>
               <a
                 href="#"
                 className="p-2 rounded-full bg-background border border-border text-secondary hover:text-primary hover:border-primary transition-all"
               >
-                <Instagram size={18} />
+                <Instagram size={24} />
+              </a>
+              <a
+                href="#"
+                className="p-2 rounded-full bg-background border border-border text-secondary hover:text-primary hover:border-primary transition-all"
+              >
+                <RiTiktokLine size={24} />
+              </a>
+              <a
+                href="#"
+                className="p-2 rounded-full bg-background border border-border text-secondary hover:text-primary hover:border-primary transition-all"
+              >
+                <LiaTelegram size={24} />
               </a>
             </div>
           </div>
 
           {/* Quick Links */}
           <div className="space-y-6">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-primary">
+            <h3 className="text-lg font-bold uppercase tracking-widest text-primary">
               Links
             </h3>
             <nav className="flex flex-col gap-3">
@@ -74,7 +91,7 @@ export const Footer = () => {
 
           {/* Contact Info */}
           <div className="space-y-6">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-primary">
+            <h3 className="text-lg font-bold uppercase tracking-widest text-primary">
               Contact
             </h3>
             <div className="flex flex-col gap-4">

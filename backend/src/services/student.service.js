@@ -18,7 +18,14 @@ export const getStudentOverview = async (userId) => {
   const now = new Date();
   const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-  const [user, rentals, wishlistCount, reservationCount, unreadNotifications, paidSummary] = await Promise.all([
+  const [
+    user,
+    rentals,
+    wishlistCount,
+    reservationCount,
+    unreadNotifications,
+    paidSummary,
+  ] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -56,7 +63,9 @@ export const getStudentOverview = async (userId) => {
       take: 100,
     }),
     prisma.wishlist.count({ where: { user_id: userId } }),
-    prisma.reservation.count({ where: { user_id: userId, status: { in: ["QUEUED", "NOTIFIED"] } } }),
+    prisma.reservation.count({
+      where: { user_id: userId, status: { in: ["QUEUED", "NOTIFIED"] } },
+    }),
     prisma.notification.count({ where: { user_id: userId, is_read: false } }),
     prisma.payment.aggregate({
       where: { rental: { user_id: userId }, status: "SUCCESS" },
@@ -67,7 +76,9 @@ export const getStudentOverview = async (userId) => {
 
   const active = rentals.filter((r) => r.status === "BORROWED");
   const pending = rentals.filter((r) => r.status === "PENDING");
-  const completed = rentals.filter((r) => ["RETURNED", "COMPLETED"].includes(r.status));
+  const completed = rentals.filter((r) =>
+    ["RETURNED", "COMPLETED"].includes(r.status),
+  );
 
   const overdueActive = active.filter((r) => new Date(r.due_date) < now);
   const dueSoon = active.filter((r) => {
@@ -78,16 +89,23 @@ export const getStudentOverview = async (userId) => {
   const pendingFine = pending.reduce((sum, r) => sum + Number(r.fine ?? 0), 0);
 
   const onTimeReturns = completed.filter(
-    (r) => r.return_date && new Date(r.return_date).getTime() <= new Date(r.due_date).getTime(),
+    (r) =>
+      r.return_date &&
+      new Date(r.return_date).getTime() <= new Date(r.due_date).getTime(),
   ).length;
-  const onTimeRate = completed.length > 0 ? Number(((onTimeReturns / completed.length) * 100).toFixed(1)) : 0;
+  const onTimeRate =
+    completed.length > 0
+      ? Number(((onTimeReturns / completed.length) * 100).toFixed(1))
+      : 0;
 
   const currentRentals = active.slice(0, 5).map((r) => ({
     id: r.id,
     title: r.physical_book?.title,
     cover: r.physical_book?.cover_image_url,
     due_date: r.due_date,
-    days_remaining: Math.ceil((new Date(r.due_date).getTime() - now.getTime()) / (24 * 60 * 60 * 1000)),
+    days_remaining: Math.ceil(
+      (new Date(r.due_date).getTime() - now.getTime()) / (24 * 60 * 60 * 1000),
+    ),
     is_overdue: new Date(r.due_date) < now,
   }));
 
@@ -170,7 +188,9 @@ export const getStudentRecommendations = async (userId, limit = 8) => {
     where: {
       deleted_at: null,
       id: { notIn: [...rentedBookIds] },
-      ...(preferredCategories.length > 0 ? { category_id: { in: preferredCategories } } : {}),
+      ...(preferredCategories.length > 0
+        ? { category_id: { in: preferredCategories } }
+        : {}),
     },
     select: {
       id: true,
@@ -191,7 +211,9 @@ export const getStudentRecommendations = async (userId, limit = 8) => {
   const digitalRecommendations = await prisma.digitalBook.findMany({
     where: {
       deleted_at: null,
-      ...(preferredCategories.length > 0 ? { category_id: { in: preferredCategories } } : {}),
+      ...(preferredCategories.length > 0
+        ? { category_id: { in: preferredCategories } }
+        : {}),
     },
     select: {
       id: true,
@@ -231,7 +253,10 @@ export const getStudentPopularity = async (limit = 8) => {
   ]);
 
   const ids = Array.from(
-    new Set([...mostRented.map((r) => r.book_id), ...topRated.map((r) => r.physical_book_id).filter(Boolean)]),
+    new Set([
+      ...mostRented.map((r) => r.book_id),
+      ...topRated.map((r) => r.physical_book_id).filter(Boolean),
+    ]),
   );
 
   const books = await prisma.book.findMany({
@@ -249,7 +274,7 @@ export const getStudentPopularity = async (limit = 8) => {
   const map = Object.fromEntries(books.map((b) => [b.id, b]));
 
   const trending = mostRented
-    .slice(0, 5)
+    .slice(0, 3)
     .map((row) => ({
       book: map[row.book_id],
       rentalCount: row._count.book_id,
