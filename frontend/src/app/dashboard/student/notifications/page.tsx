@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useNotifications, useMarkAsRead, useMarkAllAsRead, Notification } from "@/lib/hooks/useNotifications";
@@ -43,16 +43,17 @@ function NotificationsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const notificationId = searchParams.get("notification");
-  const [overlayNotification, setOverlayNotification] = useState<Notification | null>(null);
 
   const { data, isLoading, refetch } = useNotifications({ limit: 50 });
   const markAsReadMutation = useMarkAsRead();
   const markAllAsReadMutation = useMarkAllAsRead();
 
-  const selectedNotification =
-    notificationId && data?.notifications
-      ? data.notifications.find((n) => n.id === notificationId) || overlayNotification
-      : overlayNotification;
+  // DERIVED STATE: The overlay visibility and data are calculated directly from the URL.
+  // This eliminates the "vibration" caused by race conditions between state and URL.
+  const activeNotification = useMemo(() => {
+    if (!notificationId || !data?.notifications) return null;
+    return data.notifications.find((n) => n.id === notificationId) || null;
+  }, [notificationId, data]);
 
   const handleMarkAll = async () => {
     try {
@@ -64,23 +65,19 @@ function NotificationsContent() {
     }
   };
 
-  const handleNotificationClick = async (notification: Notification) => {
-    // Auto-mark as read when viewing detail
+  const handleNotificationClick = (notification: Notification) => {
+    // Navigate to set the ID in URL, triggering the overlay via useMemo
+    router.replace(`/dashboard/student/notifications?notification=${notification.id}`, { scroll: false });
+
+    // Mark as read in the background
     if (!notification.is_read) {
-      try {
-        await markAsReadMutation.mutateAsync(notification.id);
-        await refetch();
-      } catch {
-        // Continue even if mark as read fails
-      }
+      markAsReadMutation.mutate(notification.id, { onSuccess: () => refetch() });
     }
-    setOverlayNotification(notification);
-    router.push(`/dashboard/student/notifications?notification=${notification.id}`);
   };
 
   const handleCloseOverlay = () => {
-    setOverlayNotification(null);
-    router.push("/dashboard/student/notifications");
+    // Remove the ID from URL, causing activeNotification to become null and closing the overlay
+    router.replace("/dashboard/student/notifications", { scroll: false });
   };
 
   return (
@@ -121,32 +118,28 @@ function NotificationsContent() {
         )}
       </div>
 
+      {/* The overlay now reacts directly to the activeNotification variable.
+        Because there is no internal state being toggled, the render cycle is clean.
+      */}
       <NotificationOverlay
-        notification={selectedNotification}
-        isOpen={!!selectedNotification}
+        notification={activeNotification}
+        isOpen={!!activeNotification}
         onClose={handleCloseOverlay}
+        refetch={refetch}
       />
-    </div>
-  );
-}
-
-function NotificationsLoading() {
-  return (
-    <div className="p-6 lg:p-12 space-y-8">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="space-y-2">
-          <div className="h-12 w-64 bg-[#E1D2BD]/30 rounded-lg animate-pulse" />
-          <div className="h-5 w-96 bg-[#E1D2BD]/30 rounded-lg animate-pulse" />
-        </div>
-      </div>
-      <LoadingList count={5} />
     </div>
   );
 }
 
 export default function StudentNotificationsPage() {
   return (
-    <Suspense fallback={<NotificationsLoading />}>
+    <Suspense
+      fallback={
+        <div className="p-12">
+          <LoadingList count={5} />
+        </div>
+      }
+    >
       <NotificationsContent />
     </Suspense>
   );

@@ -280,8 +280,8 @@ export const getAllNotifications = async (query) => {
 // MARK AS READ
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Mark a single notification as read. Ownership-checked. */
-export const markAsRead = async (id, userId) => {
+/** Mark a single notification as read. Ownership-checked. Admins can mark any notification. */
+export const markAsRead = async (id, userId, userRole = 'USER') => {
   const notif = await prisma.notification.findUnique({
     where: { id },
     select: {
@@ -291,7 +291,10 @@ export const markAsRead = async (id, userId) => {
     },
   });
   if (!notif) throw new AppError('Notification not found', 404);
-  if (notif.user_id !== userId) throw new AppError('Forbidden: not your notification', 403);
+  // Admins can mark any notification as read
+  if (userRole !== 'ADMIN' && notif.user_id !== userId) {
+    throw new AppError('Forbidden: not your notification', 403);
+  }
   if (notif.is_read) return notif; // already read, no-op
 
   return prisma.notification.update({
@@ -299,6 +302,45 @@ export const markAsRead = async (id, userId) => {
     data: { is_read: true },
     select: NOTIFICATION_SELECT,
   });
+};
+
+/** Mark multiple notifications as read in a single batch query. */
+export const markMultipleAsRead = async (ids, userId) => {
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { updated: 0 };
+  }
+
+  const result = await prisma.notification.updateMany({
+    where: {
+      id: { in: ids },
+      user_id: userId,
+      is_read: false,
+    },
+    data: { is_read: true },
+  });
+
+  return { updated: result.count };
+};
+
+/** View a notification and automatically mark it as read. Optimized single-query approach. */
+export const viewNotification = async (id, userId) => {
+  const notif = await prisma.notification.findUnique({
+    where: { id },
+    select: NOTIFICATION_SELECT,
+  });
+
+  if (!notif) throw new AppError('Notification not found', 404);
+  if (notif.user_id !== userId) throw new AppError('Forbidden: not your notification', 403);
+
+  if (!notif.is_read) {
+    await prisma.notification.update({
+      where: { id },
+      data: { is_read: true },
+    });
+    return { ...notif, is_read: true };
+  }
+
+  return notif;
 };
 
 /** Mark all unread notifications for a user as read. Returns count. */

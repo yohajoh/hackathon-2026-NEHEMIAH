@@ -16,7 +16,7 @@ type TrendingBook = {
 
 export const MostBorrowed = () => {
   const { data: trendingData, isLoading } = useTrendingBooks();
-  
+
   const books: TrendingBook[] = (trendingData?.data?.trending || []) as TrendingBook[];
 
   if (isLoading) {
@@ -38,11 +38,19 @@ export const MostBorrowed = () => {
     );
   }
 
-  const displayBooks = books.length > 0 ? books.slice(0, 3) : [
-    { id: "1", title: "The Alchemist", category: { name: "Fiction" }, cover_image_url: "/auth/image copy.png" },
-    { id: "2", title: "Rich Dad Poor Dad", category: { name: "Finance" }, cover_image_url: "/auth/image copy 2.png" },
-    { id: "3", title: "Becoming", category: { name: "Biography" }, cover_image_url: "/auth/image copy 3.png" },
-  ];
+  const displayBooks =
+    books.length > 0
+      ? books.slice(0, 3)
+      : [
+          { id: "1", title: "The Alchemist", category: { name: "Fiction" }, cover_image_url: "/auth/image copy.png" },
+          {
+            id: "2",
+            title: "Rich Dad Poor Dad",
+            category: { name: "Finance" },
+            cover_image_url: "/auth/image copy 2.png",
+          },
+          { id: "3", title: "Becoming", category: { name: "Biography" }, cover_image_url: "/auth/image copy 3.png" },
+        ];
 
   return (
     <section className="w-full py-20 bg-card/30">
@@ -51,10 +59,7 @@ export const MostBorrowed = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
           {displayBooks.map((book, idx) => (
-            <div
-              key={book.id}
-              className="group relative flex flex-col items-center"
-            >
+            <div key={book.id} className="group relative flex flex-col items-center">
               <div className="absolute top-0 text-[180px] font-serif text-border/40 select-none z-0">
                 {idx === 0 ? "ሀ" : idx === 1 ? "ለ" : "ሐ"}
               </div>

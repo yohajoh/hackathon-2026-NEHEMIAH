@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, UseQueryOptions } from "@tanstack/react-query";
 import { fetchApi, API_BASE_URL, fetchCurrentUser } from "../api";
 
 export type Book = {
@@ -146,6 +146,18 @@ export type ConditionHistoryEntry = {
   changed_by?: User;
 };
 
+type BooksResponse = { books: Book[]; meta?: unknown };
+type DigitalBooksResponse = { books: DigitalBook[]; meta?: unknown };
+type CategoriesResponse = { categories: Category[]; meta?: unknown };
+type AuthorsResponse = { authors: Author[]; meta?: unknown };
+type UsersResponse = { data: { users: User[] } };
+type RentalsResponse = { rentals: Rental[] };
+type ReservationsResponse = { reservations: Reservation[] };
+type WishlistResponse = { wishlist: WishlistItem[]; meta: { totalPages: number } };
+type AlertsResponse = { alerts: unknown[]; meta?: unknown };
+type PaymentsResponse = { payments: Payment[] };
+type ActivityLogsResponse = { logs: ActivityLog[]; meta?: unknown };
+
 const defaultOptions = {
   staleTime: 60 * 1000,
   gcTime: 10 * 60 * 1000,
@@ -249,50 +261,18 @@ export const queryKeys = {
   myPayments: (params?: string) => ["payments", "mine", params] as const,
 };
 
-export function useStatsOverview() {
-  return useQuery({
-    queryKey: queryKeys.overview,
-    queryFn: () => api.get<{ data: unknown }>("/stats/overview"),
-    ...defaultOptions,
-  });
-}
-
-export function useStatsTargets() {
-  return useQuery({
-    queryKey: queryKeys.targets,
-    queryFn: () => api.get<{ data: { target: unknown } }>("/stats/targets/current"),
-    ...defaultOptions,
-  });
-}
-
-export function useUpdateTargets() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: {
-      target_rentals: number;
-      target_active_readers: number;
-      target_on_time_returns: number;
-      target_new_books: number;
-    }) => api.put<{ data: { target: unknown } }>("/stats/targets/current", data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.overview });
-      queryClient.invalidateQueries({ queryKey: queryKeys.targets });
-    },
-  });
-}
-
 export function useBooks(params?: string) {
-  return useQuery({
+  return useQuery<BooksResponse>({
     queryKey: queryKeys.books(params),
-    queryFn: () => api.get<{ books: Book[]; meta?: unknown }>(`/books?${params || "limit=24"}`),
+    queryFn: () => api.get<BooksResponse>(`/books?${params || "limit=24"}`),
     ...defaultOptions,
   });
 }
 
 export function useDigitalBooks(params?: string) {
-  return useQuery({
+  return useQuery<DigitalBooksResponse>({
     queryKey: queryKeys.digitalBooks(params),
-    queryFn: () => api.get<{ books: DigitalBook[]; meta?: unknown }>(`/digital-books?${params || "limit=24"}`),
+    queryFn: () => api.get<DigitalBooksResponse>(`/digital-books?${params || "limit=24"}`),
     ...defaultOptions,
   });
 }
@@ -304,12 +284,38 @@ export function useCreateBook() {
       const endpoint = type === "physical" ? "/books" : "/digital-books";
       return api.postForm<{ data: { book: unknown } }>(endpoint, data);
     },
-    onSuccess: (_, variables) => {
-      if (variables.type === "physical") {
-        queryClient.invalidateQueries({ queryKey: ["books"] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["digital-books"] });
+    onMutate: async ({ type }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.books() });
+      await queryClient.cancelQueries({ queryKey: queryKeys.digitalBooks() });
+      
+      const previousBooks = queryClient.getQueryData<BooksResponse>(queryKeys.books());
+      const previousDigitalBooks = queryClient.getQueryData<DigitalBooksResponse>(queryKeys.digitalBooks());
+
+      if (type === "physical" && previousBooks) {
+        queryClient.setQueryData<BooksResponse>(queryKeys.books(), (old) => {
+          if (!old) return old;
+          return { ...old, books: [...old.books] };
+        });
+      } else if (type === "digital" && previousDigitalBooks) {
+        queryClient.setQueryData<DigitalBooksResponse>(queryKeys.digitalBooks(), (old) => {
+          if (!old) return old;
+          return { ...old, books: [...old.books] };
+        });
       }
+
+      return { previousBooks, previousDigitalBooks };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousBooks) {
+        queryClient.setQueryData(queryKeys.books(), context.previousBooks);
+      }
+      if (context?.previousDigitalBooks) {
+        queryClient.setQueryData(queryKeys.digitalBooks(), context.previousDigitalBooks);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+      queryClient.invalidateQueries({ queryKey: ["digital-books"] });
     },
   });
 }
@@ -321,7 +327,36 @@ export function useDeleteBook() {
       const endpoint = type === "physical" ? `/books/${id}` : `/digital-books/${id}`;
       return api.delete<{ data: unknown }>(endpoint);
     },
-    onSuccess: () => {
+    onMutate: async ({ id, type }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.books() });
+      await queryClient.cancelQueries({ queryKey: queryKeys.digitalBooks() });
+      
+      const previousBooks = queryClient.getQueryData<BooksResponse>(queryKeys.books());
+      const previousDigitalBooks = queryClient.getQueryData<DigitalBooksResponse>(queryKeys.digitalBooks());
+
+      if (type === "physical" && previousBooks) {
+        queryClient.setQueryData<BooksResponse>(queryKeys.books(), (old) => {
+          if (!old) return old;
+          return { ...old, books: old.books.filter(b => b.id !== id) };
+        });
+      } else if (type === "digital" && previousDigitalBooks) {
+        queryClient.setQueryData<DigitalBooksResponse>(queryKeys.digitalBooks(), (old) => {
+          if (!old) return old;
+          return { ...old, books: old.books.filter(b => b.id !== id) };
+        });
+      }
+
+      return { previousBooks, previousDigitalBooks };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousBooks) {
+        queryClient.setQueryData(queryKeys.books(), context.previousBooks);
+      }
+      if (context?.previousDigitalBooks) {
+        queryClient.setQueryData(queryKeys.digitalBooks(), context.previousDigitalBooks);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["books"] });
       queryClient.invalidateQueries({ queryKey: ["digital-books"] });
     },
@@ -329,9 +364,9 @@ export function useDeleteBook() {
 }
 
 export function useCategories(params?: string) {
-  return useQuery({
+  return useQuery<CategoriesResponse>({
     queryKey: queryKeys.categories(params),
-    queryFn: () => api.get<{ categories: Category[]; meta?: unknown }>(`/categories?${params || "limit=50"}`),
+    queryFn: () => api.get<CategoriesResponse>(`/categories?${params || "limit=50"}`),
     ...defaultOptions,
   });
 }
@@ -340,7 +375,26 @@ export function useCreateCategory() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: { name: string }) => api.post<{ data: { category: unknown } }>("/categories", data),
-    onSuccess: () => {
+    onMutate: async (newCategory) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.categories() });
+      const previous = queryClient.getQueryData<CategoriesResponse>(queryKeys.categories());
+      
+      if (previous) {
+        queryClient.setQueryData<CategoriesResponse>(queryKeys.categories(), (old) => {
+          if (!old) return old;
+          const tempCategory: Category = { id: `temp-${Date.now()}`, name: newCategory.name };
+          return { ...old, categories: [tempCategory, ...old.categories] };
+        });
+      }
+      
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.categories(), context.previous);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
   });
@@ -351,7 +405,28 @@ export function useUpdateCategory() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: { name: string } }) =>
       api.patch<{ data: { category: unknown } }>(`/categories/${id}`, data),
-    onSuccess: () => {
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.categories() });
+      const previous = queryClient.getQueryData<CategoriesResponse>(queryKeys.categories());
+      
+      if (previous) {
+        queryClient.setQueryData<CategoriesResponse>(queryKeys.categories(), (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            categories: old.categories.map(c => c.id === id ? { ...c, name: data.name } : c)
+          };
+        });
+      }
+      
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.categories(), context.previous);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
   });
@@ -361,16 +436,34 @@ export function useDeleteCategory() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.delete<{ data: unknown }>(`/categories/${id}`),
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.categories() });
+      const previous = queryClient.getQueryData<CategoriesResponse>(queryKeys.categories());
+      
+      if (previous) {
+        queryClient.setQueryData<CategoriesResponse>(queryKeys.categories(), (old) => {
+          if (!old) return old;
+          return { ...old, categories: old.categories.filter(c => c.id !== id) };
+        });
+      }
+      
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.categories(), context.previous);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
   });
 }
 
 export function useAuthors(params?: string) {
-  return useQuery({
+  return useQuery<AuthorsResponse>({
     queryKey: queryKeys.authors(params),
-    queryFn: () => api.get<{ authors: Author[]; meta?: unknown }>(`/authors?${params || "limit=50"}`),
+    queryFn: () => api.get<AuthorsResponse>(`/authors?${params || "limit=50"}`),
     ...defaultOptions,
   });
 }
@@ -381,7 +474,26 @@ export function useCreateAuthor() {
     mutationFn: async (formData: FormData) => {
       return api.postForm<{ data: { author: unknown } }>("/authors", formData);
     },
-    onSuccess: () => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.authors() });
+      const previous = queryClient.getQueryData<AuthorsResponse>(queryKeys.authors());
+      
+      if (previous) {
+        queryClient.setQueryData<AuthorsResponse>(queryKeys.authors(), (old) => {
+          if (!old) return old;
+          const tempAuthor: Author = { id: `temp-${Date.now()}`, name: "Creating..." };
+          return { ...old, authors: [tempAuthor, ...old.authors] };
+        });
+      }
+      
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.authors(), context.previous);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["authors"] });
     },
   });
@@ -391,16 +503,34 @@ export function useDeleteAuthor() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.delete<{ data: unknown }>(`/authors/${id}`),
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.authors() });
+      const previous = queryClient.getQueryData<AuthorsResponse>(queryKeys.authors());
+      
+      if (previous) {
+        queryClient.setQueryData<AuthorsResponse>(queryKeys.authors(), (old) => {
+          if (!old) return old;
+          return { ...old, authors: old.authors.filter(a => a.id !== id) };
+        });
+      }
+      
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.authors(), context.previous);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["authors"] });
     },
   });
 }
 
 export function useUsers() {
-  return useQuery({
+  return useQuery<UsersResponse>({
     queryKey: queryKeys.users,
-    queryFn: () => api.get<{ data: { users: User[] } }>("/auth/users"),
+    queryFn: () => api.get<UsersResponse>("/auth/users"),
     ...defaultOptions,
   });
 }
@@ -418,7 +548,25 @@ export function useDeleteUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.delete<{ data: unknown }>(`/auth/users/${id}`),
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.users });
+      const previous = queryClient.getQueryData<UsersResponse>(queryKeys.users);
+      
+      if (previous) {
+        queryClient.setQueryData<UsersResponse>(queryKeys.users, (old) => {
+          if (!old) return old;
+          return { ...old, data: { users: old.data.users.filter(u => u.id !== id) } };
+        });
+      }
+      
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.users, context.previous);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users });
     },
   });
@@ -428,7 +576,30 @@ export function useBlockUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.patch<{ data: unknown }>(`/auth/users/${id}/block`),
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.users });
+      const previous = queryClient.getQueryData<UsersResponse>(queryKeys.users);
+      
+      if (previous) {
+        queryClient.setQueryData<UsersResponse>(queryKeys.users, (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: {
+              users: old.data.users.map(u => u.id === id ? { ...u, is_blocked: true } : u)
+            }
+          };
+        });
+      }
+      
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.users, context.previous);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users });
     },
   });
@@ -438,40 +609,63 @@ export function useUnblockUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.patch<{ data: unknown }>(`/auth/users/${id}/unblock`),
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.users });
+      const previous = queryClient.getQueryData<UsersResponse>(queryKeys.users);
+      
+      if (previous) {
+        queryClient.setQueryData<UsersResponse>(queryKeys.users, (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: {
+              users: old.data.users.map(u => u.id === id ? { ...u, is_blocked: false } : u)
+            }
+          };
+        });
+      }
+      
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.users, context.previous);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users });
     },
   });
 }
 
 export function useRentals(params?: string) {
-  return useQuery({
+  return useQuery<RentalsResponse>({
     queryKey: queryKeys.rentals(params),
-    queryFn: () => api.get<{ rentals: Rental[] }>(`/rentals?${params || "limit=20"}`),
+    queryFn: () => api.get<RentalsResponse>(`/rentals?${params || "limit=20"}`),
     ...defaultOptions,
   });
 }
 
 export function useMyRentals(params?: string) {
-  return useQuery({
+  return useQuery<RentalsResponse>({
     queryKey: queryKeys.myRentals(params),
-    queryFn: () => api.get<{ rentals: Rental[] }>(`/rentals/mine?${params || "limit=20"}`),
+    queryFn: () => api.get<RentalsResponse>(`/rentals/mine?${params || "limit=20"}`),
     ...defaultOptions,
   });
 }
 
 export function useOverdueRentals(params?: string) {
-  return useQuery({
+  return useQuery<RentalsResponse>({
     queryKey: queryKeys.overdueRentals(params),
-    queryFn: () => api.get<{ rentals: Rental[] }>(`/rentals/admin/overdue?${params || "limit=20"}`),
+    queryFn: () => api.get<RentalsResponse>(`/rentals/admin/overdue?${params || "limit=20"}`),
     ...defaultOptions,
   });
 }
 
 export function useOverdueRanking(params?: string) {
-  return useQuery({
+  return useQuery<RentalsResponse>({
     queryKey: queryKeys.overdueRanking(params),
-    queryFn: () => api.get<{ ranking: Rental[] }>(`/rentals/admin/overdue-ranking?${params || "limit=10"}`),
+    queryFn: () => api.get<RentalsResponse>(`/rentals/admin/overdue-ranking?${params || "limit=10"}`),
     ...defaultOptions,
   });
 }
@@ -480,7 +674,7 @@ export function useSendReminders() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => api.post<{ data: unknown }>("/rentals/admin/send-reminders"),
-    onSuccess: () => {
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["rentals"] });
     },
   });
@@ -491,24 +685,58 @@ export function useProcessReturn() {
   return useMutation({
     mutationFn: (rentalId: string) =>
       api.patch<{ data: unknown }>(`/rentals/${rentalId}/return`, {}),
-    onSuccess: () => {
+    onMutate: async (rentalId) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.rentals() });
+      await queryClient.cancelQueries({ queryKey: queryKeys.myRentals() });
+      
+      const previousRentals = queryClient.getQueryData<RentalsResponse>(queryKeys.rentals());
+      const previousMyRentals = queryClient.getQueryData<RentalsResponse>(queryKeys.myRentals());
+      
+      const updateRentals = (old: RentalsResponse | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          rentals: old.rentals.map(r => 
+            r.id === rentalId ? { ...r, status: "RETURNED", return_date: new Date().toISOString() } : r
+          )
+        };
+      };
+      
+      if (previousRentals) {
+        queryClient.setQueryData<RentalsResponse>(queryKeys.rentals(), updateRentals);
+      }
+      if (previousMyRentals) {
+        queryClient.setQueryData<RentalsResponse>(queryKeys.myRentals(), updateRentals);
+      }
+      
+      return { previousRentals, previousMyRentals };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousRentals) {
+        queryClient.setQueryData(queryKeys.rentals(), context.previousRentals);
+      }
+      if (context?.previousMyRentals) {
+        queryClient.setQueryData(queryKeys.myRentals(), context.previousMyRentals);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["rentals"] });
     },
   });
 }
 
 export function useReservations(params?: string) {
-  return useQuery({
+  return useQuery<ReservationsResponse>({
     queryKey: queryKeys.reservations(params),
-    queryFn: () => api.get<{ reservations: Reservation[] }>(`/reservations?${params || "limit=20"}`),
+    queryFn: () => api.get<ReservationsResponse>(`/reservations?${params || "limit=20"}`),
     ...defaultOptions,
   });
 }
 
 export function useMyReservations(params?: string) {
-  return useQuery({
+  return useQuery<ReservationsResponse>({
     queryKey: queryKeys.myReservations(params),
-    queryFn: () => api.get<{ reservations: Reservation[] }>(`/reservations/mine?${params || "limit=20"}`),
+    queryFn: () => api.get<ReservationsResponse>(`/reservations/mine?${params || "limit=20"}`),
     ...defaultOptions,
   });
 }
@@ -517,7 +745,39 @@ export function useCancelReservation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.patch<{ data: unknown }>(`/reservations/${id}/cancel`),
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.reservations() });
+      await queryClient.cancelQueries({ queryKey: queryKeys.myReservations() });
+      
+      const previous = queryClient.getQueryData<ReservationsResponse>(queryKeys.reservations());
+      const previousMine = queryClient.getQueryData<ReservationsResponse>(queryKeys.myReservations());
+      
+      const updateReservations = (old: ReservationsResponse | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          reservations: old.reservations.filter(r => r.id !== id)
+        };
+      };
+      
+      if (previous) {
+        queryClient.setQueryData<ReservationsResponse>(queryKeys.reservations(), updateReservations);
+      }
+      if (previousMine) {
+        queryClient.setQueryData<ReservationsResponse>(queryKeys.myReservations(), updateReservations);
+      }
+      
+      return { previous, previousMine };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.reservations(), context.previous);
+      }
+      if (context?.previousMine) {
+        queryClient.setQueryData(queryKeys.myReservations(), context.previousMine);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["reservations"] });
     },
   });
@@ -527,17 +787,53 @@ export function useExpireReservations() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => api.post<{ data: unknown }>("/reservations/admin/expire"),
-    onSuccess: () => {
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["reservations"] });
     },
   });
 }
 
 export function useWishlist(params?: string) {
-  return useQuery({
+  return useQuery<WishlistResponse>({
     queryKey: queryKeys.wishlist(params),
-    queryFn: () => api.get<{ wishlist: WishlistItem[]; meta: { totalPages: number } }>(`/wishlist?${params || ""}`),
+    queryFn: () => api.get<WishlistResponse>(`/wishlist?${params || ""}`),
     ...defaultOptions,
+  });
+}
+
+export function useAddToWishlist() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ bookId, bookType }: { bookId: string; bookType: "physical" | "digital" }) => {
+      return api.post<{ data: { wishlist: unknown } }>("/wishlist", { book_id: bookId, book_type: bookType });
+    },
+    onMutate: async ({ bookId, bookType }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.wishlist() });
+      const previous = queryClient.getQueryData<WishlistResponse>(queryKeys.wishlist());
+      
+      if (previous) {
+        queryClient.setQueryData<WishlistResponse>(queryKeys.wishlist(), (old) => {
+          if (!old) return old;
+          const tempItem: WishlistItem = {
+            id: `temp-${Date.now()}`,
+            book: { id: bookId, title: "Adding...", copies: 0, isbn: "", available: 0 },
+            added_at: new Date().toISOString(),
+            book_type: bookType
+          };
+          return { ...old, wishlist: [tempItem, ...old.wishlist] };
+        });
+      }
+      
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.wishlist(), context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["wishlist"] });
+    },
   });
 }
 
@@ -545,7 +841,25 @@ export function useRemoveFromWishlist() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (itemId: string) => api.delete<{ data: unknown }>(`/wishlist/${itemId}`),
-    onSuccess: () => {
+    onMutate: async (itemId) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.wishlist() });
+      const previous = queryClient.getQueryData<WishlistResponse>(queryKeys.wishlist());
+      
+      if (previous) {
+        queryClient.setQueryData<WishlistResponse>(queryKeys.wishlist(), (old) => {
+          if (!old) return old;
+          return { ...old, wishlist: old.wishlist.filter(item => item.id !== itemId) };
+        });
+      }
+      
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.wishlist(), context.previous);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["wishlist"] });
     },
   });
@@ -606,9 +920,39 @@ export function useUpdateCondition() {
   return useMutation({
     mutationFn: ({ copyId, data }: { copyId: string; data: { condition: string; notes: string } }) =>
       api.patch<{ data: unknown }>(`/books/copies/${copyId}/condition`, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.bookCopies(variables.copyId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.conditionHistory(variables.copyId) });
+    onMutate: async ({ copyId, data }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.bookCopies("") });
+      await queryClient.cancelQueries({ queryKey: queryKeys.conditionHistory(copyId) });
+      
+      const previousCopies = queryClient.getQueryData<{ data: { copies: BookCopy[] } }>(queryKeys.bookCopies(""));
+      const previousHistory = queryClient.getQueryData<{ data: { history: ConditionHistoryEntry[] } }>(queryKeys.conditionHistory(copyId));
+      
+      if (previousCopies) {
+        queryClient.setQueryData<{ data: { copies: BookCopy[] } }>(queryKeys.bookCopies(""), (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: {
+              copies: old.data.copies.map(c => 
+                c.id === copyId ? { ...c, condition: data.condition as BookCopy["condition"], last_condition_update: new Date().toISOString() } : c
+              )
+            }
+          };
+        });
+      }
+      
+      return { previousCopies, previousHistory };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousCopies) {
+        queryClient.setQueryData(queryKeys.bookCopies(""), context.previousCopies);
+      }
+    },
+    onSettled: (_err, _variables, context) => {
+      if (_variables) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.bookCopies(_variables.copyId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.conditionHistory(_variables.copyId) });
+      }
     },
   });
 }
@@ -642,7 +986,28 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: (data: { name: string; phone: string | null; year: string | null; department: string | null }) =>
       api.patch<{ data: { user: unknown } }>("/auth/update-me", data),
-    onSuccess: () => {
+    onMutate: async (newData) => {
+      await queryClient.cancelQueries({ queryKey: ["current-user"] });
+      const previous = queryClient.getQueryData<{ status: string; data: { user: User | null } }>(["current-user"]);
+      
+      if (previous) {
+        queryClient.setQueryData<{ status: string; data: { user: User | null } }>(["current-user"], (old) => {
+          if (!old || !old.data.user) return old;
+          return {
+            ...old,
+            data: { user: { ...old.data.user, ...newData } }
+          };
+        });
+      }
+      
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["current-user"], context.previous);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["current-user"] });
     },
   });
@@ -653,7 +1018,7 @@ export function useChangePassword() {
   return useMutation({
     mutationFn: (data: { currentPassword: string; newPassword: string }) =>
       api.patch<{ data: unknown }>("/auth/change-password", data),
-    onSuccess: () => {
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["current-user"] });
     },
   });
@@ -662,49 +1027,92 @@ export function useChangePassword() {
 export function useUpdateSystemConfig() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: {
-      max_loan_days: number;
-      daily_fine: number;
-      max_books_per_user: number;
-      reservation_window_hr: number;
-      low_stock_threshold: number;
-      never_returned_days: number;
-      enable_notifications: boolean;
-    }) => api.patch<{ data: { config: unknown } }>("/system-config", data),
-    onSuccess: () => {
+    mutationFn: (data: SystemConfig) => api.patch<{ data: { config: unknown } }>("/system-config", data),
+    onMutate: async (newConfig) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.systemConfig });
+      const previous = queryClient.getQueryData<{ data: { config: SystemConfig } }>(queryKeys.systemConfig);
+      
+      if (previous) {
+        queryClient.setQueryData<{ data: { config: SystemConfig } }>(queryKeys.systemConfig, (old) => {
+          if (!old) return old;
+          return { ...old, data: { config: { ...old.data.config, ...newConfig } } };
+        });
+      }
+      
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.systemConfig, context.previous);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.systemConfig });
     },
   });
 }
 
 export function useActivityLogs(params?: string) {
-  return useQuery({
+  return useQuery<ActivityLogsResponse>({
     queryKey: queryKeys.activityLogs(params),
-    queryFn: () => api.get<{ logs: ActivityLog[]; meta?: unknown }>(`/admin/activity-logs?${params || "limit=50"}`),
+    queryFn: () => api.get<ActivityLogsResponse>(`/admin/activity-logs?${params || "limit=50"}`),
     ...defaultOptions,
   });
 }
 
 export function useAlerts() {
-  return useQuery({
+  return useQuery<AlertsResponse>({
     queryKey: queryKeys.alerts,
-    queryFn: () => api.get<{ alerts: unknown[]; meta?: unknown }>("/admin/inventory-alerts?limit=50"),
+    queryFn: () => api.get<AlertsResponse>("/admin/inventory-alerts?limit=50"),
     ...defaultOptions,
   });
 }
 
+export function useResolveAlert() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.patch<{ data: unknown }>(`/admin/inventory-alerts/${id}/resolve`, {}),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.alerts });
+      const previous = queryClient.getQueryData<AlertsResponse>(queryKeys.alerts);
+      
+      if (previous) {
+        queryClient.setQueryData<AlertsResponse>(queryKeys.alerts, (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            alerts: old.alerts.map(a => 
+              (a as Alert).id === id ? { ...(a as Alert), is_resolved: true } : a
+            )
+          };
+        });
+      }
+      
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.alerts, context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.alerts });
+    },
+  });
+}
+
 export function usePayments(params?: string) {
-  return useQuery({
+  return useQuery<PaymentsResponse>({
     queryKey: queryKeys.payments(params),
-    queryFn: () => api.get<{ payments: Payment[] }>(`/payments?${params || "limit=20"}`),
+    queryFn: () => api.get<PaymentsResponse>(`/payments?${params || "limit=20"}`),
     ...defaultOptions,
   });
 }
 
 export function useMyPayments(params?: string) {
-  return useQuery({
+  return useQuery<PaymentsResponse>({
     queryKey: queryKeys.myPayments(params),
-    queryFn: () => api.get<{ payments: Payment[] }>(`/payments/mine?${params || "limit=20"}`),
+    queryFn: () => api.get<PaymentsResponse>(`/payments/mine?${params || "limit=20"}`),
     ...defaultOptions,
   });
 }
@@ -714,17 +1122,92 @@ export function useCreatePayment() {
   return useMutation({
     mutationFn: (data: { rental_id: string; amount: number }) =>
       api.post<{ data: { payment: unknown } }>("/payments", data),
-    onSuccess: () => {
+    onMutate: async (newPayment) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.payments() });
+      const previous = queryClient.getQueryData<PaymentsResponse>(queryKeys.payments());
+      
+      if (previous) {
+        queryClient.setQueryData<PaymentsResponse>(queryKeys.payments(), (old) => {
+          if (!old) return old;
+          const tempPayment: Payment = {
+            id: `temp-${Date.now()}`,
+            amount: newPayment.amount,
+            status: "PENDING",
+            type: "RENTAL",
+            created_at: new Date().toISOString()
+          };
+          return { ...old, payments: [tempPayment, ...old.payments] };
+        });
+      }
+      
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.payments(), context.previous);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
     },
   });
 }
 
 export function useDigitalBooksList(params?: string) {
-  return useQuery({
+  return useQuery<DigitalBooksResponse>({
     queryKey: queryKeys.digitalBooksList(params),
-    queryFn: () => api.get<{ data: unknown }>(`/digital-books?${params || "limit=24"}`),
+    queryFn: () => api.get<DigitalBooksResponse>(`/digital-books?${params || "limit=24"}`),
     ...defaultOptions,
+  });
+}
+
+export function useStatsOverview() {
+  return useQuery({
+    queryKey: queryKeys.overview,
+    queryFn: () => api.get<{ data: unknown }>("/stats/overview"),
+    ...defaultOptions,
+  });
+}
+
+export function useStatsTargets() {
+  return useQuery({
+    queryKey: queryKeys.targets,
+    queryFn: () => api.get<{ data: { target: unknown } }>("/stats/targets/current"),
+    ...defaultOptions,
+  });
+}
+
+export function useUpdateTargets() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      target_rentals: number;
+      target_active_readers: number;
+      target_on_time_returns: number;
+      target_new_books: number;
+    }) => api.put<{ data: { target: unknown } }>("/stats/targets/current", data),
+    onMutate: async (newData) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.targets });
+      const previous = queryClient.getQueryData<{ data: { target: unknown } }>(queryKeys.targets);
+      
+      if (previous) {
+        queryClient.setQueryData<{ data: { target: unknown } }>(queryKeys.targets, (old) => {
+          if (!old) return old;
+          return { ...old, data: { target: { ...newData } } };
+        });
+      }
+      
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.targets, context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.overview });
+      queryClient.invalidateQueries({ queryKey: queryKeys.targets });
+    },
   });
 }
 

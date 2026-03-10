@@ -6,6 +6,7 @@
  *   - Author search
  *   - Author profile with all books listed
  *   - Image upload support
+ *   - Optimized with transactions
  */
 
 import { prisma } from '../prisma.js';
@@ -13,18 +14,6 @@ import { AppError } from '../middlewares/error.middleware.js';
 import { paginationMeta } from '../utils/apiFeatures.js';
 import { uploadImageToCloudinary } from '../utils/cloudinary.js';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// LIST AUTHORS
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Paginated list of authors.
- *
- * Query params:
- *   ?search=       – search by name or bio
- *   ?sort=name|-name|books (default: name asc)
- *   ?page=1&limit=20
- */
 export const getAuthors = async (query) => {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 20));
@@ -63,15 +52,6 @@ export const getAuthors = async (query) => {
   return { authors, meta: paginationMeta(total, page, limit) };
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET AUTHOR BY ID (with all books)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Author profile with:
- *   - All their physical books (non-deleted, with availability)
- *   - All their digital books (non-deleted)
- */
 export const getAuthorById = async (id) => {
   const author = await prisma.author.findUnique({
     where: { id },
@@ -103,20 +83,10 @@ export const getAuthorById = async (id) => {
   return author;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CREATE
-// ─────────────────────────────────────────────────────────────────────────────
-
 export const createAuthor = async (data, imageFile = null) => {
   const { name, bio } = data;
   if (!name || name.trim().length < 2) throw new AppError('Author name must be at least 2 characters', 400);
   if (!bio || bio.trim().length < 10) throw new AppError('Author bio must be at least 10 characters', 400);
-
-  // Check for duplicate name
-  const existing = await prisma.author.findFirst({
-    where: { name: { equals: name.trim(), mode: 'insensitive' } },
-  });
-  if (existing) throw new AppError(`Author "${name.trim()}" already exists`, 409);
 
   let image = data.image || '';
   if (imageFile) {
@@ -126,15 +96,23 @@ export const createAuthor = async (data, imageFile = null) => {
   }
   if (!image) throw new AppError('Author image is required', 400);
 
-  return prisma.author.create({
-    data: { name: name.trim(), bio: bio.trim(), image },
-    include: { _count: { select: { books: true, digital_books: true } } },
-  });
-};
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const existing = await tx.author.findFirst({
+        where: { name: { equals: name.trim(), mode: 'insensitive' } },
+      });
+      if (existing) throw new AppError(`Author "${name.trim()}" already exists`, 409);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// UPDATE
-// ─────────────────────────────────────────────────────────────────────────────
+      return tx.author.create({
+        data: { name: name.trim(), bio: bio.trim(), image },
+        include: { _count: { select: { books: true, digital_books: true } } },
+      });
+    });
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to create author', 500);
+  }
+};
 
 export const updateAuthor = async (id, data, imageFile = null) => {
   const author = await prisma.author.findUnique({ where: { id } });
@@ -142,11 +120,6 @@ export const updateAuthor = async (id, data, imageFile = null) => {
 
   const updateData = {};
   if (data.name) {
-    // Check duplicate on rename
-    const dup = await prisma.author.findFirst({
-      where: { name: { equals: data.name.trim(), mode: 'insensitive' }, NOT: { id } },
-    });
-    if (dup) throw new AppError(`Author "${data.name.trim()}" already exists`, 409);
     updateData.name = data.name.trim();
   }
   if (data.bio) updateData.bio = data.bio.trim();
@@ -159,6 +132,13 @@ export const updateAuthor = async (id, data, imageFile = null) => {
     updateData.image = data.image;
   }
 
+  if (data.name && data.name.trim() !== author.name) {
+    const dup = await prisma.author.findFirst({
+      where: { name: { equals: data.name.trim(), mode: 'insensitive' }, NOT: { id } },
+    });
+    if (dup) throw new AppError(`Author "${data.name.trim()}" already exists`, 409);
+  }
+
   return prisma.author.update({
     where: { id },
     data: updateData,
@@ -166,13 +146,6 @@ export const updateAuthor = async (id, data, imageFile = null) => {
   });
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DELETE
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Hard delete an author. Only allowed if they have no books.
- */
 export const deleteAuthor = async (id) => {
   const author = await prisma.author.findUnique({
     where: { id },

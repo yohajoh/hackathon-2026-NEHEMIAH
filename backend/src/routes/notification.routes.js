@@ -9,20 +9,19 @@ import { protect, restrictTo } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-// All notification routes require authentication
 router.use(protect);
 
-// ─── Student + Admin: My notifications ───────────────────────────────────────
-router.get('/mine', notificationController.getMyNotifications);        // Paginated, filterable
-router.patch('/mine/read-all', notificationController.markAllAsRead);  // Mark all as read
-router.delete('/mine/read', notificationController.deleteAllRead);     // Clear read notifications
-router.patch('/:id/read', notificationController.markAsRead);          // Mark single as read
-router.delete('/:id', notificationController.deleteNotification);      // Delete one
+router.get('/mine', notificationController.getMyNotifications);
+router.patch('/mine/read-all', notificationController.markAllAsRead);
+router.delete('/mine/read', notificationController.deleteAllRead);
+router.patch('/mine/view/:id', notificationController.viewNotification);
+router.patch('/mine/read-multiple', notificationController.markMultipleAsRead);
+router.patch('/:id/read', notificationController.markAsRead);
+router.delete('/:id', notificationController.deleteNotification);
 
-// ─── Admin only ───────────────────────────────────────────────────────────────
 router.use(restrictTo('ADMIN'));
 
-router.get('/', notificationController.getAllNotifications);            // All notifications
-router.post('/broadcast', notificationController.broadcastNotification); // Blast to all users
+router.get('/', notificationController.getAllNotifications);
+router.post('/broadcast', notificationController.broadcastNotification);
 
 export default router;

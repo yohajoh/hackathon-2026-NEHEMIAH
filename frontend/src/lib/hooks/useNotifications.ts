@@ -32,7 +32,6 @@ type NotificationsQueryOptions = {
   enabled?: boolean;
 };
 
-// Query key factory for better caching
 export const notificationKeys = {
   all: ["notifications"] as const,
   mine: (options?: { limit?: number; isRead?: boolean; type?: string }) => ["notifications", "mine", options] as const,
@@ -61,8 +60,8 @@ export function useNotifications(
         meta: res.meta || { page: 1, limit: 20, total: 0, totalPages: 0 },
       };
     },
-    staleTime: 30 * 1000, // Consider data fresh for 30 seconds
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes (formerly cacheTime)
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     enabled: queryOptions?.enabled ?? true,
@@ -103,16 +102,12 @@ export function useMarkAsRead() {
     mutationFn: async (id: string) => {
       return fetchApi(`/notifications/${id}/read`, { method: "PATCH" });
     },
-    // Optimistic update
     onMutate: async (id) => {
-      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: notificationKeys.all });
 
-      // Snapshot previous values
       const previousNotifications = queryClient.getQueryData<NotificationsResponse>(notificationKeys.all);
       const previousMineNotifications = queryClient.getQueryData<NotificationsResponse>(notificationKeys.mine());
 
-      // Optimistically update my notifications
       if (previousMineNotifications) {
         queryClient.setQueryData<NotificationsResponse>(notificationKeys.mine(), (old) => {
           if (!old) return old;
@@ -124,7 +119,6 @@ export function useMarkAsRead() {
         });
       }
 
-      // Optimistically update all notifications
       if (previousNotifications) {
         queryClient.setQueryData<NotificationsResponse>(notificationKeys.allAdmin(), (old) => {
           if (!old) return old;
@@ -139,7 +133,6 @@ export function useMarkAsRead() {
       return { previousNotifications, previousMineNotifications };
     },
     onError: (_err, _id, context) => {
-      // Rollback on error
       if (context?.previousMineNotifications) {
         queryClient.setQueryData(notificationKeys.mine(), context.previousMineNotifications);
       }
@@ -148,7 +141,6 @@ export function useMarkAsRead() {
       }
     },
     onSettled: () => {
-      // Invalidate and refetch
       queryClient.invalidateQueries({ queryKey: notificationKeys.all });
     },
   });
@@ -161,7 +153,6 @@ export function useMarkAllAsRead() {
     mutationFn: async () => {
       return fetchApi("/notifications/mine/read-all", { method: "PATCH" });
     },
-    // Optimistic update
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: notificationKeys.all });
 
@@ -198,7 +189,150 @@ export function useDeleteNotification() {
     mutationFn: async (id: string) => {
       return fetchApi(`/notifications/${id}`, { method: "DELETE" });
     },
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: notificationKeys.all });
+
+      const previousNotifications = queryClient.getQueryData<NotificationsResponse>(notificationKeys.all);
+      const previousMineNotifications = queryClient.getQueryData<NotificationsResponse>(notificationKeys.mine());
+
+      const removeNotification = (old: NotificationsResponse | undefined) => {
+        if (!old) return old;
+        const wasUnread = old.notifications.find(n => n.id === id && !n.is_read);
+        return {
+          ...old,
+          notifications: old.notifications.filter(n => n.id !== id),
+          unreadCount: wasUnread ? Math.max(0, old.unreadCount - 1) : old.unreadCount,
+        };
+      };
+
+      if (previousMineNotifications) {
+        queryClient.setQueryData<NotificationsResponse>(notificationKeys.mine(), removeNotification);
+      }
+
+      if (previousNotifications) {
+        queryClient.setQueryData<NotificationsResponse>(notificationKeys.allAdmin(), removeNotification);
+      }
+
+      return { previousNotifications, previousMineNotifications };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previousMineNotifications) {
+        queryClient.setQueryData(notificationKeys.mine(), context.previousMineNotifications);
+      }
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(notificationKeys.allAdmin(), context.previousNotifications);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+    },
+  });
+}
+
+export function useViewNotification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id }: { id: string }) => {
+      return fetchApi(`/notifications/mine/view/${id}`, { method: "PATCH" });
+    },
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: notificationKeys.all });
+
+      const previousNotifications = queryClient.getQueryData<NotificationsResponse>(notificationKeys.all);
+      const previousMineNotifications = queryClient.getQueryData<NotificationsResponse>(notificationKeys.mine());
+
+      const markAsRead = (old: NotificationsResponse | undefined) => {
+        if (!old) return old;
+        const notification = old.notifications.find(n => n.id === id);
+        if (!notification || notification.is_read) return old;
+        
+        return {
+          ...old,
+          notifications: old.notifications.map((n) => (n.id === id ? { ...n, is_read: true } : n)),
+          unreadCount: Math.max(0, old.unreadCount - 1),
+        };
+      };
+
+      if (previousMineNotifications) {
+        queryClient.setQueryData<NotificationsResponse>(notificationKeys.mine(), markAsRead);
+      }
+
+      if (previousNotifications) {
+        queryClient.setQueryData<NotificationsResponse>(notificationKeys.allAdmin(), markAsRead);
+      }
+
+      return { previousNotifications, previousMineNotifications };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousMineNotifications) {
+        queryClient.setQueryData(notificationKeys.mine(), context.previousMineNotifications);
+      }
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(notificationKeys.allAdmin(), context.previousNotifications);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+    },
+  });
+}
+
+export function useMarkMultipleAsRead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ ids }: { ids: string[] }) => {
+      return fetchApi("/notifications/mine/read-multiple", {
+        method: "PATCH",
+        body: JSON.stringify({ ids }),
+      });
+    },
+    onMutate: async ({ ids }) => {
+      await queryClient.cancelQueries({ queryKey: notificationKeys.all });
+
+      const previousNotifications = queryClient.getQueryData<NotificationsResponse>(notificationKeys.all);
+      const previousMineNotifications = queryClient.getQueryData<NotificationsResponse>(notificationKeys.mine());
+
+      const markMultipleAsRead = (old: NotificationsResponse | undefined) => {
+        if (!old) return old;
+        const idsSet = new Set(ids);
+        let unreadRemoved = 0;
+        
+        const updatedNotifications = old.notifications.map(n => {
+          if (idsSet.has(n.id) && !n.is_read) {
+            unreadRemoved++;
+            return { ...n, is_read: true };
+          }
+          return n;
+        });
+
+        return {
+          ...old,
+          notifications: updatedNotifications,
+          unreadCount: Math.max(0, old.unreadCount - unreadRemoved),
+        };
+      };
+
+      if (previousMineNotifications) {
+        queryClient.setQueryData<NotificationsResponse>(notificationKeys.mine(), markMultipleAsRead);
+      }
+
+      if (previousNotifications) {
+        queryClient.setQueryData<NotificationsResponse>(notificationKeys.allAdmin(), markMultipleAsRead);
+      }
+
+      return { previousNotifications, previousMineNotifications };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousMineNotifications) {
+        queryClient.setQueryData(notificationKeys.mine(), context.previousMineNotifications);
+      }
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(notificationKeys.allAdmin(), context.previousNotifications);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.all });
     },
   });

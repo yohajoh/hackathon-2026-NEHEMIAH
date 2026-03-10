@@ -15,14 +15,20 @@ import { paginationMeta } from '../utils/apiFeatures.js';
 import { syncLowStockAlertForBook } from './inventoryAlert.service.js';
 import { uploadImageToCloudinary } from '../utils/cloudinary.js';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SHARED HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
+const RATING_CACHE_TTL_MS = 60 * 1000;
+const ratingCache = new Map();
 
-/**
- * Build rating summary for a book from raw review aggregation data.
- * Returns average, total, and star distribution (1-5).
- */
+const clearExpiredCache = () => {
+  const now = Date.now();
+  for (const [key, value] of ratingCache.entries()) {
+    if (now - value.timestamp > RATING_CACHE_TTL_MS) {
+      ratingCache.delete(key);
+    }
+  }
+};
+
+setInterval(clearExpiredCache, 5 * 60 * 1000);
+
 const createEmptyRatingSummary = () => ({
   average: 0,
   total: 0,
@@ -31,39 +37,57 @@ const createEmptyRatingSummary = () => ({
 
 const buildRatingSummaries = async (field, ids) => {
   const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
-  const summaries = new Map(uniqueIds.map((id) => [id, createEmptyRatingSummary()]));
-  if (uniqueIds.length === 0) return summaries;
+  if (uniqueIds.length === 0) return new Map();
 
-  const where = { [field]: { in: uniqueIds } };
-  const [avgRows, distributionRows] = await Promise.all([
-    prisma.review.groupBy({
-      by: [field],
-      where,
-      _avg: { rating: true },
-      _count: { rating: true },
-    }),
-    prisma.review.groupBy({
-      by: [field, 'rating'],
-      where,
-      _count: { rating: true },
-    }),
-  ]);
+  const uncachedIds = [];
+  const summaries = new Map();
 
-  for (const row of avgRows) {
-    const id = row[field];
-    if (!id) continue;
-    const current = summaries.get(id) || createEmptyRatingSummary();
-    current.average = row._avg.rating ? parseFloat(Number(row._avg.rating).toFixed(2)) : 0;
-    current.total = row._count.rating;
-    summaries.set(id, current);
+  for (const id of uniqueIds) {
+    const cacheKey = `${field}:${id}`;
+    const cached = ratingCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < RATING_CACHE_TTL_MS) {
+      summaries.set(id, cached.data);
+    } else {
+      uncachedIds.push(id);
+      summaries.set(id, createEmptyRatingSummary());
+    }
   }
 
-  for (const row of distributionRows) {
-    const id = row[field];
-    if (!id) continue;
-    const current = summaries.get(id) || createEmptyRatingSummary();
-    current.distribution[row.rating] = row._count.rating;
-    summaries.set(id, current);
+  if (uncachedIds.length > 0) {
+    const where = { [field]: { in: uncachedIds } };
+    const [avgRows, distributionRows] = await Promise.all([
+      prisma.review.groupBy({
+        by: [field],
+        where,
+        _avg: { rating: true },
+        _count: { rating: true },
+      }),
+      prisma.review.groupBy({
+        by: [field, 'rating'],
+        where,
+        _count: { rating: true },
+      }),
+    ]);
+
+    for (const row of avgRows) {
+      const id = row[field];
+      if (!id) continue;
+      const current = summaries.get(id) || createEmptyRatingSummary();
+      current.average = row._avg.rating ? parseFloat(Number(row._avg.rating).toFixed(2)) : 0;
+      current.total = row._count.rating;
+      summaries.set(id, current);
+      ratingCache.set(`${field}:${id}`, { data: current, timestamp: Date.now() });
+    }
+
+    for (const row of distributionRows) {
+      const id = row[field];
+      if (!id) continue;
+      const current = summaries.get(id) || createEmptyRatingSummary();
+      current.distribution[row.rating] = row._count.rating;
+      summaries.set(id, current);
+      const cached = ratingCache.get(`${field}:${id}`);
+      if (cached) cached.data = current;
+    }
   }
 
   return summaries;
@@ -431,7 +455,35 @@ export const getBookById = async (id, userId = null) => {
   });
   if (!book) throw new AppError('Book not found', 404);
 
+  console.log(`[DEBUG] Book ${id}: copies=${book.copies}, available=${book.available}`);
+
+  if (book.available === null || book.available === undefined) {
+    book.available = book.copies || 0;
+    console.log(`[DEBUG] Fixed available for book ${id}: available=${book.available}`);
+  }
+  if (book.copies === null || book.copies === undefined || book.copies < 0) {
+    book.copies = 1;
+    console.log(`[DEBUG] Fixed copies for book ${id}: copies=${book.copies}`);
+  }
+
   const rating = await buildRatingSummary('physical_book_id', id);
+
+  console.log(`[DEBUG] Book ${id} has ${book.reviews?.length || 0} reviews`);
+
+  // Get active reservation count for this book (QUEUED or NOTIFIED)
+  const reservationCount = await prisma.reservation.count({
+    where: { book_id: id, status: { in: ['QUEUED', 'NOTIFIED'] } },
+  });
+
+  // Check if current user has an active reservation
+  let userReservation = null;
+  if (userId) {
+    userReservation = await prisma.reservation.findFirst({
+      where: { user_id: userId, book_id: id, status: { in: ['QUEUED', 'NOTIFIED'] } },
+      select: { id: true },
+    });
+    console.log(`[DEBUG] User ${userId} reservation for book ${id}:`, userReservation);
+  }
 
   // Per-user context
   let userContext = null;
@@ -446,15 +498,17 @@ export const getBookById = async (id, userId = null) => {
         select: { id: true },
       }),
     ]);
+    console.log(`[DEBUG] User ${userId} rental for book ${id}:`, activeRental);
     userContext = {
       hasActiveRental: !!activeRental,
       activeRental,
       isInWishlist: !!wishlistItem,
       wishlistId: wishlistItem?.id || null,
+      hasActiveReservation: !!userReservation,
     };
   }
 
-  return { ...book, rating, userContext };
+  return { ...book, rating, userContext, reservationCount };
 };
 
 export const getBookPageData = async (id, userId = null) => {

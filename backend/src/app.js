@@ -5,9 +5,9 @@ import morgan from "morgan";
 import helmet from "helmet";
 import compression from "compression";
 import passport from "passport";
+import session from "express-session";
 import "./config/passport.js";
 
-// ─── Route Imports ────────────────────────────────────────────────────────────
 import authRoutes from "./routes/auth.routes.js";
 import bookRoutes from "./routes/book.routes.js";
 import digitalBookRoutes from "./routes/digitalBook.routes.js";
@@ -33,19 +33,33 @@ const resolvedCompressionLevel = Number.isFinite(compressionLevel)
   ? Math.max(1, Math.min(9, compressionLevel))
   : 6;
 
+app.use(session({
+  secret: process.env.JWT_SECRET || "brana_secret_key_123456789",
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000
+  }
+}));
+
 app.use(passport.initialize());
+app.use(passport.session());
 app.disable("x-powered-by");
 app.set("etag", "strong");
+app.set("json spaces", 0);
 
 if (process.env.TRUST_PROXY) {
   const trustProxyValue = Number(process.env.TRUST_PROXY);
   app.set("trust proxy", Number.isNaN(trustProxyValue) ? process.env.TRUST_PROXY : trustProxyValue);
 }
 
-// Security HTTP headers
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: false,
+}));
 
-// Development logging
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
@@ -75,13 +89,16 @@ app.use(
   compression({
     threshold: 1024,
     level: resolvedCompressionLevel,
+    filter: (req, res) => {
+      if (req.headers["x-no-compression"]) return false;
+      return compression.filter(req, res);
+    },
   }),
 );
-app.use(express.json({ limit: "1mb" }));
-app.use(express.urlencoded({ extended: false, limit: "50kb" }));
+app.use(express.json({ limit: "1mb", strict: false }));
+app.use(express.urlencoded({ extended: false, limit: "50kb", parameterLimit: 100 }));
 app.use(cookieParser());
 
-// ─── API Routes ───────────────────────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
 app.use("/api/books", bookRoutes);
 app.use("/api/digital-books", digitalBookRoutes);
@@ -99,17 +116,14 @@ app.use("/api/reservations", reservationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/student", studentRoutes);
 
-// ─── Health Check ─────────────────────────────────────────────────────────────
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.all("/{*splat}", (req, res, next) => {
   next(new AppError(`Cannot find ${req.method} ${req.originalUrl} on this server`, 404));
 });
 
-// ─── Global Error Handler ─────────────────────────────────────────────────────
 app.use(globalErrorHandler);
 
 export default app;

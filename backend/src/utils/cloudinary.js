@@ -26,12 +26,41 @@ const signUploadParams = (params, apiSecret) => {
     .digest('hex');
 };
 
+export const generateSignedUploadUrl = (opts = {}) => {
+  const cfg = getCloudinaryConfig();
+  if (!cfg) {
+    throw new AppError('Cloudinary not configured', 500);
+  }
+
+  const { cloudName, apiKey, apiSecret } = cfg;
+  const folder = opts.folder || 'brana';
+  const timestamp = Math.floor(Date.now() / 1000) + 300; // 5 minutes validity
+  const uniqueId = crypto.randomBytes(8).toString('hex');
+
+  const params = {
+    timestamp,
+    folder,
+    api_key: apiKey,
+  };
+
+  const signature = signUploadParams(params, apiSecret);
+
+  return {
+    signedUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+    signature,
+    timestamp,
+    apiKey,
+    cloudName,
+    folder,
+    uniqueId,
+  };
+};
+
 export const uploadImageToCloudinary = async (imageFile, opts = {}) => {
   if (!imageFile) return null;
 
   const cfg = getCloudinaryConfig();
   if (!cfg) {
-    // Dev fallback so admin upload never hard-fails when Cloudinary envs are missing.
     return `data:${imageFile.mimetype};base64,${imageFile.buffer.toString('base64')}`;
   }
 
@@ -48,7 +77,6 @@ export const uploadImageToCloudinary = async (imageFile, opts = {}) => {
   );
 
   const form = new FormData();
-  // Binary upload avoids expensive base64 encoding and reduces request size.
   const blob = new Blob([imageFile.buffer], { type: imageFile.mimetype || 'application/octet-stream' });
   form.append('file', blob, imageFile.originalname || `upload-${Date.now()}`);
   form.append('api_key', apiKey);
@@ -70,4 +98,11 @@ export const uploadImageToCloudinary = async (imageFile, opts = {}) => {
   }
 
   return payload.secure_url;
+};
+
+export const uploadMultipleToCloudinary = async (files, opts = {}) => {
+  if (!files || files.length === 0) return [];
+
+  const uploads = files.map((file) => uploadImageToCloudinary(file, opts));
+  return Promise.all(uploads);
 };

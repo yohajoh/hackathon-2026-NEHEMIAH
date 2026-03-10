@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useMemo, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api";
 import { useNotifications, useMarkAsRead, Notification, useMarkAllAsRead } from "@/lib/hooks/useNotifications";
@@ -49,54 +49,61 @@ export function useScanAlerts() {
 }
 
 function AlertsContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab") === "notifications" ? "notifications" : "alerts";
-  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
-  const [overlayNotification, setOverlayNotification] = useState<Notification | null>(null);
+  const queryClient = useQueryClient();
 
-  const { data: alertsData, isLoading: loadingAlerts, error: alertsError, refetch: refetchAlerts } = useInventoryAlerts();
+  // URL States - Source of Truth
+  const notificationId = searchParams.get("notification");
+  const activeTab = (searchParams.get("tab") as TabType) || "alerts";
+
+  const { data: alertsData, isLoading: loadingAlerts } = useInventoryAlerts();
   const resolveAlert = useResolveAlert();
   const scanAlerts = useScanAlerts();
 
   const {
     data: notificationsData,
     isLoading: loadingNotifications,
-    error: notificationsError,
     refetch: refetchNotifications,
   } = useNotifications({ limit: 50 }, { enabled: activeTab === "notifications" });
+
   const markAsReadMutation = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
 
-  const alerts: Alert[] = alertsData?.alerts || alertsData?.data?.alerts || [];
+  // Find the notification directly from the data using the URL ID
+  const activeNotification = useMemo(() => {
+    if (!notificationId || !notificationsData?.notifications) return null;
+    return notificationsData.notifications.find((n) => n.id === notificationId) || null;
+  }, [notificationId, notificationsData]);
 
-  const handleResolveAlert = async (id: string) => {
-    await resolveAlert.mutateAsync(id);
-  };
+  const handleNotificationClick = (notification: Notification) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("notification", notification.id);
+    params.set("tab", "notifications");
+    router.push(`?${params.toString()}`, { scroll: false });
 
-  const handleScanAlerts = async () => {
-    await scanAlerts.mutateAsync();
-  };
-
-  const handleMarkAll = async () => {
-    await markAllAsRead.mutateAsync();
-  };
-
-  const handleNotificationClick = async (notification: Notification) => {
-    // Auto-mark as read when viewing detail
     if (!notification.is_read) {
-      try {
-        await markAsReadMutation.mutateAsync(notification.id);
-        await refetchNotifications();
-      } catch {
-        // Continue even if mark as read fails
-      }
+      markAsReadMutation.mutate(notification.id, {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        },
+      });
     }
-    setOverlayNotification(notification);
   };
 
   const handleCloseOverlay = () => {
-    setOverlayNotification(null);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("notification");
+    router.replace(`?${params.toString()}`, { scroll: false });
   };
+
+  const handleTabChange = (tab: TabType) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    router.push(`?${params.toString()}`, { scroll: false });
+  };
+
+  const alerts: Alert[] = alertsData?.alerts || alertsData?.data?.alerts || [];
 
   return (
     <div className="p-6 lg:p-12 space-y-8">
@@ -105,118 +112,82 @@ function AlertsContent() {
           <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#2B1A10]">Alerts & Notifications</h1>
           <p className="text-[#AE9E85] font-medium">Monitor inventory alerts and system notifications.</p>
         </div>
-        <div className="flex gap-3">
-          <button onClick={handleScanAlerts} disabled={scanAlerts.isPending} className="flex items-center gap-2 px-4 py-2.5 bg-[#2B1A10] text-white text-sm font-bold rounded-xl disabled:opacity-50">
-            {scanAlerts.isPending ? "Scanning..." : "Run Scan"}
-          </button>
-          {alertsError && (
-            <button
-              onClick={() => refetchAlerts()}
-              className="flex items-center gap-2 px-4 py-2.5 border border-[#C2B199] text-[#2B1A10] text-sm font-bold rounded-xl hover:bg-[#F3EFE6]"
-            >
-              Retry Alerts
-            </button>
-          )}
-        </div>
+        <button
+          onClick={() => scanAlerts.mutate()}
+          disabled={scanAlerts.isPending}
+          className="px-4 py-2.5 bg-[#2B1A10] text-white text-sm font-bold rounded-xl disabled:opacity-50"
+        >
+          {scanAlerts.isPending ? "Scanning..." : "Run Scan"}
+        </button>
       </div>
 
       <div className="flex gap-2 border-b border-[#E1D2BD]/50">
-        <button onClick={() => setActiveTab("alerts")} className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === "alerts" ? "border-[#2B1A10] text-[#2B1A10]" : "border-transparent text-[#AE9E85] hover:text-[#2B1A10]"}`}>
+        <button
+          onClick={() => handleTabChange("alerts")}
+          className={`px-4 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === "alerts" ? "border-[#2B1A10] text-[#2B1A10]" : "border-transparent text-[#AE9E85]"}`}
+        >
           Inventory Alerts
         </button>
         <button
-          onClick={() => {
-            setActiveTab("notifications");
-            void refetchNotifications();
-          }}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === "notifications" ? "border-[#2B1A10] text-[#2B1A10]" : "border-transparent text-[#AE9E85] hover:text-[#2B1A10]"}`}
+          onClick={() => handleTabChange("notifications")}
+          className={`px-4 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === "notifications" ? "border-[#2B1A10] text-[#2B1A10]" : "border-transparent text-[#AE9E85]"}`}
         >
           Notifications
-          {notificationsData?.unreadCount && notificationsData.unreadCount > 0 && <span className="ml-1 px-2 py-0.5 text-xs bg-red-500 text-white rounded-full">{notificationsData.unreadCount}</span>}
+          {notificationsData?.unreadCount && notificationsData.unreadCount > 0 && (
+            <span className="ml-2 px-2 py-0.5 text-xs bg-red-500 text-white rounded-full">
+              {notificationsData.unreadCount}
+            </span>
+          )}
         </button>
       </div>
 
       {activeTab === "alerts" ? (
         <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-hidden">
-          <div className="grid grid-cols-[1fr_1fr_2.5fr_1fr_1fr_1fr] gap-4 px-6 py-3 border-b border-[#E1D2BD]/50 bg-[#FDFAF6] text-[11px] font-bold text-[#AE9E85] uppercase">
-            <span>Type</span>
-            <span>Severity</span>
-            <span>Message</span>
-            <span>Book</span>
-            <span>Status</span>
-            <span>Action</span>
-          </div>
           {loadingAlerts ? (
-            <div className="py-16 text-center text-[#AE9E85] text-sm"><LoadingList count={3} /></div>
-          ) : alertsError ? (
-            <div className="py-16 text-center text-red-600 text-sm px-6">
-              Failed to load alerts: {alertsError instanceof Error ? alertsError.message : "Unknown error"}
-            </div>
-          ) : alerts.length === 0 ? (
-            <div className="py-16 text-center text-[#AE9E85] text-sm">No alerts</div>
+            <LoadingList count={3} />
           ) : (
             alerts.map((item) => (
-              <div key={item.id} className="grid grid-cols-[1fr_1fr_2.5fr_1fr_1fr_1fr] gap-4 items-center px-6 py-4 border-b border-[#E1D2BD]/30">
-                <span className="text-sm text-[#2B1A10]">{item.type}</span>
-                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-[#F3EFE6] text-[#2B1A10] w-fit">{item.severity}</span>
-                <p className="text-sm text-[#2B1A10]/80 line-clamp-2">{item.message}</p>
-                <span className="text-sm text-[#2B1A10]/70">{item.book?.title || "-"}</span>
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-lg w-fit ${item.is_resolved ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>{item.is_resolved ? "Resolved" : "Open"}</span>
-                <button onClick={() => handleResolveAlert(item.id)} disabled={item.is_resolved || resolveAlert.variables === item.id} className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-[#2B1A10] border border-[#C2B199] rounded-lg disabled:opacity-40 hover:bg-[#F3EFE6]">
-                  {resolveAlert.variables === item.id ? "Resolving..." : item.is_resolved ? "Resolved" : "Resolve"}
+              <div key={item.id} className="flex items-center justify-between px-6 py-4 border-b border-[#E1D2BD]/30">
+                <div>
+                  <p className="text-sm font-bold text-[#2B1A10]">{item.message}</p>
+                  <p className="text-xs text-[#AE9E85]">
+                    {item.type} • {item.severity}
+                  </p>
+                </div>
+                <button
+                  onClick={() => resolveAlert.mutate(item.id)}
+                  disabled={item.is_resolved}
+                  className="px-3 py-1.5 text-xs font-bold border rounded-lg disabled:opacity-30"
+                >
+                  {item.is_resolved ? "Resolved" : "Resolve"}
                 </button>
               </div>
             ))
           )}
         </div>
       ) : (
-        <div className="space-y-4">
-          <div className="flex justify-end">
-            {notificationsData && notificationsData.unreadCount > 0 && (
-              <button onClick={handleMarkAll} disabled={markAllAsRead.isPending} className="flex items-center gap-2 px-4 py-2 bg-[#2B1A10] text-white text-sm font-bold rounded-xl disabled:opacity-50">
-                {markAllAsRead.isPending ? "Marking..." : "Mark All Read"}
-              </button>
-            )}
-          </div>
+        <div className="space-y-3">
           {loadingNotifications ? (
             <LoadingList count={5} />
-          ) : notificationsError ? (
-            <div className="py-16 text-center text-red-600 text-sm px-6 bg-white rounded-2xl border border-[#E1D2BD]/50">
-              Failed to load notifications:{" "}
-              {notificationsError instanceof Error ? notificationsError.message : "Unknown error"}
-              <div className="mt-4">
-                <button
-                  onClick={() => refetchNotifications()}
-                  className="px-4 py-2 border border-[#C2B199] text-[#2B1A10] text-sm font-bold rounded-xl hover:bg-[#F3EFE6]"
-                >
-                  Retry Notifications
-                </button>
-              </div>
-            </div>
-          ) : notificationsData?.notifications && notificationsData.notifications.length > 0 ? (
-            <div className="grid gap-3">
-              {notificationsData.notifications.map((notification) => (
-                <button key={notification.id} onClick={() => handleNotificationClick(notification)} className={`w-full text-left bg-white rounded-2xl border border-[#E1D2BD]/60 p-4 flex items-start justify-between gap-4 hover:shadow-md ${!notification.is_read ? "border-l-4 border-l-blue-500" : ""}`}>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`px-2 py-0.5 text-xs font-bold rounded-lg ${notification.type === "ALERT" || notification.type === "OVERDUE" ? "bg-red-100 text-red-700" : notification.type === "REMINDER" ? "bg-yellow-100 text-yellow-700" : notification.type === "NEW_BOOK" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>{notification.type}</span>
-                      {!notification.is_read && <span className="w-2 h-2 bg-blue-500 rounded-full" />}
-                    </div>
-                    <p className="text-sm font-medium text-[#2B1A10] line-clamp-2">{notification.message}</p>
-                    <p className="text-xs text-[#AE9E85] mt-2">{new Date(notification.created_at).toLocaleString()}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
           ) : (
-            <div className="py-16 text-center text-[#AE9E85] text-sm bg-white rounded-2xl border border-[#E1D2BD]/50">No notifications found.</div>
+            notificationsData?.notifications?.map((n) => (
+              <button
+                key={n.id}
+                onClick={() => handleNotificationClick(n)}
+                className={`w-full text-left bg-white rounded-2xl border p-4 transition-all ${!n.is_read ? "border-l-4 border-l-blue-500 shadow-sm" : "border-[#E1D2BD]/60"}`}
+              >
+                <span className="text-xs font-bold text-blue-600 uppercase">{n.type}</span>
+                <p className="text-sm font-medium text-[#2B1A10] line-clamp-1">{n.message}</p>
+                <p className="text-[10px] text-[#AE9E85] mt-1">{new Date(n.created_at).toLocaleString()}</p>
+              </button>
+            ))
           )}
         </div>
       )}
 
       <NotificationOverlay
-        notification={overlayNotification}
-        isOpen={!!overlayNotification}
+        notification={activeNotification}
+        isOpen={!!activeNotification}
         onClose={handleCloseOverlay}
         refetch={refetchNotifications}
       />
@@ -225,5 +196,15 @@ function AlertsContent() {
 }
 
 export default function AdminAlertsPage() {
-  return <AlertsContent />;
+  return (
+    <Suspense
+      fallback={
+        <div className="p-12">
+          <LoadingList count={5} />
+        </div>
+      }
+    >
+      <AlertsContent />
+    </Suspense>
+  );
 }

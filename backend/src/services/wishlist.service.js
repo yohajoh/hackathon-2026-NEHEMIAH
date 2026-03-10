@@ -5,23 +5,13 @@
  *   - Filter by type (physical/digital)
  *   - Check if book is in current user's wishlist
  *   - Availability status on each wishlist item
+ *   - Optimized with batch operations
  */
 
 import { prisma } from '../prisma.js';
 import { AppError } from '../middlewares/error.middleware.js';
 import { paginationMeta } from '../utils/apiFeatures.js';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET MY WISHLIST
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Paginated wishlist for logged-in user.
- *
- * Query params:
- *   ?book_type=physical|digital  – filter by type
- *   ?page=1&limit=12
- */
 export const getMyWishlist = async (userId, query) => {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(query.limit, 10) || 12));
@@ -64,7 +54,6 @@ export const getMyWishlist = async (userId, query) => {
     prisma.wishlist.count({ where }),
   ]);
 
-  // Mark items where the book is gone (soft deleted) so UI can show
   const enriched = items.map((item) => ({
     ...item,
     bookAvailable:
@@ -78,13 +67,6 @@ export const getMyWishlist = async (userId, query) => {
   return { wishlist: enriched, meta: paginationMeta(total, page, limit) };
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ADD TO WISHLIST
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Body: { bookType: 'PHYSICAL'|'DIGITAL', bookId: 'uuid' }
- */
 export const addToWishlist = async (userId, { bookType, bookId }) => {
   if (!bookType || !bookId) throw new AppError('bookType and bookId are required', 400);
 
@@ -95,39 +77,39 @@ export const addToWishlist = async (userId, { bookType, bookId }) => {
 
   const field = bt === 'PHYSICAL' ? 'physical_book_id' : 'digital_book_id';
 
-  // Validate book exists
-  if (bt === 'PHYSICAL') {
-    const book = await prisma.book.findFirst({ where: { id: bookId, deleted_at: null } });
-    if (!book) throw new AppError('Book not found', 404);
-  } else {
-    const book = await prisma.digitalBook.findFirst({ where: { id: bookId, deleted_at: null } });
-    if (!book) throw new AppError('Digital book not found', 404);
+  try {
+    return await prisma.$transaction(async (tx) => {
+      if (bt === 'PHYSICAL') {
+        const book = await tx.book.findFirst({ where: { id: bookId, deleted_at: null } });
+        if (!book) throw new AppError('Book not found', 404);
+      } else {
+        const book = await tx.digitalBook.findFirst({ where: { id: bookId, deleted_at: null } });
+        if (!book) throw new AppError('Digital book not found', 404);
+      }
+
+      const existing = await tx.wishlist.findFirst({
+        where: { user_id: userId, [field]: bookId },
+      });
+      if (existing) throw new AppError('Book is already in your wishlist', 409);
+
+      return tx.wishlist.create({
+        data: {
+          user_id: userId,
+          book_type: /** @type {any} */ (bt),
+          [field]: bookId,
+        },
+        include: {
+          physical_book: { select: { id: true, title: true, cover_image_url: true, available: true } },
+          digital_book: { select: { id: true, title: true, cover_image_url: true, pdf_access: true } },
+        },
+      });
+    });
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to add to wishlist', 500);
   }
-
-  // Prevent duplicates
-  const existing = await prisma.wishlist.findFirst({
-    where: { user_id: userId, [field]: bookId },
-  });
-  if (existing) throw new AppError('Book is already in your wishlist', 409);
-
-  return prisma.wishlist.create({
-    data: {
-      user_id: userId,
-      book_type: /** @type {any} */ (bt),
-      [field]: bookId,
-    },
-    include: {
-      physical_book: { select: { id: true, title: true, cover_image_url: true, available: true } },
-      digital_book: { select: { id: true, title: true, cover_image_url: true, pdf_access: true } },
-    },
-  });
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// REMOVE FROM WISHLIST
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Remove by wishlist item ID. Ownership enforced. */
 export const removeFromWishlist = async (id, userId) => {
   const item = await prisma.wishlist.findUnique({ where: { id } });
   if (!item) throw new AppError('Wishlist item not found', 404);
@@ -135,10 +117,6 @@ export const removeFromWishlist = async (id, userId) => {
   return prisma.wishlist.delete({ where: { id } });
 };
 
-/**
- * Remove by bookId and bookType (convenient for frontend toggle button).
- * Body: { bookType, bookId }
- */
 export const removeFromWishlistByBook = async (userId, { bookType, bookId }) => {
   const bt = bookType.toUpperCase();
   const field = bt === 'PHYSICAL' ? 'physical_book_id' : 'digital_book_id';
@@ -150,11 +128,6 @@ export const removeFromWishlistByBook = async (userId, { bookType, bookId }) => 
   return prisma.wishlist.delete({ where: { id: item.id } });
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CHECK WISHLIST STATUS
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Returns whether a specific book is in the user's wishlist. */
 export const checkWishlistStatus = async (userId, bookType, bookId) => {
   const bt = bookType.toUpperCase();
   const field = bt === 'PHYSICAL' ? 'physical_book_id' : 'digital_book_id';

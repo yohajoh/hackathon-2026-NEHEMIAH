@@ -9,6 +9,19 @@ export const getBookImages = async (req, res) => {
   res.json({ status: 'success', data: { images } });
 };
 
+export const getSignedUploadUrl = async (req, res) => {
+  const { folder } = req.query;
+  const signedData = await bookImageService.getSignedUploadUrl(folder);
+  res.json({ status: 'success', data: signedData });
+};
+
+export const confirmUpload = async (req, res) => {
+  const { bookType, bookId } = req.params;
+  const { imageUrl, isCover, sortOrder } = req.body;
+  const image = await bookImageService.confirmUpload(bookType, bookId, imageUrl, isCover, sortOrder);
+  res.json({ status: 'success', data: { image } });
+};
+
 export const addBookImages = async (req, res) => {
   const images = await bookImageService.addBookImages(
     req.params.bookType,

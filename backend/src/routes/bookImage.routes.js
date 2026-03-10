@@ -14,12 +14,12 @@ import { uploadImage } from '../utils/upload.js';
 
 const router = Router();
 
-// ─── Public: list images for a book ──────────────────────────────────────────
 router.get('/:bookType/:bookId', bookImageController.getBookImages);
 
-// ─── Admin only ───────────────────────────────────────────────────────────────
 router.use(protect, restrictTo('ADMIN'));
 
+router.get('/signed-upload', bookImageController.getSignedUploadUrl);
+router.post('/confirm-upload/:bookType/:bookId', bookImageController.confirmUpload);
 router.post('/:bookType/:bookId', uploadImage.array('images', 10), bookImageController.addBookImages);
 router.put('/:bookType/:bookId/reorder', bookImageController.reorderBookImages);
 router.patch('/:bookType/:bookId/cover/:imageId', bookImageController.setCoverImage);
