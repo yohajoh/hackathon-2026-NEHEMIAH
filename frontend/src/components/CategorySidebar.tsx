@@ -12,7 +12,7 @@ type Category = {
 type Props = {
   categories: Category[];
   selectedCategory: string | null;
-  onCategoryChange: (categoryId: string | null) => void;
+  onCategoryChange: (categorySlug: string | null) => void;
   loading?: boolean;
 };
 
@@ -22,9 +22,7 @@ export const CategorySidebar = ({ categories, selectedCategory, onCategoryChange
       <aside className="w-full lg:w-64 flex-shrink-0 space-y-8">
         <div className="flex items-center gap-3 mb-6">
           <Filter className="text-primary" size={24} />
-          <h2 className="text-xl font-serif font-extrabold text-primary">
-            Categories
-          </h2>
+          <h2 className="text-xl font-serif font-extrabold text-primary">Categories</h2>
         </div>
         <nav className="flex flex-col gap-2">
           {[1, 2, 3, 4, 5].map((i) => (
@@ -42,9 +40,7 @@ export const CategorySidebar = ({ categories, selectedCategory, onCategoryChange
     <aside className="w-full lg:w-64 flex-shrink-0 space-y-8">
       <div className="flex items-center gap-3 mb-6">
         <Filter className="text-primary" size={24} />
-        <h2 className="text-xl font-serif font-extrabold text-primary">
-          Categories
-        </h2>
+        <h2 className="text-xl font-serif font-extrabold text-primary">Categories</h2>
       </div>
 
       <nav className="flex flex-col gap-2">
@@ -67,9 +63,7 @@ export const CategorySidebar = ({ categories, selectedCategory, onCategoryChange
           </div>
           <span
             className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-              selectedCategory === null
-                ? "bg-primary text-background"
-                : "bg-muted/80 text-secondary/70"
+              selectedCategory === null ? "bg-primary text-background" : "bg-muted/80 text-secondary/70"
             }`}
           >
             {totalBooks}
@@ -78,13 +72,13 @@ export const CategorySidebar = ({ categories, selectedCategory, onCategoryChange
 
         {/* Category Options */}
         {categories.map((category) => {
-          const isSelected = selectedCategory === category.id;
+          const isSelected = selectedCategory === category.slug;
           const bookCount = category._count.books;
 
           return (
             <button
               key={category.id}
-              onClick={() => onCategoryChange(category.id)}
+              onClick={() => onCategoryChange(category.slug)}
               className={`flex items-center justify-between px-4 py-3 rounded-xl transition-all group ${
                 isSelected
                   ? "bg-muted text-primary font-bold shadow-sm"
@@ -96,9 +90,7 @@ export const CategorySidebar = ({ categories, selectedCategory, onCategoryChange
               </div>
               <span
                 className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                  isSelected
-                    ? "bg-primary text-background"
-                    : "bg-muted/80 text-secondary/70"
+                  isSelected ? "bg-primary text-background" : "bg-muted/80 text-secondary/70"
                 }`}
               >
                 {bookCount}

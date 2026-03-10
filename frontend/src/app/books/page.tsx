@@ -56,20 +56,53 @@ export default function BooksPage() {
   const topics = searchParams.get("topics") || "";
   const limit = 12;
 
-  const updateQuery = useCallback((updates: Record<string, string | null>, resetPage = false) => {
-    const next = new URLSearchParams(searchParams.toString());
-    Object.entries(updates).forEach(([key, value]) => {
-      if (!value) next.delete(key);
-      else next.set(key, value);
-    });
-    if (resetPage) next.set("page", "1");
-    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
-  }, [pathname, router, searchParams]);
+  const updateQuery = useCallback(
+    (updates: Record<string, string | null>, resetPage = false) => {
+      const next = new URLSearchParams(searchParams.toString());
+      Object.entries(updates).forEach(([key, value]) => {
+        if (!value) next.delete(key);
+        else next.set(key, value);
+      });
+      if (resetPage) next.set("page", "1");
+      router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
+
+  const { data: categoriesData, isLoading: categoriesLoading } = useCategories("limit=50");
+  const { data: authorsData } = useAuthors("limit=50");
+
+  const categories: Category[] = useMemo(
+    () =>
+      ((categoriesData?.categories || []) as unknown as Category[]).map((cat) => ({
+        ...cat,
+        _count: {
+          books: (cat._count?.books || 0) + (cat._count?.digital_books || 0),
+          digital_books: cat._count?.digital_books || 0,
+        },
+      })),
+    [categoriesData],
+  );
+  const authors: Author[] = useMemo(() => (authorsData?.authors || []) as unknown as Author[], [authorsData]);
+
+  const selectedCategoryId = useMemo(() => {
+    if (!selectedCategory) return "";
+    const normalized = selectedCategory.trim().toLowerCase();
+    const found = categories.find((c) => c.slug.toLowerCase() === normalized || c.name.toLowerCase() === normalized);
+    return found?.id || "";
+  }, [selectedCategory, categories]);
+
+  const selectedAuthorId = useMemo(() => {
+    if (!selectedAuthor) return "";
+    const normalized = selectedAuthor.trim().toLowerCase();
+    const found = authors.find((a) => a.name.toLowerCase() === normalized);
+    return found?.id || "";
+  }, [selectedAuthor, authors]);
 
   const params = useMemo(() => {
     const p = new URLSearchParams({ limit: "24", sort: sortBy });
-    if (selectedCategory) p.append("category_id", selectedCategory);
-    if (selectedAuthor) p.append("author_id", selectedAuthor);
+    if (selectedCategoryId) p.append("category_id", selectedCategoryId);
+    if (selectedAuthorId) p.append("author_id", selectedAuthorId);
     if (availability) p.append("available", availability);
     if (minRating) p.append("min_rating", minRating);
     if (year) p.append("year", year);
@@ -77,25 +110,20 @@ export default function BooksPage() {
     if (topics.trim()) p.append("topics", topics.trim());
     if (searchQuery.trim()) p.append("search", searchQuery.trim());
     return p.toString();
-  }, [selectedCategory, selectedAuthor, availability, minRating, year, tags, topics, searchQuery, sortBy]);
+  }, [selectedCategoryId, selectedAuthorId, availability, minRating, year, tags, topics, searchQuery, sortBy]);
 
   const { data: physicalData, isLoading: physicalLoading } = useBooks(params);
   const { data: digitalData, isLoading: digitalLoading } = useDigitalBooks(params);
-  const { data: categoriesData, isLoading: categoriesLoading } = useCategories("limit=50");
-  const { data: authorsData } = useAuthors("limit=50");
-
-  const categories: Category[] = ((categoriesData?.categories || []) as unknown as Category[]).map((cat) => ({
-    ...cat,
-    _count: {
-      books: (cat._count?.books || 0) + (cat._count?.digital_books || 0),
-      digital_books: cat._count?.digital_books || 0,
-    },
-  }));
-  const authors: Author[] = (authorsData?.authors || []) as unknown as Author[];
 
   const mergedBooks = useMemo(() => {
-    const physicalBooks = ((physicalData?.books || []) as unknown as CatalogBook[]).map((b) => ({ ...b, type: "physical" as const }));
-    const digitalBooks = ((digitalData?.books || []) as unknown as CatalogBook[]).map((b) => ({ ...b, type: "digital" as const }));
+    const physicalBooks = ((physicalData?.books || []) as unknown as CatalogBook[]).map((b) => ({
+      ...b,
+      type: "physical" as const,
+    }));
+    const digitalBooks = ((digitalData?.books || []) as unknown as CatalogBook[]).map((b) => ({
+      ...b,
+      type: "digital" as const,
+    }));
 
     if (mode === "physical") return physicalBooks;
     if (mode === "digital") return digitalBooks;
@@ -115,7 +143,7 @@ export default function BooksPage() {
     }
   }, [page, totalPages, updateQuery]);
 
-  const handleCategoryChange = (categoryId: string | null) => updateQuery({ category: categoryId }, true);
+  const handleCategoryChange = (categorySlug: string | null) => updateQuery({ category: categorySlug }, true);
   const handleSearch = (query: string) => updateQuery({ search: query.trim() || null }, true);
   const handleSortChange = (sort: string) => updateQuery({ sort }, true);
 
@@ -128,13 +156,22 @@ export default function BooksPage() {
       <Navbar />
       <main className="grow mx-auto max-w-7xl w-full px-6 py-12">
         <div className="flex flex-col lg:flex-row gap-12">
-          <CategorySidebar categories={categories} selectedCategory={selectedCategory} onCategoryChange={handleCategoryChange} loading={categoriesLoading} />
+          <CategorySidebar
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onCategoryChange={handleCategoryChange}
+            loading={categoriesLoading}
+          />
           <div className="flex-1 space-y-10">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               <SearchBar onSearch={handleSearch} />
               <div className="flex items-center gap-2 text-sm font-bold text-secondary">
                 <span className="text-primary">Sort by:</span>
-                <select value={sortBy} onChange={(e) => handleSortChange(e.target.value)} className="bg-transparent border-none focus:ring-0 cursor-pointer hover:text-primary">
+                <select
+                  value={sortBy}
+                  onChange={(e) => handleSortChange(e.target.value)}
+                  className="bg-transparent border-none focus:ring-0 cursor-pointer hover:text-primary"
+                >
                   <option value="title">Title (A-Z)</option>
                   <option value="-title">Title (Z-A)</option>
                   <option value="-available">Most Available</option>
@@ -146,33 +183,86 @@ export default function BooksPage() {
             </div>
             <div className="flex items-center gap-2 border-b border-border/50 pb-4">
               {(["all", "physical", "digital"] as CatalogMode[]).map((item) => (
-                <button key={item} onClick={() => updateQuery({ mode: item }, true)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === item ? "bg-primary text-background" : "bg-muted/50 text-secondary hover:text-primary"}`}>
+                <button
+                  key={item}
+                  onClick={() => updateQuery({ mode: item }, true)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === item ? "bg-primary text-background" : "bg-muted/50 text-secondary hover:text-primary"}`}
+                >
                   {item === "all" ? "All" : item === "physical" ? "Physical" : "Digital"}
                 </button>
               ))}
             </div>
             <div className="flex items-center justify-between border-b border-border/50 pb-4">
               <p className="text-sm text-secondary font-medium">
-                {booksLoading ? "Loading..." : total > 0 ? `Showing ${startIndex}-${endIndex} of ${total} ${mode === "all" ? "" : mode + " "}books` : "No books found"}
+                {booksLoading
+                  ? "Loading..."
+                  : total > 0
+                    ? `Showing ${startIndex}-${endIndex} of ${total} ${mode === "all" ? "" : mode + " "}books`
+                    : "No books found"}
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              <select value={selectedAuthor} onChange={(e) => updateQuery({ author: e.target.value || null }, true)} className="px-3 py-2 rounded-xl border border-border bg-white text-sm">
+              <select
+                value={selectedAuthor}
+                onChange={(e) => updateQuery({ author: e.target.value || null }, true)}
+                className="px-3 py-2 rounded-xl border border-border bg-white text-sm"
+              >
                 <option value="">All Authors</option>
-                {authors.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                {authors.map((a) => (
+                  <option key={a.id} value={a.name}>
+                    {a.name}
+                  </option>
+                ))}
               </select>
-              <select value={availability} onChange={(e) => updateQuery({ availability: e.target.value || null }, true)} className="px-3 py-2 rounded-xl border border-border bg-white text-sm">
+              <select
+                value={availability}
+                onChange={(e) => updateQuery({ availability: e.target.value || null }, true)}
+                className="px-3 py-2 rounded-xl border border-border bg-white text-sm"
+              >
                 <option value="">Availability</option>
                 <option value="true">Available</option>
                 <option value="false">Unavailable</option>
               </select>
-              <input type="number" min={1} max={5} step="0.1" value={minRating} onChange={(e) => updateQuery({ minRating: e.target.value || null }, true)} placeholder="Min rating (e.g. 4)" className="px-3 py-2 rounded-xl border border-border bg-white text-sm" />
-              <input type="number" value={year} onChange={(e) => updateQuery({ year: e.target.value || null }, true)} placeholder="Publication year" className="px-3 py-2 rounded-xl border border-border bg-white text-sm" />
-              <input type="text" value={tags} onChange={(e) => updateQuery({ tags: e.target.value || null }, true)} placeholder="Tags (comma separated)" className="px-3 py-2 rounded-xl border border-border bg-white text-sm" />
-              <input type="text" value={topics} onChange={(e) => updateQuery({ topics: e.target.value || null }, true)} placeholder="Topics (comma separated)" className="px-3 py-2 rounded-xl border border-border bg-white text-sm" />
+              <input
+                type="number"
+                min={1}
+                max={5}
+                step="0.1"
+                value={minRating}
+                onChange={(e) => updateQuery({ minRating: e.target.value || null }, true)}
+                placeholder="Min rating (e.g. 4)"
+                className="px-3 py-2 rounded-xl border border-border bg-white text-sm"
+              />
+              <input
+                type="number"
+                value={year}
+                onChange={(e) => updateQuery({ year: e.target.value || null }, true)}
+                placeholder="Publication year"
+                className="px-3 py-2 rounded-xl border border-border bg-white text-sm"
+              />
+              <input
+                type="text"
+                value={tags}
+                onChange={(e) => updateQuery({ tags: e.target.value || null }, true)}
+                placeholder="Tags (comma separated)"
+                className="px-3 py-2 rounded-xl border border-border bg-white text-sm"
+              />
+              <input
+                type="text"
+                value={topics}
+                onChange={(e) => updateQuery({ topics: e.target.value || null }, true)}
+                placeholder="Topics (comma separated)"
+                className="px-3 py-2 rounded-xl border border-border bg-white text-sm"
+              />
             </div>
             <BookCardGrid books={books} loading={booksLoading} listQuery={preservedQuery} />
-            {totalPages > 1 && <Pagination currentPage={pageToRender} totalPages={totalPages} onPageChange={(nextPage) => updateQuery({ page: String(nextPage) })} />}
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={pageToRender}
+                totalPages={totalPages}
+                onPageChange={(nextPage) => updateQuery({ page: String(nextPage) })}
+              />
+            )}
           </div>
         </div>
       </main>

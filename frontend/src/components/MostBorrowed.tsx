@@ -8,27 +8,18 @@ export const MostBorrowed = () => {
   const { data: trendingData, isLoading } = useTrendingBooks();
 
   const books =
-    (
-      trendingData?.data as unknown as {
-        trending?: Array<{
-          book: {
-            title: string;
-            cover_image_url?: string;
-            author?: { name?: string };
-          };
-          rentalCount?: number;
-        }>;
-      }
-    )?.trending || [];
+    ((trendingData?.data as unknown as {
+      trending?: Array<{
+        book: { title: string; cover_image_url?: string; author?: { name?: string } };
+        rentalCount?: number;
+      }>;
+    })?.trending || []);
 
   if (isLoading) {
     return (
       <section className="w-full py-20 bg-card/30">
         <div className="mx-auto max-w-7xl px-6">
-          <SectionHeader
-            title="Most Borrowed This Month"
-            viewAllHref="/books"
-          />
+          <SectionHeader title="Most Borrowed This Month" viewAllHref="/books" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
             {[1, 2, 3].map((i) => (
               <div key={i} className="animate-pulse">
@@ -50,12 +41,9 @@ export const MostBorrowed = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
           {books.map((book, idx) => (
-            <div
-              key={book.book.id}
-              className="group relative flex flex-col items-center"
-            >
-              <div className="absolute top-5 left-1 text-[180px] font-serif text-border/40 select-none z-0">
-                {idx === 0 ? "፩" : idx === 1 ? "፪" : "፫"}
+            <div key={book.id} className="group relative flex flex-col items-center">
+              <div className="absolute top-0 text-[180px] font-serif text-border/40 select-none z-0">
+                {idx === 0 ? "ሀ" : idx === 1 ? "ለ" : "ሐ"}
               </div>
 
               <div className="relative z-10 w-full max-w-50 space-y-6 pt-10">
@@ -73,9 +61,7 @@ export const MostBorrowed = () => {
                     <h3 className="text-xl font-serif font-bold text-primary group-hover:text-secondary transition-colors line-clamp-1 mb-1">
                       {book.book.title}
                     </h3>
-                    <p className="text-sm font-medium text-secondary/70">
-                      by: {book.book.author.name}
-                    </p>
+                    <p className="text-sm font-medium text-secondary/70">by: {book.book.author.name}</p>
                   </div>
                   <div>Borrowed: {book.rentalCount} times</div>
                 </div>
