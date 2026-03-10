@@ -36,24 +36,15 @@ export const Navbar = () => {
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6">
         <div className="flex w-full items-center justify-between rounded-full border border-border bg-card/50 px-6 py-2.5 shadow-sm">
           <Link href="/" className="flex items-center gap-2">
-            <Image
-              src="/icons/book.svg"
-              alt="Book icon"
-              width={24}
-              height={24}
-            />
-            <span className="text-lg font-serif font-bold tracking-tight text-primary">
-              ብራና
-            </span>
+            <Image src="/icons/book.svg" alt="Book icon" width={24} height={24} />
+            <span className="text-lg font-serif font-bold tracking-tight text-primary">ብራና</span>
           </Link>
 
           <nav className="hidden items-center gap-10 text-sm font-medium text-secondary md:flex">
             <Link
               href="/"
               className={`relative transition-colors ${
-                isActive("/") &&
-                !pathname.startsWith("/books") &&
-                !pathname.startsWith("/about")
+                isActive("/") && !pathname.startsWith("/books") && !pathname.startsWith("/about")
                   ? "text-primary font-bold after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-full after:bg-primary after:rounded-full"
                   : "hover:text-primary"
               }`}
@@ -87,17 +78,11 @@ export const Navbar = () => {
             {isAdminDashboard && <AdminNotificationDropdown />}
             {user ? (
               <Link
-                href={
-                  user.role === "ADMIN"
-                    ? "/dashboard/admin"
-                    : "/dashboard/student"
-                }
+                href={user.role === "ADMIN" ? "/dashboard/admin" : "/dashboard/student"}
                 className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-secondary hover:text-primary hover:border-primary transition-all"
               >
                 <User size={18} />
-                <span className="text-sm font-medium truncate max-w-[140px]">
-                  {user.name}
-                </span>
+                <span className="text-sm font-medium truncate max-w-[140px]">{user.name}</span>
               </Link>
             ) : (
               <>
