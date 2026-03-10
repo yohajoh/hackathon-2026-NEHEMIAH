@@ -20,9 +20,10 @@ export default function ConfirmEmailPage({ params }: { params: Promise<{ token: 
         setMessage("Email confirmed successfully! You can now log in.");
         // Notify other tabs to redirect
         notifyAuthChange("EMAIL_CONFIRMED");
-      } catch (err: any) {
+      } catch (err: unknown) {
         setStatus("error");
-        setMessage(err.message || "Invalid or expired confirmation link.");
+        const errorMessage = err instanceof Error ? err.message : "Invalid or expired confirmation link.";
+        setMessage(errorMessage);
       }
     };
 

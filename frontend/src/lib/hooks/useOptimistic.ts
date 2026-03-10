@@ -1,7 +1,6 @@
 "use client";
 
-import { useQueryClient, useMutation, UseQueryOptions, UseMutationOptions } from "@tanstack/react-query";
-import { fetchApi } from "../api";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 
 type OptimisticData<T> = T extends (infer U)[] ? U : T;
 
@@ -43,7 +42,7 @@ export function useOptimisticDelete<TData, TVariables>(
       const previousData = queryClient.getQueryData<TData>(config.queryKey);
 
       if (previousData) {
-        queryClient.setQueryData<TData>(config.queryKey, (old: TData) => {
+        queryClient.setQueryData<TData>(config.queryKey, (old: TData | undefined) => {
           if (!old) return old;
           const arrayPath = config.getArrayPath ? config.getArrayPath(old) : old as unknown as OptimisticData<TData>[];
           if (Array.isArray(arrayPath)) {
@@ -86,7 +85,7 @@ export function useOptimisticCreate<TData, TVariables>(
       const previousData = queryClient.getQueryData<TData>(config.queryKey);
 
       if (previousData) {
-        queryClient.setQueryData<TData>(config.queryKey, (old: TData) => {
+        queryClient.setQueryData<TData>(config.queryKey, (old: TData | undefined) => {
           if (!old) return old;
           const newItem = config.getNewItem(variables);
           const arrayPath = config.getArrayPath ? config.getArrayPath(old) : old as unknown as OptimisticData<TData>[];
@@ -127,7 +126,7 @@ export function useOptimisticUpdate<TData, TVariables>(
       const previousData = queryClient.getQueryData<TData>(config.queryKey);
 
       if (previousData) {
-        queryClient.setQueryData<TData>(config.queryKey, (old: TData) => {
+        queryClient.setQueryData<TData>(config.queryKey, (old: TData | undefined) => {
           if (!old) return old;
           const arrayPath = config.getArrayPath ? config.getArrayPath(old) : old as unknown as OptimisticData<TData>[];
           if (Array.isArray(arrayPath)) {

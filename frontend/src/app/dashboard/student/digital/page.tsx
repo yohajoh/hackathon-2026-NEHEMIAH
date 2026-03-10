@@ -17,7 +17,7 @@ type DigitalBook = {
 
 function DigitalLibraryContent() {
   const { data: booksData, isLoading } = useDigitalBooksList("limit=200");
-  const books: DigitalBook[] = (booksData?.data as unknown as { books?: DigitalBook[] })?.books || [];
+  const books: DigitalBook[] = (booksData?.books as unknown as DigitalBook[]) || [];
 
   const openReader = (id: string, download = false) => {
     const url = `${API_BASE_URL}/digital-books/${id}/pdf${download ? "?download=true" : ""}`;

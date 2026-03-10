@@ -42,7 +42,10 @@ export async function fetchCurrentUser(): Promise<CurrentUser> {
 
   currentUserInFlight = (async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/me`, { credentials: "include" });
+      const res = await fetch(`${API_BASE_URL}/auth/me`, {
+        credentials: "include",
+        cache: "no-store",
+      });
       if (!res.ok) {
         currentUserCache = { value: null, expiresAt: now + CURRENT_USER_CACHE_TTL_MS };
         return null;
@@ -79,6 +82,7 @@ export async function fetchApi<T = any>(endpoint: string, options: RequestInit =
     ...options,
     headers,
     credentials: "include", // Required for cookies (JWT)
+    cache: "no-store",
   });
 
   const data = await parseJsonSafely(response);

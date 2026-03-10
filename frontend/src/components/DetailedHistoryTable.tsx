@@ -49,6 +49,7 @@ const getStatusDisplay = (status: string) => {
 };
 
 export const DetailedHistoryTable = ({ rentals, config, loading }: Props) => {
+  void config;
   if (loading) {
     return (
       <div className="space-y-6">

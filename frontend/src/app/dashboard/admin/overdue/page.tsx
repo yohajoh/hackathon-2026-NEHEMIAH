@@ -1,6 +1,7 @@
 "use client";
 
 import { useOverdueRentals, useOverdueRanking, useSendReminders } from "@/lib/hooks/useQueries";
+import { toast } from "sonner";
 
 type OverdueRental = {
   id: string;
@@ -24,9 +25,18 @@ export default function AdminOverduePage() {
   const sendReminders = useSendReminders();
 
   const rows: OverdueRental[] = (overdueData?.rentals || []) as unknown as OverdueRental[];
-  const ranking: OverdueRank[] = (rankingData?.ranking || []) as unknown as OverdueRank[];
+  const ranking: OverdueRank[] = ((rankingData as unknown as { ranking?: OverdueRank[] })?.ranking || []) as OverdueRank[];
 
   const maxDays = Math.max(1, ...ranking.map((r) => r.totalDaysOverdue));
+
+  const handleSendReminders = async () => {
+    try {
+      await sendReminders.mutateAsync();
+      toast.success("Reminders queued successfully");
+    } catch {
+      toast.error("Failed to queue reminders");
+    }
+  };
 
   return (
     <div className="p-6 lg:p-12 space-y-8">
@@ -35,7 +45,7 @@ export default function AdminOverduePage() {
           <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#2B1A10]">Overdue Dashboard</h1>
           <p className="text-[#AE9E85] font-medium">Track overdue records, ranking, and fine exposure.</p>
         </div>
-        <button onClick={() => sendReminders.mutate()} disabled={sendReminders.isPending} className="px-4 py-2.5 bg-[#2B1A10] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+        <button onClick={handleSendReminders} disabled={sendReminders.isPending} className="px-4 py-2.5 bg-[#2B1A10] text-white text-sm font-bold rounded-xl disabled:opacity-50">
           {sendReminders.isPending ? "Sending..." : "Send Reminders"}
         </button>
       </div>

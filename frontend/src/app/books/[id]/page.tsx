@@ -8,6 +8,7 @@ import { Star, ChevronRight, Book as BookIcon, Info, Heart, AlertCircle, FileTex
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { API_BASE_URL, fetchApi, fetchCurrentUser } from "@/lib/api";
+import { toast } from "sonner";
 
 type User = { id: string; name: string; email: string; role: string } | null;
 
@@ -80,6 +81,8 @@ export default function BookDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const fromQuery = searchParams.get("from") || "";
+  const booksHref = fromQuery ? `/books?${fromQuery}` : "/books";
 
   const forcedType = searchParams.get("type") === "digital" ? "digital" : "physical";
 
@@ -99,6 +102,14 @@ export default function BookDetailPage() {
   const [activeImage, setActiveImage] = useState<string>("");
 
   const book = bookType === "physical" ? physicalBook : digitalBook;
+
+  const updateCurrentBook = (updater: (current: PhysicalBook | DigitalBook) => PhysicalBook | DigitalBook) => {
+    if (bookType === "physical") {
+      setPhysicalBook((prev) => (prev ? (updater(prev) as PhysicalBook) : prev));
+      return;
+    }
+    setDigitalBook((prev) => (prev ? (updater(prev) as DigitalBook) : prev));
+  };
   const galleryImages = useMemo(() => {
     if (!book) return [];
     const extra = (book.images || []).map((img) => img.image_url);
@@ -206,7 +217,7 @@ export default function BookDetailPage() {
       return;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Borrow checkout failed";
-      alert(message);
+      toast.error(message);
     } finally {
       setActionLoading(false);
     }
@@ -216,13 +227,34 @@ export default function BookDetailPage() {
     if (!user) return router.push("/auth/login");
     if (!physicalBook) return;
 
+    const previousPhysicalBook = physicalBook;
+
     try {
       setActionLoading(true);
+      setPhysicalBook((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          userContext: {
+            ...(prev.userContext || {
+              hasActiveRental: false,
+              activeRental: null,
+              isInWishlist: false,
+              wishlistId: null,
+            }),
+          },
+        };
+      });
+
       await fetchApi("/reservations", {
         method: "POST",
         body: JSON.stringify({ book_id: physicalBook.id }),
       });
-      await loadData();
+      toast.success("Reservation placed successfully");
+      void loadData();
+    } catch {
+      setPhysicalBook(previousPhysicalBook);
+      toast.error("Failed to place reservation");
     } finally {
       setActionLoading(false);
     }
@@ -232,12 +264,49 @@ export default function BookDetailPage() {
     if (!user) return router.push("/auth/login");
     if (!book) return;
 
+    const previousPhysicalBook = physicalBook;
+    const previousDigitalBook = digitalBook;
+
     try {
       setActionLoading(true);
       const isInWishlist = book.userContext?.isInWishlist;
       const wishlistId = book.userContext?.wishlistId;
+
+      updateCurrentBook((current) => {
+        if ("copies" in current) {
+          const ctx = current.userContext || {
+            hasActiveRental: false,
+            activeRental: null,
+            isInWishlist: false,
+            wishlistId: null,
+          };
+          return {
+            ...current,
+            userContext: {
+              ...ctx,
+              isInWishlist: !ctx.isInWishlist,
+              wishlistId: ctx.isInWishlist ? null : ctx.wishlistId,
+            },
+          };
+        }
+
+        const digitalCtx = current.userContext || {
+          isInWishlist: false,
+          wishlistId: null,
+        };
+        return {
+          ...current,
+          userContext: {
+            ...digitalCtx,
+            isInWishlist: !digitalCtx.isInWishlist,
+            wishlistId: digitalCtx.isInWishlist ? null : digitalCtx.wishlistId,
+          },
+        };
+      });
+
       if (isInWishlist && wishlistId) {
         await fetchApi(`/wishlist/${wishlistId}`, { method: "DELETE" });
+        toast.success("Removed from wishlist");
       } else {
         await fetchApi("/wishlist", {
           method: "POST",
@@ -246,8 +315,13 @@ export default function BookDetailPage() {
             bookId: book.id,
           }),
         });
+        toast.success("Added to wishlist");
       }
-      await loadData();
+      void loadData();
+    } catch {
+      setPhysicalBook(previousPhysicalBook);
+      setDigitalBook(previousDigitalBook);
+      toast.error("Failed to update wishlist");
     } finally {
       setActionLoading(false);
     }
@@ -315,7 +389,7 @@ export default function BookDetailPage() {
         err instanceof Error
           ? err.message
           : "Failed to open PDF. Make sure you are logged in and the PDF was uploaded correctly.";
-      alert(message);
+      toast.error(message);
     } finally {
       setActionLoading(false);
     }
@@ -324,6 +398,50 @@ export default function BookDetailPage() {
   const submitReview = async () => {
     if (!user) return router.push("/auth/login");
     if (!book || reviewRating < 1) return;
+
+    const previousPhysicalBook = physicalBook;
+    const previousDigitalBook = digitalBook;
+    const previousMyReview = myReview;
+
+    const optimisticReview = {
+      id: myReview?.id || `temp-${Date.now()}`,
+      rating: reviewRating,
+      comment: reviewComment,
+      created_at: new Date().toISOString(),
+      user: { id: user.id, name: user.name },
+    };
+
+    const nextReviews = myReview
+      ? (book.reviews || []).map((r) => (r.id === myReview.id ? optimisticReview : r))
+      : [optimisticReview, ...(book.reviews || [])];
+
+    const total = nextReviews.length;
+    const average = total > 0 ? nextReviews.reduce((sum, r) => sum + r.rating, 0) / total : 0;
+    const distribution = {
+      1: nextReviews.filter((r) => r.rating === 1).length,
+      2: nextReviews.filter((r) => r.rating === 2).length,
+      3: nextReviews.filter((r) => r.rating === 3).length,
+      4: nextReviews.filter((r) => r.rating === 4).length,
+      5: nextReviews.filter((r) => r.rating === 5).length,
+    } as const;
+
+    setMyReview({ id: optimisticReview.id, rating: reviewRating, comment: reviewComment || null });
+    updateCurrentBook((current) => ({
+      ...current,
+      reviews: nextReviews,
+      rating: {
+        ...current.rating,
+        average: Number(average.toFixed(1)),
+        total,
+        distribution: {
+          1: distribution[1],
+          2: distribution[2],
+          3: distribution[3],
+          4: distribution[4],
+          5: distribution[5],
+        },
+      },
+    }));
 
     try {
       setReviewBusy(true);
@@ -338,7 +456,13 @@ export default function BookDetailPage() {
           body: JSON.stringify({ rating: reviewRating, comment: reviewComment }),
         });
       }
-      await loadData();
+      toast.success("Review saved");
+      void loadData();
+    } catch {
+      setPhysicalBook(previousPhysicalBook);
+      setDigitalBook(previousDigitalBook);
+      setMyReview(previousMyReview);
+      toast.error("Failed to save review");
     } finally {
       setReviewBusy(false);
     }
@@ -346,13 +470,48 @@ export default function BookDetailPage() {
 
   const removeReview = async () => {
     if (!user || !myReview) return;
+
+    const previousPhysicalBook = physicalBook;
+    const previousDigitalBook = digitalBook;
+    const previousMyReview = myReview;
+
+    setMyReview(null);
+    setReviewRating(0);
+    setReviewComment("");
+    updateCurrentBook((current) => {
+      const nextReviews = (current.reviews || []).filter((r) => r.id !== previousMyReview.id);
+      const total = nextReviews.length;
+      const average = total > 0 ? nextReviews.reduce((sum, r) => sum + r.rating, 0) / total : 0;
+      return {
+        ...current,
+        reviews: nextReviews,
+        rating: {
+          ...current.rating,
+          average: Number(average.toFixed(1)),
+          total,
+          distribution: {
+            1: nextReviews.filter((r) => r.rating === 1).length,
+            2: nextReviews.filter((r) => r.rating === 2).length,
+            3: nextReviews.filter((r) => r.rating === 3).length,
+            4: nextReviews.filter((r) => r.rating === 4).length,
+            5: nextReviews.filter((r) => r.rating === 5).length,
+          },
+        },
+      };
+    });
+
     try {
       setReviewBusy(true);
       await fetchApi(`/reviews/${myReview.id}`, { method: "DELETE" });
-      setMyReview(null);
-      setReviewRating(0);
-      setReviewComment("");
-      await loadData();
+      toast.success("Review removed");
+      void loadData();
+    } catch {
+      setPhysicalBook(previousPhysicalBook);
+      setDigitalBook(previousDigitalBook);
+      setMyReview(previousMyReview);
+      setReviewRating(previousMyReview.rating);
+      setReviewComment(previousMyReview.comment || "");
+      toast.error("Failed to remove review");
     } finally {
       setReviewBusy(false);
     }
@@ -392,7 +551,7 @@ export default function BookDetailPage() {
 
       <main className="grow mx-auto max-w-7xl w-full px-6 py-8 lg:py-12">
         <nav className="flex items-center gap-2 text-xs font-bold text-secondary/60 mb-8 overflow-x-auto whitespace-nowrap pb-2">
-          <Link href="/books" className="hover:text-primary transition-colors">
+          <Link href={booksHref} className="hover:text-primary transition-colors">
             Books
           </Link>
           <ChevronRight size={14} />

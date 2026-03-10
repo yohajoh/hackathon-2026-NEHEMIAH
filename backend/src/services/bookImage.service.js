@@ -63,7 +63,7 @@ export const confirmUpload = async (bookType, bookId, imageUrl, isCover = false,
     select: { sort_order: true },
   });
   
-  let nextOrder = sortOrder ?? (maxResult?.sort_order ?? 0) + 1;
+  const nextOrder = sortOrder ?? (maxResult?.sort_order ?? 0) + 1;
 
   const image = await prisma.bookImage.create({
     data: {

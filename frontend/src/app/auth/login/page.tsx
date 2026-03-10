@@ -39,8 +39,9 @@ function LoginContent() {
       });
       const role = data?.data?.user?.role ?? "STUDENT";
       router.push(role === "ADMIN" ? "/dashboard/admin" : "/dashboard/student");
-    } catch (err: any) {
-      setError(err.message || "Invalid email or password");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Invalid email or password";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useCurrentUser, useUpdateProfile } from "@/lib/hooks/useQueries";
+import { useCurrentUser } from "@/lib/hooks/useQueries";
 import { ProfileSettings } from "@/components/ProfileSettings";
 import { SecuritySettings } from "@/components/SecuritySettings";
 
@@ -18,11 +17,10 @@ export type UserData = {
 
 export default function SettingsPage() {
   const { data: userData, isLoading, error } = useCurrentUser();
-  const updateProfile = useUpdateProfile();
-
   const user = userData?.data?.user as UserData | undefined;
 
   const handleUserUpdate = (updatedUser: UserData) => {
+    void updatedUser;
     // The cache will be automatically invalidated by the mutation
   };
 

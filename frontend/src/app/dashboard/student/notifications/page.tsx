@@ -59,7 +59,6 @@ function NotificationsContent() {
     try {
       await markAllAsReadMutation.mutateAsync();
       toast.success("All notifications marked as read");
-      await refetch();
     } catch {
       toast.error("Failed to mark all as read");
     }
@@ -71,7 +70,7 @@ function NotificationsContent() {
 
     // Mark as read in the background
     if (!notification.is_read) {
-      markAsReadMutation.mutate(notification.id, { onSuccess: () => refetch() });
+      markAsReadMutation.mutate(notification.id);
     }
   };
 

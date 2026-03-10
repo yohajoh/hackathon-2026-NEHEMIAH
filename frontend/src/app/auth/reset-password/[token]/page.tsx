@@ -34,8 +34,9 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
         body: JSON.stringify({ password }),
       });
       setIsSuccess(true);
-    } catch (err: any) {
-      setError(err.message || "Failed to reset password. The link may be expired.");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to reset password. The link may be expired.";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

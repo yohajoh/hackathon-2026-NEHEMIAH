@@ -33,6 +33,10 @@ function BorrowingsContent() {
 
   const { data: rentalsData, isLoading, refetch } = useRentals(queryParams.toString());
   const processReturn = useProcessReturn();
+  const processingReturnId = processReturn.isPending ? processReturn.variables : undefined;
+
+  const getErrorMessage = (error: unknown, fallback: string) =>
+    error instanceof Error && error.message ? error.message : fallback;
 
   const rentals: Rental[] = (rentalsData?.rentals || []) as unknown as Rental[];
 
@@ -52,7 +56,7 @@ function BorrowingsContent() {
       await processReturn.mutateAsync(id);
       toast.success("Return processed successfully");
     } catch (error) {
-      toast.error("Failed to process return");
+      toast.error(getErrorMessage(error, "Failed to process return"));
     }
   };
 
@@ -99,8 +103,8 @@ function BorrowingsContent() {
                   <span className="text-sm text-[#2B1A10]/70">{new Date(rental.due_date).toLocaleDateString()}</span>
                   <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-[#F3EFE6] text-[#2B1A10] w-fit">{rental.status}</span>
                   <span className="text-sm text-[#2B1A10]/70">{Number(rental.fine || 0).toFixed(2)}</span>
-                  <button onClick={() => handleProcessReturn(rental.id)} disabled={processReturn.variables === rental.id || rental.status === "RETURNED" || rental.status === "COMPLETED"} className="px-3 py-1.5 text-xs font-bold text-[#2B1A10] border border-[#C2B199] rounded-lg hover:bg-[#C2B199]/20 disabled:opacity-40">
-                    {processReturn.variables === rental.id ? "Working..." : "Return"}
+                  <button onClick={() => handleProcessReturn(rental.id)} disabled={processingReturnId === rental.id || rental.status === "RETURNED" || rental.status === "COMPLETED"} className="px-3 py-1.5 text-xs font-bold text-[#2B1A10] border border-[#C2B199] rounded-lg hover:bg-[#C2B199]/20 disabled:opacity-40">
+                    {processingReturnId === rental.id ? "Working..." : "Return"}
                   </button>
                 </div>
               ))

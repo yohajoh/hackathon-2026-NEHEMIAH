@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient, UseQueryOptions } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchApi, API_BASE_URL, fetchCurrentUser } from "../api";
 
 export type Book = {
@@ -284,38 +284,66 @@ export function useCreateBook() {
       const endpoint = type === "physical" ? "/books" : "/digital-books";
       return api.postForm<{ data: { book: unknown } }>(endpoint, data);
     },
-    onMutate: async ({ type }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.books() });
-      await queryClient.cancelQueries({ queryKey: queryKeys.digitalBooks() });
-      
-      const previousBooks = queryClient.getQueryData<BooksResponse>(queryKeys.books());
-      const previousDigitalBooks = queryClient.getQueryData<DigitalBooksResponse>(queryKeys.digitalBooks());
+    onMutate: async ({ type, data }) => {
+      await queryClient.cancelQueries({ queryKey: ["books"] });
+      await queryClient.cancelQueries({ queryKey: ["digital-books"] });
 
-      if (type === "physical" && previousBooks) {
-        queryClient.setQueryData<BooksResponse>(queryKeys.books(), (old) => {
-          if (!old) return old;
-          return { ...old, books: [...old.books] };
+      const previousBooksQueries = queryClient.getQueriesData<BooksResponse>({ queryKey: ["books"] });
+      const previousDigitalBookQueries = queryClient.getQueriesData<DigitalBooksResponse>({
+        queryKey: ["digital-books"],
+      });
+
+      const title = String(data.get("title") || "Creating...");
+      const tempId = `temp-${Date.now()}`;
+      const imageFile = data.get("image");
+      const imageUrl = imageFile instanceof File ? URL.createObjectURL(imageFile) : undefined;
+
+      if (type === "physical") {
+        queryClient.setQueriesData<BooksResponse>({ queryKey: ["books"] }, (old) => {
+          if (!old || !Array.isArray((old as Partial<BooksResponse>).books)) return old;
+          const tempBook: Book = {
+            id: tempId,
+            title,
+            isbn: "PENDING",
+            available: Number(data.get("total") || 0),
+            copies: Number(data.get("total") || 0),
+            cover_image: imageUrl,
+          };
+          return { ...old, books: [tempBook, ...(old as BooksResponse).books] };
         });
-      } else if (type === "digital" && previousDigitalBooks) {
-        queryClient.setQueryData<DigitalBooksResponse>(queryKeys.digitalBooks(), (old) => {
-          if (!old) return old;
-          return { ...old, books: [...old.books] };
+      } else {
+        queryClient.setQueriesData<DigitalBooksResponse>({ queryKey: ["digital-books"] }, (old) => {
+          if (!old || !Array.isArray((old as Partial<DigitalBooksResponse>).books)) return old;
+          const tempBook: DigitalBook = {
+            id: tempId,
+            title,
+            file_url: "",
+            file_size: 0,
+            cover_image: imageUrl,
+          };
+          return { ...old, books: [tempBook, ...(old as DigitalBooksResponse).books] };
         });
       }
 
-      return { previousBooks, previousDigitalBooks };
+      return { previousBooksQueries, previousDigitalBookQueries };
     },
     onError: (_err, _variables, context) => {
-      if (context?.previousBooks) {
-        queryClient.setQueryData(queryKeys.books(), context.previousBooks);
+      if (context?.previousBooksQueries) {
+        context.previousBooksQueries.forEach(([key, data]) => {
+          queryClient.setQueryData(key, data);
+        });
       }
-      if (context?.previousDigitalBooks) {
-        queryClient.setQueryData(queryKeys.digitalBooks(), context.previousDigitalBooks);
+      if (context?.previousDigitalBookQueries) {
+        context.previousDigitalBookQueries.forEach(([key, data]) => {
+          queryClient.setQueryData(key, data);
+        });
       }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["books"] });
       queryClient.invalidateQueries({ queryKey: ["digital-books"] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["authors"] });
     },
   });
 }
@@ -328,37 +356,69 @@ export function useDeleteBook() {
       return api.delete<{ data: unknown }>(endpoint);
     },
     onMutate: async ({ id, type }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.books() });
-      await queryClient.cancelQueries({ queryKey: queryKeys.digitalBooks() });
-      
-      const previousBooks = queryClient.getQueryData<BooksResponse>(queryKeys.books());
-      const previousDigitalBooks = queryClient.getQueryData<DigitalBooksResponse>(queryKeys.digitalBooks());
+      await queryClient.cancelQueries({ queryKey: ["books"] });
+      await queryClient.cancelQueries({ queryKey: ["digital-books"] });
 
-      if (type === "physical" && previousBooks) {
-        queryClient.setQueryData<BooksResponse>(queryKeys.books(), (old) => {
-          if (!old) return old;
-          return { ...old, books: old.books.filter(b => b.id !== id) };
+      const previousBooksQueries = queryClient.getQueriesData<BooksResponse>({ queryKey: ["books"] });
+      const previousDigitalBookQueries = queryClient.getQueriesData<DigitalBooksResponse>({
+        queryKey: ["digital-books"],
+      });
+
+      if (type === "physical") {
+        queryClient.setQueriesData<BooksResponse>({ queryKey: ["books"] }, (old) => {
+          if (!old || !Array.isArray((old as Partial<BooksResponse>).books)) return old;
+          return { ...old, books: (old as BooksResponse).books.filter((b) => b.id !== id) };
         });
-      } else if (type === "digital" && previousDigitalBooks) {
-        queryClient.setQueryData<DigitalBooksResponse>(queryKeys.digitalBooks(), (old) => {
-          if (!old) return old;
-          return { ...old, books: old.books.filter(b => b.id !== id) };
+      } else {
+        queryClient.setQueriesData<DigitalBooksResponse>({ queryKey: ["digital-books"] }, (old) => {
+          if (!old || !Array.isArray((old as Partial<DigitalBooksResponse>).books)) return old;
+          return { ...old, books: (old as DigitalBooksResponse).books.filter((b) => b.id !== id) };
         });
       }
 
-      return { previousBooks, previousDigitalBooks };
+      return { previousBooksQueries, previousDigitalBookQueries };
     },
     onError: (_err, _variables, context) => {
-      if (context?.previousBooks) {
-        queryClient.setQueryData(queryKeys.books(), context.previousBooks);
+      if (context?.previousBooksQueries) {
+        context.previousBooksQueries.forEach(([key, data]) => {
+          queryClient.setQueryData(key, data);
+        });
       }
-      if (context?.previousDigitalBooks) {
-        queryClient.setQueryData(queryKeys.digitalBooks(), context.previousDigitalBooks);
+      if (context?.previousDigitalBookQueries) {
+        context.previousDigitalBookQueries.forEach(([key, data]) => {
+          queryClient.setQueryData(key, data);
+        });
       }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["books"] });
       queryClient.invalidateQueries({ queryKey: ["digital-books"] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["authors"] });
+    },
+  });
+}
+
+export function useUpdateBook() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      type,
+      data,
+    }: {
+      id: string;
+      type: "physical" | "digital";
+      data: FormData;
+    }) => {
+      const endpoint = type === "physical" ? `/books/${id}` : `/digital-books/${id}`;
+      return api.patchForm<{ data: { book: unknown } }>(endpoint, data);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+      queryClient.invalidateQueries({ queryKey: ["digital-books"] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["authors"] });
     },
   });
 }
@@ -378,7 +438,7 @@ export function useCreateCategory() {
     onMutate: async (newCategory) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.categories() });
       const previous = queryClient.getQueryData<CategoriesResponse>(queryKeys.categories());
-      
+
       if (previous) {
         queryClient.setQueryData<CategoriesResponse>(queryKeys.categories(), (old) => {
           if (!old) return old;
@@ -386,7 +446,7 @@ export function useCreateCategory() {
           return { ...old, categories: [tempCategory, ...old.categories] };
         });
       }
-      
+
       return { previous };
     },
     onError: (_err, _variables, context) => {
@@ -395,6 +455,8 @@ export function useCreateCategory() {
       }
     },
     onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+      queryClient.invalidateQueries({ queryKey: ["digital-books"] });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
   });
@@ -408,17 +470,17 @@ export function useUpdateCategory() {
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.categories() });
       const previous = queryClient.getQueryData<CategoriesResponse>(queryKeys.categories());
-      
+
       if (previous) {
         queryClient.setQueryData<CategoriesResponse>(queryKeys.categories(), (old) => {
           if (!old) return old;
           return {
             ...old,
-            categories: old.categories.map(c => c.id === id ? { ...c, name: data.name } : c)
+            categories: old.categories.map((c) => (c.id === id ? { ...c, name: data.name } : c)),
           };
         });
       }
-      
+
       return { previous };
     },
     onError: (_err, _variables, context) => {
@@ -427,6 +489,8 @@ export function useUpdateCategory() {
       }
     },
     onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+      queryClient.invalidateQueries({ queryKey: ["digital-books"] });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
   });
@@ -439,14 +503,14 @@ export function useDeleteCategory() {
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.categories() });
       const previous = queryClient.getQueryData<CategoriesResponse>(queryKeys.categories());
-      
+
       if (previous) {
         queryClient.setQueryData<CategoriesResponse>(queryKeys.categories(), (old) => {
           if (!old) return old;
-          return { ...old, categories: old.categories.filter(c => c.id !== id) };
+          return { ...old, categories: old.categories.filter((c) => c.id !== id) };
         });
       }
-      
+
       return { previous };
     },
     onError: (_err, _variables, context) => {
@@ -455,6 +519,8 @@ export function useDeleteCategory() {
       }
     },
     onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+      queryClient.invalidateQueries({ queryKey: ["digital-books"] });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
   });
@@ -474,26 +540,47 @@ export function useCreateAuthor() {
     mutationFn: async (formData: FormData) => {
       return api.postForm<{ data: { author: unknown } }>("/authors", formData);
     },
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.authors() });
-      const previous = queryClient.getQueryData<AuthorsResponse>(queryKeys.authors());
-      
-      if (previous) {
-        queryClient.setQueryData<AuthorsResponse>(queryKeys.authors(), (old) => {
-          if (!old) return old;
-          const tempAuthor: Author = { id: `temp-${Date.now()}`, name: "Creating..." };
-          return { ...old, authors: [tempAuthor, ...old.authors] };
-        });
-      }
-      
-      return { previous };
+    onMutate: async (formData) => {
+      await queryClient.cancelQueries({ queryKey: ["authors"] });
+      const previousQueries = queryClient.getQueriesData<AuthorsResponse>({ queryKey: ["authors"] });
+
+      const name = String(formData.get("name") || "Creating...");
+      const bio = String(formData.get("bio") || "");
+      const imageFile = formData.get("image");
+      const image = imageFile instanceof File ? URL.createObjectURL(imageFile) : undefined;
+
+      queryClient.setQueriesData<AuthorsResponse>({ queryKey: ["authors"] }, (old) => {
+        if (!old) return old;
+        const tempAuthor: Author = { id: `temp-${Date.now()}`, name, bio, image };
+        return { ...old, authors: [tempAuthor, ...old.authors] };
+      });
+
+      return { previousQueries };
     },
     onError: (_err, _variables, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(queryKeys.authors(), context.previous);
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(([key, data]) => {
+          queryClient.setQueryData(key, data);
+        });
       }
     },
     onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+      queryClient.invalidateQueries({ queryKey: ["digital-books"] });
+      queryClient.invalidateQueries({ queryKey: ["authors"] });
+    },
+  });
+}
+
+export function useUpdateAuthor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, formData }: { id: string; formData: FormData }) => {
+      return api.patchForm<{ data: { author: unknown } }>(`/authors/${id}`, formData);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+      queryClient.invalidateQueries({ queryKey: ["digital-books"] });
       queryClient.invalidateQueries({ queryKey: ["authors"] });
     },
   });
@@ -506,14 +593,14 @@ export function useDeleteAuthor() {
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.authors() });
       const previous = queryClient.getQueryData<AuthorsResponse>(queryKeys.authors());
-      
+
       if (previous) {
         queryClient.setQueryData<AuthorsResponse>(queryKeys.authors(), (old) => {
           if (!old) return old;
-          return { ...old, authors: old.authors.filter(a => a.id !== id) };
+          return { ...old, authors: old.authors.filter((a) => a.id !== id) };
         });
       }
-      
+
       return { previous };
     },
     onError: (_err, _variables, context) => {
@@ -522,6 +609,8 @@ export function useDeleteAuthor() {
       }
     },
     onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+      queryClient.invalidateQueries({ queryKey: ["digital-books"] });
       queryClient.invalidateQueries({ queryKey: ["authors"] });
     },
   });
@@ -551,14 +640,14 @@ export function useDeleteUser() {
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.users });
       const previous = queryClient.getQueryData<UsersResponse>(queryKeys.users);
-      
+
       if (previous) {
         queryClient.setQueryData<UsersResponse>(queryKeys.users, (old) => {
           if (!old) return old;
-          return { ...old, data: { users: old.data.users.filter(u => u.id !== id) } };
+          return { ...old, data: { users: old.data.users.filter((u) => u.id !== id) } };
         });
       }
-      
+
       return { previous };
     },
     onError: (_err, _variables, context) => {
@@ -579,19 +668,19 @@ export function useBlockUser() {
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.users });
       const previous = queryClient.getQueryData<UsersResponse>(queryKeys.users);
-      
+
       if (previous) {
         queryClient.setQueryData<UsersResponse>(queryKeys.users, (old) => {
           if (!old) return old;
           return {
             ...old,
             data: {
-              users: old.data.users.map(u => u.id === id ? { ...u, is_blocked: true } : u)
-            }
+              users: old.data.users.map((u) => (u.id === id ? { ...u, is_blocked: true } : u)),
+            },
           };
         });
       }
-      
+
       return { previous };
     },
     onError: (_err, _variables, context) => {
@@ -612,19 +701,19 @@ export function useUnblockUser() {
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.users });
       const previous = queryClient.getQueryData<UsersResponse>(queryKeys.users);
-      
+
       if (previous) {
         queryClient.setQueryData<UsersResponse>(queryKeys.users, (old) => {
           if (!old) return old;
           return {
             ...old,
             data: {
-              users: old.data.users.map(u => u.id === id ? { ...u, is_blocked: false } : u)
-            }
+              users: old.data.users.map((u) => (u.id === id ? { ...u, is_blocked: false } : u)),
+            },
           };
         });
       }
-      
+
       return { previous };
     },
     onError: (_err, _variables, context) => {
@@ -674,8 +763,21 @@ export function useSendReminders() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => api.post<{ data: unknown }>("/rentals/admin/send-reminders"),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["rentals"] });
+      const previousRentals = queryClient.getQueriesData<RentalsResponse>({ queryKey: ["rentals"] });
+      return { previousRentals };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousRentals) {
+        context.previousRentals.forEach(([key, data]) => {
+          queryClient.setQueryData(key, data);
+        });
+      }
+    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["rentals"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 }
@@ -683,32 +785,31 @@ export function useSendReminders() {
 export function useProcessReturn() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (rentalId: string) =>
-      api.patch<{ data: unknown }>(`/rentals/${rentalId}/return`, {}),
+    mutationFn: (rentalId: string) => api.patch<{ data: unknown }>(`/rentals/${rentalId}/return`, {}),
     onMutate: async (rentalId) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.rentals() });
       await queryClient.cancelQueries({ queryKey: queryKeys.myRentals() });
-      
+
       const previousRentals = queryClient.getQueryData<RentalsResponse>(queryKeys.rentals());
       const previousMyRentals = queryClient.getQueryData<RentalsResponse>(queryKeys.myRentals());
-      
+
       const updateRentals = (old: RentalsResponse | undefined) => {
         if (!old) return old;
         return {
           ...old,
-          rentals: old.rentals.map(r => 
-            r.id === rentalId ? { ...r, status: "RETURNED", return_date: new Date().toISOString() } : r
-          )
+          rentals: old.rentals.map((r) =>
+            r.id === rentalId ? { ...r, status: "RETURNED", return_date: new Date().toISOString() } : r,
+          ),
         };
       };
-      
+
       if (previousRentals) {
         queryClient.setQueryData<RentalsResponse>(queryKeys.rentals(), updateRentals);
       }
       if (previousMyRentals) {
         queryClient.setQueryData<RentalsResponse>(queryKeys.myRentals(), updateRentals);
       }
-      
+
       return { previousRentals, previousMyRentals };
     },
     onError: (_err, _variables, context) => {
@@ -748,25 +849,25 @@ export function useCancelReservation() {
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.reservations() });
       await queryClient.cancelQueries({ queryKey: queryKeys.myReservations() });
-      
+
       const previous = queryClient.getQueryData<ReservationsResponse>(queryKeys.reservations());
       const previousMine = queryClient.getQueryData<ReservationsResponse>(queryKeys.myReservations());
-      
+
       const updateReservations = (old: ReservationsResponse | undefined) => {
         if (!old) return old;
         return {
           ...old,
-          reservations: old.reservations.filter(r => r.id !== id)
+          reservations: old.reservations.filter((r) => r.id !== id),
         };
       };
-      
+
       if (previous) {
         queryClient.setQueryData<ReservationsResponse>(queryKeys.reservations(), updateReservations);
       }
       if (previousMine) {
         queryClient.setQueryData<ReservationsResponse>(queryKeys.myReservations(), updateReservations);
       }
-      
+
       return { previous, previousMine };
     },
     onError: (_err, _variables, context) => {
@@ -787,6 +888,27 @@ export function useExpireReservations() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => api.post<{ data: unknown }>("/reservations/admin/expire"),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["reservations"] });
+      const previousQueries = queryClient.getQueriesData<ReservationsResponse>({ queryKey: ["reservations"] });
+
+      queryClient.setQueriesData<ReservationsResponse>({ queryKey: ["reservations"] }, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          reservations: old.reservations.filter((r) => !["QUEUED", "NOTIFIED", "PENDING"].includes(r.status)),
+        };
+      });
+
+      return { previousQueries };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(([key, data]) => {
+          queryClient.setQueryData(key, data);
+        });
+      }
+    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["reservations"] });
     },
@@ -808,27 +930,29 @@ export function useAddToWishlist() {
       return api.post<{ data: { wishlist: unknown } }>("/wishlist", { book_id: bookId, book_type: bookType });
     },
     onMutate: async ({ bookId, bookType }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.wishlist() });
-      const previous = queryClient.getQueryData<WishlistResponse>(queryKeys.wishlist());
-      
-      if (previous) {
-        queryClient.setQueryData<WishlistResponse>(queryKeys.wishlist(), (old) => {
-          if (!old) return old;
-          const tempItem: WishlistItem = {
-            id: `temp-${Date.now()}`,
-            book: { id: bookId, title: "Adding...", copies: 0, isbn: "", available: 0 },
-            added_at: new Date().toISOString(),
-            book_type: bookType
-          };
-          return { ...old, wishlist: [tempItem, ...old.wishlist] };
-        });
-      }
-      
-      return { previous };
+      await queryClient.cancelQueries({ queryKey: ["wishlist"] });
+      const previousQueries = queryClient.getQueriesData<WishlistResponse>({ queryKey: ["wishlist"] });
+
+      queryClient.setQueriesData<WishlistResponse>({ queryKey: ["wishlist"] }, (old) => {
+        if (!old) return old;
+        const alreadyExists = old.wishlist.some((item) => item.book?.id === bookId);
+        if (alreadyExists) return old;
+        const tempItem: WishlistItem = {
+          id: `temp-${Date.now()}`,
+          book: { id: bookId, title: "Adding...", copies: 0, isbn: "", available: 0 },
+          added_at: new Date().toISOString(),
+          book_type: bookType,
+        };
+        return { ...old, wishlist: [tempItem, ...old.wishlist] };
+      });
+
+      return { previousQueries };
     },
     onError: (_err, _variables, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(queryKeys.wishlist(), context.previous);
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(([key, data]) => {
+          queryClient.setQueryData(key, data);
+        });
       }
     },
     onSettled: () => {
@@ -842,21 +966,21 @@ export function useRemoveFromWishlist() {
   return useMutation({
     mutationFn: (itemId: string) => api.delete<{ data: unknown }>(`/wishlist/${itemId}`),
     onMutate: async (itemId) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.wishlist() });
-      const previous = queryClient.getQueryData<WishlistResponse>(queryKeys.wishlist());
-      
-      if (previous) {
-        queryClient.setQueryData<WishlistResponse>(queryKeys.wishlist(), (old) => {
-          if (!old) return old;
-          return { ...old, wishlist: old.wishlist.filter(item => item.id !== itemId) };
-        });
-      }
-      
-      return { previous };
+      await queryClient.cancelQueries({ queryKey: ["wishlist"] });
+      const previousQueries = queryClient.getQueriesData<WishlistResponse>({ queryKey: ["wishlist"] });
+
+      queryClient.setQueriesData<WishlistResponse>({ queryKey: ["wishlist"] }, (old) => {
+        if (!old) return old;
+        return { ...old, wishlist: old.wishlist.filter((item) => item.id !== itemId) };
+      });
+
+      return { previousQueries };
     },
     onError: (_err, _variables, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(queryKeys.wishlist(), context.previous);
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(([key, data]) => {
+          queryClient.setQueryData(key, data);
+        });
       }
     },
     onSettled: () => {
@@ -921,37 +1045,52 @@ export function useUpdateCondition() {
     mutationFn: ({ copyId, data }: { copyId: string; data: { condition: string; notes: string } }) =>
       api.patch<{ data: unknown }>(`/books/copies/${copyId}/condition`, data),
     onMutate: async ({ copyId, data }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.bookCopies("") });
+      await queryClient.cancelQueries({ queryKey: ["books"] });
       await queryClient.cancelQueries({ queryKey: queryKeys.conditionHistory(copyId) });
-      
-      const previousCopies = queryClient.getQueryData<{ data: { copies: BookCopy[] } }>(queryKeys.bookCopies(""));
-      const previousHistory = queryClient.getQueryData<{ data: { history: ConditionHistoryEntry[] } }>(queryKeys.conditionHistory(copyId));
-      
-      if (previousCopies) {
-        queryClient.setQueryData<{ data: { copies: BookCopy[] } }>(queryKeys.bookCopies(""), (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            data: {
-              copies: old.data.copies.map(c => 
-                c.id === copyId ? { ...c, condition: data.condition as BookCopy["condition"], last_condition_update: new Date().toISOString() } : c
-              )
-            }
-          };
-        });
-      }
-      
-      return { previousCopies, previousHistory };
+
+      const previousCopiesQueries = queryClient.getQueriesData<{ data: { copies: BookCopy[] } }>({
+        queryKey: ["books"],
+      });
+      const previousHistory = queryClient.getQueryData<{ data: { history: ConditionHistoryEntry[] } }>(
+        queryKeys.conditionHistory(copyId),
+      );
+
+      queryClient.setQueriesData<{ data: { copies: BookCopy[] } }>({ queryKey: ["books"] }, (old) => {
+        if (!old || !old.data?.copies || !Array.isArray(old.data.copies)) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            copies: old.data.copies.map((c) =>
+              c.id === copyId
+                ? {
+                    ...c,
+                    condition: data.condition as BookCopy["condition"],
+                    last_condition_update: new Date().toISOString(),
+                    notes: data.notes,
+                  }
+                : c,
+            ),
+          },
+        };
+      });
+
+      return { previousCopiesQueries, previousHistory };
     },
     onError: (_err, _variables, context) => {
-      if (context?.previousCopies) {
-        queryClient.setQueryData(queryKeys.bookCopies(""), context.previousCopies);
+      if (context?.previousCopiesQueries) {
+        context.previousCopiesQueries.forEach(([key, data]) => {
+          queryClient.setQueryData(key, data);
+        });
+      }
+      if (context?.previousHistory) {
+        queryClient.setQueryData(queryKeys.conditionHistory(_variables.copyId), context.previousHistory);
       }
     },
-    onSettled: (_err, _variables, context) => {
-      if (_variables) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.bookCopies(_variables.copyId) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.conditionHistory(_variables.copyId) });
+    onSettled: (_data, _error, variables) => {
+      if (variables) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.bookCopies(variables.copyId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.conditionHistory(variables.copyId) });
       }
     },
   });
@@ -989,17 +1128,17 @@ export function useUpdateProfile() {
     onMutate: async (newData) => {
       await queryClient.cancelQueries({ queryKey: ["current-user"] });
       const previous = queryClient.getQueryData<{ status: string; data: { user: User | null } }>(["current-user"]);
-      
+
       if (previous) {
         queryClient.setQueryData<{ status: string; data: { user: User | null } }>(["current-user"], (old) => {
           if (!old || !old.data.user) return old;
           return {
             ...old,
-            data: { user: { ...old.data.user, ...newData } }
+            data: { user: { ...old.data.user, ...newData } },
           };
         });
       }
-      
+
       return { previous };
     },
     onError: (_err, _variables, context) => {
@@ -1031,14 +1170,14 @@ export function useUpdateSystemConfig() {
     onMutate: async (newConfig) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.systemConfig });
       const previous = queryClient.getQueryData<{ data: { config: SystemConfig } }>(queryKeys.systemConfig);
-      
+
       if (previous) {
         queryClient.setQueryData<{ data: { config: SystemConfig } }>(queryKeys.systemConfig, (old) => {
           if (!old) return old;
           return { ...old, data: { config: { ...old.data.config, ...newConfig } } };
         });
       }
-      
+
       return { previous };
     },
     onError: (_err, _variables, context) => {
@@ -1075,19 +1214,17 @@ export function useResolveAlert() {
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.alerts });
       const previous = queryClient.getQueryData<AlertsResponse>(queryKeys.alerts);
-      
+
       if (previous) {
         queryClient.setQueryData<AlertsResponse>(queryKeys.alerts, (old) => {
           if (!old) return old;
           return {
             ...old,
-            alerts: old.alerts.map(a => 
-              (a as Alert).id === id ? { ...(a as Alert), is_resolved: true } : a
-            )
+            alerts: old.alerts.map((a) => ((a as Alert).id === id ? { ...(a as Alert), is_resolved: true } : a)),
           };
         });
       }
-      
+
       return { previous };
     },
     onError: (_err, _variables, context) => {
@@ -1123,28 +1260,28 @@ export function useCreatePayment() {
     mutationFn: (data: { rental_id: string; amount: number }) =>
       api.post<{ data: { payment: unknown } }>("/payments", data),
     onMutate: async (newPayment) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.payments() });
-      const previous = queryClient.getQueryData<PaymentsResponse>(queryKeys.payments());
-      
-      if (previous) {
-        queryClient.setQueryData<PaymentsResponse>(queryKeys.payments(), (old) => {
-          if (!old) return old;
-          const tempPayment: Payment = {
-            id: `temp-${Date.now()}`,
-            amount: newPayment.amount,
-            status: "PENDING",
-            type: "RENTAL",
-            created_at: new Date().toISOString()
-          };
-          return { ...old, payments: [tempPayment, ...old.payments] };
-        });
-      }
-      
-      return { previous };
+      await queryClient.cancelQueries({ queryKey: ["payments"] });
+      const previousPaymentQueries = queryClient.getQueriesData<PaymentsResponse>({ queryKey: ["payments"] });
+
+      queryClient.setQueriesData<PaymentsResponse>({ queryKey: ["payments"] }, (old) => {
+        if (!old) return old;
+        const tempPayment: Payment = {
+          id: `temp-${Date.now()}`,
+          amount: newPayment.amount,
+          status: "PENDING",
+          type: "RENTAL",
+          created_at: new Date().toISOString(),
+        };
+        return { ...old, payments: [tempPayment, ...old.payments] };
+      });
+
+      return { previousPaymentQueries };
     },
     onError: (_err, _variables, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(queryKeys.payments(), context.previous);
+      if (context?.previousPaymentQueries) {
+        context.previousPaymentQueries.forEach(([key, data]) => {
+          queryClient.setQueryData(key, data);
+        });
       }
     },
     onSettled: () => {
@@ -1189,14 +1326,14 @@ export function useUpdateTargets() {
     onMutate: async (newData) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.targets });
       const previous = queryClient.getQueryData<{ data: { target: unknown } }>(queryKeys.targets);
-      
+
       if (previous) {
         queryClient.setQueryData<{ data: { target: unknown } }>(queryKeys.targets, (old) => {
           if (!old) return old;
           return { ...old, data: { target: { ...newData } } };
         });
       }
-      
+
       return { previous };
     },
     onError: (_err, _variables, context) => {

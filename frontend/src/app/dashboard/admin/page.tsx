@@ -124,12 +124,16 @@ export default function DashboardPage() {
   // Load targets into form when data is available
   useEffect(() => {
     if (target) {
-      setForm({
-        target_rentals: String(target.target_rentals ?? 0),
-        target_active_readers: String(target.target_active_readers ?? 0),
-        target_on_time_returns: String(target.target_on_time_returns ?? 0),
-        target_new_books: String(target.target_new_books ?? 0),
-      });
+      const timer = setTimeout(() => {
+        setForm({
+          target_rentals: String(target.target_rentals ?? 0),
+          target_active_readers: String(target.target_active_readers ?? 0),
+          target_on_time_returns: String(target.target_on_time_returns ?? 0),
+          target_new_books: String(target.target_new_books ?? 0),
+        });
+      }, 0);
+
+      return () => clearTimeout(timer);
     }
   }, [target]);
 
@@ -157,7 +161,7 @@ export default function DashboardPage() {
         target_new_books: Number(form.target_new_books || 0),
       });
       toast.success("Targets saved successfully");
-    } catch (error) {
+    } catch {
       toast.error("Failed to save targets");
     }
   };

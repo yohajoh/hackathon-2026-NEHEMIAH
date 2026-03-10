@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { useWishlist, useRemoveFromWishlist } from "@/lib/hooks/useQueries";
 import { WishlistSummary } from "@/components/WishlistSummary";
 import { WishlistGrid } from "@/components/WishlistGrid";
@@ -31,7 +32,12 @@ export default function WishlistPage() {
   const totalPages = wishlistData?.meta?.totalPages || 1;
 
   const handleRemove = async (itemId: string) => {
-    await removeFromWishlist.mutateAsync(itemId);
+    try {
+      await removeFromWishlist.mutateAsync(itemId);
+      toast.success("Removed from wishlist");
+    } catch {
+      toast.error("Failed to remove from wishlist");
+    }
   };
 
   return (

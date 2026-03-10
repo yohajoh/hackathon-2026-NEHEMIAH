@@ -24,6 +24,7 @@ import {
   Layers,
 } from "lucide-react";
 import { fetchCurrentUser, API_BASE_URL, invalidateCurrentUserCache } from "@/lib/api";
+import { toast } from "sonner";
 
 interface DashboardSidebarProps {
   variant?: "default" | "admin";
@@ -187,10 +188,12 @@ export const DashboardSidebar = ({ variant = "default" }: DashboardSidebarProps)
         credentials: "include",
       });
       invalidateCurrentUserCache();
+      toast.success("Logged out successfully");
       router.push("/auth/login");
     } catch (error) {
       console.error("Logout error:", error);
       invalidateCurrentUserCache();
+      toast.error("Logout failed. Redirecting to login.");
       router.push("/auth/login");
     }
   };

@@ -25,9 +25,18 @@ type Book = {
 type Props = {
   books: Book[];
   loading?: boolean;
+  listQuery?: string;
 };
 
-export const BookCardGrid = ({ books, loading }: Props) => {
+export const BookCardGrid = ({ books, loading, listQuery = "" }: Props) => {
+  const detailHref = (book: Book) => {
+    const params = new URLSearchParams();
+    if (book.type === "digital") params.set("type", "digital");
+    if (listQuery) params.set("from", listQuery);
+    const query = params.toString();
+    return query ? `/books/${book.id}?${query}` : `/books/${book.id}`;
+  };
+
   if (loading) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-6 gap-y-10">
@@ -64,7 +73,7 @@ export const BookCardGrid = ({ books, loading }: Props) => {
         <div key={book.id} className="group flex flex-col items-center">
           {/* Cover Image Container */}
           <Link
-            href={book.type === "digital" ? `/books/${book.id}?type=digital` : `/books/${book.id}`}
+            href={detailHref(book)}
             className="relative aspect-[3/4] w-full rounded-2xl overflow-hidden shadow-md group-hover:shadow-xl group-hover:-translate-y-1 transition-all duration-300 border border-border/40"
           >
             <Image
@@ -104,7 +113,7 @@ export const BookCardGrid = ({ books, loading }: Props) => {
           {/* Book Info */}
           <div className="mt-4 w-full space-y-1 text-center">
             <div className="flex items-center justify-center gap-2">
-              <Link href={book.type === "digital" ? `/books/${book.id}?type=digital` : `/books/${book.id}`}>
+              <Link href={detailHref(book)}>
                 <h3 className="text-sm font-serif font-bold text-primary group-hover:text-secondary transition-colors line-clamp-1">
                   {book.title}
                 </h3>

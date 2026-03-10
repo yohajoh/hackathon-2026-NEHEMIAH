@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchApi } from "@/lib/api";
+import { toast } from "sonner";
+import { useUpdateProfile } from "@/lib/hooks/useQueries";
 
 type UserData = {
   id: string;
@@ -21,49 +22,55 @@ type Props = {
 };
 
 export const ProfileSettings = ({ user, loading, onUpdate }: Props) => {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [year, setYear] = useState("");
-  const [department, setDepartment] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState(() => user?.name || "");
+  const [phone, setPhone] = useState(() => user?.phone || "");
+  const [year, setYear] = useState(() => user?.year || "");
+  const [department, setDepartment] = useState(() => user?.department || "");
+  const updateProfile = useUpdateProfile();
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     if (user) {
-      setName(user.name || "");
-      setPhone(user.phone || "");
-      setYear(user.year || "");
-      setDepartment(user.department || "");
+      const timer = setTimeout(() => {
+        setName(user.name || "");
+        setPhone(user.phone || "");
+        setYear(user.year || "");
+        setDepartment(user.department || "");
+      }, 0);
+
+      return () => clearTimeout(timer);
     }
   }, [user]);
 
   const handleSave = async () => {
     try {
-      setSaving(true);
       setMessage(null);
 
-      const response = await fetchApi("/auth/update-me", {
-        method: "PATCH",
-        body: JSON.stringify({ 
-          name, 
-          phone: phone || null,
-          year: year || null,
-          department: department || null
-        }),
+      await updateProfile.mutateAsync({
+        name,
+        phone: phone || null,
+        year: year || null,
+        department: department || null,
       });
 
-      if (response?.data?.user) {
-        onUpdate(response.data.user);
-        setMessage({ type: "success", text: "Profile updated successfully!" });
+      if (user) {
+        onUpdate({
+          ...user,
+          name,
+          phone: phone || null,
+          year: year || null,
+          department: department || null,
+        });
       }
+
+      toast.success("Profile updated successfully");
+      setMessage({ type: "success", text: "Profile updated successfully!" });
     } catch (e) {
-      console.error("Update error:", e);
       setMessage({ 
         type: "error", 
         text: e instanceof Error ? e.message : "Failed to update profile" 
       });
-    } finally {
-      setSaving(false);
+      toast.error(e instanceof Error ? e.message : "Failed to update profile");
     }
   };
 
@@ -199,17 +206,17 @@ export const ProfileSettings = ({ user, loading, onUpdate }: Props) => {
               setDepartment(user?.department || "");
               setMessage(null);
             }}
-            disabled={saving}
+            disabled={updateProfile.isPending}
             className="px-6 py-3 rounded-xl border border-border bg-card text-sm font-bold text-secondary hover:bg-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            disabled={saving || !name.trim()}
+            disabled={updateProfile.isPending || !name.trim()}
             className="px-6 py-3 rounded-xl bg-primary text-background text-sm font-bold hover:bg-accent transition-all active:scale-95 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? "Saving..." : "Save Changes"}
+            {updateProfile.isPending ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </div>

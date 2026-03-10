@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import type { Rental } from "@/lib/hooks/useQueries";
 
 type Props = {
@@ -50,10 +51,13 @@ export const CurrentlyBorrowed = ({ rental, loading }: Props) => {
       <div className="relative flex flex-col md:flex-row gap-8">
         <div className="w-full md:w-40 shrink-0">
           <div className="relative aspect-3/4 rounded-2xl overflow-hidden shadow-xl border-4 border-white/50">
-            <img
+            <Image
               src={bookCover}
               alt={bookTitle}
-              className="w-full h-full object-cover"
+              fill
+              sizes="(max-width: 768px) 100vw, 160px"
+              className="object-cover"
+              unoptimized
             />
           </div>
         </div>

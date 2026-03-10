@@ -23,7 +23,7 @@ export default function AdminReportsPage() {
     try {
       const data = await fetchApi(`/admin/reports/export?type=${type}&format=json`);
       setRows(data?.data?.rows || []);
-    } catch (error) {
+    } catch {
       toast.error("Failed to load report data");
       setRows([]);
     } finally {

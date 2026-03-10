@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { useMyPayments, useMyRentals, useCreatePayment, api } from "@/lib/hooks/useQueries";
+import { useMyPayments, useMyRentals, api } from "@/lib/hooks/useQueries";
 
 type Payment = {
   id: string;
@@ -33,8 +33,6 @@ function PaymentsContent() {
 
   const { data: paymentsData, isLoading: paymentsLoading, refetch: refetchPayments } = useMyPayments("limit=100");
   const { data: rentalsData } = useMyRentals("status=PENDING&limit=100");
-  const createPayment = useCreatePayment();
-
   const payments: Payment[] = (paymentsData?.payments || []) as unknown as Payment[];
   const pendingFines: RentalFine[] = ((rentalsData?.rentals || []) as unknown as RentalFine[]).filter((r) => Number(r.fine || 0) > 0);
 

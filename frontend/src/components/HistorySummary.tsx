@@ -27,6 +27,7 @@ const daysBetween = (start: string, end: string) =>
   Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60 * 24));
 
 export const HistorySummary = ({ rentals, config, loading }: Props) => {
+  void config;
   if (loading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

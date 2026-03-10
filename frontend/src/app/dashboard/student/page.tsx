@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { fetchCurrentUser } from "@/lib/api";
 import { useMyRentals, useSystemConfig, useStudentOverview, useRecommendations, usePopularity, Rental, SystemConfig } from "@/lib/hooks/useQueries";
 import { CurrentlyBorrowed } from "@/components/CurrentlyBorrowed";
 import { AmountOwed } from "@/components/AmountOwed";
@@ -22,7 +21,7 @@ export type RentalItem = {
 };
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
+  const [user] = useState<{ name: string; email: string; role: string } | null>(null);
   const [error] = useState<string | null>(null);
 
   const { data: rentalsData, isLoading: rentalsLoading } = useMyRentals();

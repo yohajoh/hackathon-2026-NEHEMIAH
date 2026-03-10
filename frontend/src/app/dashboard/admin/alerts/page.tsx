@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api";
-import { useNotifications, useMarkAsRead, Notification, useMarkAllAsRead } from "@/lib/hooks/useNotifications";
+import { useNotifications, useMarkAsRead, Notification } from "@/lib/hooks/useNotifications";
 import { LoadingList } from "@/components/ui/Loading";
 import { NotificationOverlay } from "@/components/notifications/NotificationOverlay";
+import { toast } from "sonner";
 
 type Alert = {
   id: string;
@@ -32,6 +33,29 @@ export function useResolveAlert() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => fetchApi(`/admin/inventory-alerts/${id}/resolve`, { method: "PATCH" }),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ["inventory-alerts"] });
+      const previousAlertsQueries = queryClient.getQueriesData<{ alerts?: Alert[]; data?: { alerts?: Alert[] } }>({
+        queryKey: ["inventory-alerts"],
+      });
+
+      queryClient.setQueriesData<{ alerts?: Alert[]; data?: { alerts?: Alert[] } }>({ queryKey: ["inventory-alerts"] }, (old) => {
+        if (!old) return old;
+        const alerts = old.alerts || old.data?.alerts || [];
+        const updated = alerts.map((a) => (a.id === id ? { ...a, is_resolved: true } : a));
+        if (old.alerts) return { ...old, alerts: updated };
+        return { ...old, data: { ...(old.data || {}), alerts: updated } };
+      });
+
+      return { previousAlertsQueries };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previousAlertsQueries) {
+        context.previousAlertsQueries.forEach(([key, data]) => {
+          queryClient.setQueryData(key, data);
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory-alerts"] });
     },
@@ -42,7 +66,7 @@ export function useScanAlerts() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => fetchApi("/admin/inventory-alerts/scan", { method: "POST" }),
-    onSuccess: () => {
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory-alerts"] });
     },
   });
@@ -51,7 +75,6 @@ export function useScanAlerts() {
 function AlertsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
 
   // URL States - Source of Truth
   const notificationId = searchParams.get("notification");
@@ -68,8 +91,6 @@ function AlertsContent() {
   } = useNotifications({ limit: 50 }, { enabled: activeTab === "notifications" });
 
   const markAsReadMutation = useMarkAsRead();
-  const markAllAsRead = useMarkAllAsRead();
-
   // Find the notification directly from the data using the URL ID
   const activeNotification = useMemo(() => {
     if (!notificationId || !notificationsData?.notifications) return null;
@@ -83,11 +104,25 @@ function AlertsContent() {
     router.push(`?${params.toString()}`, { scroll: false });
 
     if (!notification.is_read) {
-      markAsReadMutation.mutate(notification.id, {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ["notifications"] });
-        },
-      });
+      markAsReadMutation.mutate(notification.id);
+    }
+  };
+
+  const handleScanAlerts = async () => {
+    try {
+      await scanAlerts.mutateAsync();
+      toast.success("Alert scan completed");
+    } catch {
+      toast.error("Failed to scan alerts");
+    }
+  };
+
+  const handleResolveAlert = async (id: string) => {
+    try {
+      await resolveAlert.mutateAsync(id);
+      toast.success("Alert resolved");
+    } catch {
+      toast.error("Failed to resolve alert");
     }
   };
 
@@ -113,7 +148,7 @@ function AlertsContent() {
           <p className="text-[#AE9E85] font-medium">Monitor inventory alerts and system notifications.</p>
         </div>
         <button
-          onClick={() => scanAlerts.mutate()}
+          onClick={handleScanAlerts}
           disabled={scanAlerts.isPending}
           className="px-4 py-2.5 bg-[#2B1A10] text-white text-sm font-bold rounded-xl disabled:opacity-50"
         >
@@ -155,7 +190,7 @@ function AlertsContent() {
                   </p>
                 </div>
                 <button
-                  onClick={() => resolveAlert.mutate(item.id)}
+                  onClick={() => handleResolveAlert(item.id)}
                   disabled={item.is_resolved}
                   className="px-3 py-1.5 text-xs font-bold border rounded-lg disabled:opacity-30"
                 >

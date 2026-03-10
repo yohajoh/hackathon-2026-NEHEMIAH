@@ -24,6 +24,10 @@ export default function AdminCategoriesPage() {
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
   const deleteCategory = useDeleteCategory();
+  const deletingCategoryId = deleteCategory.isPending ? deleteCategory.variables : undefined;
+
+  const getErrorMessage = (error: unknown, fallback: string) =>
+    error instanceof Error && error.message ? error.message : fallback;
 
   const categories: Category[] = categoriesData?.categories || [];
 
@@ -49,7 +53,7 @@ export default function AdminCategoriesPage() {
       setEditingId(null);
       setName("");
     } catch (error) {
-      toast.error("Failed to save category");
+      toast.error(getErrorMessage(error, "Failed to save category"));
     }
   };
 
@@ -59,7 +63,7 @@ export default function AdminCategoriesPage() {
       await deleteCategory.mutateAsync(id);
       toast.success("Category deleted successfully");
     } catch (error) {
-      toast.error("Failed to delete category");
+      toast.error(getErrorMessage(error, "Failed to delete category"));
     }
   };
 
@@ -103,7 +107,7 @@ export default function AdminCategoriesPage() {
                     <span className="text-sm text-[#2B1A10]/70 text-center">{category._count?.digital_books || 0}</span>
                     <div className="flex items-center gap-2">
                       <button onClick={() => openEdit(category)} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-[#2B1A10] hover:bg-[#F3EFE6]"><Pencil size={15} /></button>
-                      <button onClick={() => handleDelete(category.id)} disabled={deleteCategory.variables === category.id} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-red-500 hover:bg-red-50 disabled:opacity-40"><Trash2 size={15} /></button>
+                      <button onClick={() => handleDelete(category.id)} disabled={deletingCategoryId === category.id} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-red-500 hover:bg-red-50 disabled:opacity-40"><Trash2 size={15} /></button>
                     </div>
                   </div>
                 ))

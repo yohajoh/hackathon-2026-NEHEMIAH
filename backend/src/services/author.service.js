@@ -14,6 +14,11 @@ import { AppError } from '../middlewares/error.middleware.js';
 import { paginationMeta } from '../utils/apiFeatures.js';
 import { uploadImageToCloudinary } from '../utils/cloudinary.js';
 
+const ACTIVE_BOOK_COUNT_SELECT = {
+  books: { where: { deleted_at: null } },
+  digital_books: { where: { deleted_at: null } },
+};
+
 export const getAuthors = async (query) => {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 20));
@@ -43,7 +48,7 @@ export const getAuthors = async (query) => {
       skip,
       take: limit,
       include: {
-        _count: { select: { books: true, digital_books: true } },
+        _count: { select: ACTIVE_BOOK_COUNT_SELECT },
       },
     }),
     prisma.author.count({ where }),
@@ -76,7 +81,7 @@ export const getAuthorById = async (id) => {
         },
         orderBy: { title: 'asc' },
       },
-      _count: { select: { books: true, digital_books: true } },
+      _count: { select: ACTIVE_BOOK_COUNT_SELECT },
     },
   });
   if (!author) throw new AppError('Author not found', 404);
@@ -105,7 +110,7 @@ export const createAuthor = async (data, imageFile = null) => {
 
       return tx.author.create({
         data: { name: name.trim(), bio: bio.trim(), image },
-        include: { _count: { select: { books: true, digital_books: true } } },
+        include: { _count: { select: ACTIVE_BOOK_COUNT_SELECT } },
       });
     });
   } catch (error) {
@@ -142,14 +147,14 @@ export const updateAuthor = async (id, data, imageFile = null) => {
   return prisma.author.update({
     where: { id },
     data: updateData,
-    include: { _count: { select: { books: true, digital_books: true } } },
+    include: { _count: { select: ACTIVE_BOOK_COUNT_SELECT } },
   });
 };
 
 export const deleteAuthor = async (id) => {
   const author = await prisma.author.findUnique({
     where: { id },
-    include: { _count: { select: { books: true, digital_books: true } } },
+    include: { _count: { select: ACTIVE_BOOK_COUNT_SELECT } },
   });
   if (!author) throw new AppError('Author not found', 404);
 

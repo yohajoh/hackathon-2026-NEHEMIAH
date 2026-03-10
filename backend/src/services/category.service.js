@@ -20,6 +20,11 @@ const generateSlug = (name) =>
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-');
 
+const ACTIVE_BOOK_COUNT_SELECT = {
+  books: { where: { deleted_at: null } },
+  digital_books: { where: { deleted_at: null } },
+};
+
 export const getCategories = async (query) => {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 50));
@@ -37,7 +42,7 @@ export const getCategories = async (query) => {
       skip,
       take: limit,
       include: {
-        _count: { select: { books: true, digital_books: true } },
+        _count: { select: ACTIVE_BOOK_COUNT_SELECT },
       },
     }),
     prisma.category.count({ where }),
@@ -106,7 +111,7 @@ export const createCategory = async ({ name }) => {
 
       return tx.category.create({
         data: { name: name.trim(), slug },
-        include: { _count: { select: { books: true, digital_books: true } } },
+        include: { _count: { select: ACTIVE_BOOK_COUNT_SELECT } },
       });
     });
   } catch (error) {
@@ -137,7 +142,7 @@ export const updateCategory = async (id, { name }) => {
       return tx.category.update({
         where: { id },
         data: { name: name.trim(), slug },
-        include: { _count: { select: { books: true, digital_books: true } } },
+        include: { _count: { select: ACTIVE_BOOK_COUNT_SELECT } },
       });
     });
   } catch (error) {
@@ -149,7 +154,7 @@ export const updateCategory = async (id, { name }) => {
 export const deleteCategory = async (id) => {
   const category = await prisma.category.findUnique({
     where: { id },
-    include: { _count: { select: { books: true, digital_books: true } } },
+    include: { _count: { select: ACTIVE_BOOK_COUNT_SELECT } },
   });
   if (!category) throw new AppError('Category not found', 404);
 

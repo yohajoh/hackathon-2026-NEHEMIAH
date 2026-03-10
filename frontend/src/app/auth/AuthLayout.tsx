@@ -1,6 +1,6 @@
-`use client`;
+"use client";
 
-import React, { PropsWithChildren, useEffect, useState } from "react";
+import React, { PropsWithChildren, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -30,15 +30,10 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
   imageTagline = "Preserving spiritual and academic books for generations.",
   useMobileBackgroundImage = true,
 }) => {
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem("brana-theme");
-    if (stored === "dark") {
-      setIsDark(true);
-    }
-  }, []);
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("brana-theme") === "dark";
+  });
 
   const toggleTheme = () => {
     setIsDark((prev) => {

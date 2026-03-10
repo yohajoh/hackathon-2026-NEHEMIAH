@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { X, Eye, EyeOff } from "lucide-react";
-import { fetchApi } from "@/lib/api";
+import { toast } from "sonner";
+import { useChangePassword } from "@/lib/hooks/useQueries";
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -13,13 +14,14 @@ export const ChangePasswordModal = ({
   isOpen,
   onClose,
 }: ChangePasswordModalProps) => {
+  const changePassword = useChangePassword();
   const [showOld, setShowOld] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const loading = changePassword.isPending;
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,15 +45,12 @@ export const ChangePasswordModal = ({
     }
 
     try {
-      setLoading(true);
-      await fetchApi("/auth/update-password", {
-        method: "PATCH",
-        body: JSON.stringify({
-          currentPassword: oldPassword,
-          newPassword: newPassword,
-        }),
+      await changePassword.mutateAsync({
+        currentPassword: oldPassword,
+        newPassword,
       });
 
+      toast.success("Password changed successfully");
       setMessage({ type: "success", text: "Password changed successfully!" });
       
       // Reset form and close after 2 seconds
@@ -63,13 +62,11 @@ export const ChangePasswordModal = ({
         onClose();
       }, 2000);
     } catch (e) {
-      console.error("Password change error:", e);
       setMessage({
         type: "error",
         text: e instanceof Error ? e.message : "Failed to change password",
       });
-    } finally {
-      setLoading(false);
+      toast.error(e instanceof Error ? e.message : "Failed to change password");
     }
   };
 

@@ -1,5 +1,4 @@
 import jwt from "jsonwebtoken";
-import { prisma } from "../prisma.js";
 
 export const generateToken = (id) => {
   const secret = String(process.env.JWT_SECRET || "fallback_secret");

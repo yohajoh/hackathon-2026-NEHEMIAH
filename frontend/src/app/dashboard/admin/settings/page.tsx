@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { useSystemConfig, useUpdateSystemConfig } from "@/lib/hooks/useQueries";
 
 export default function AdminSettingsPage() {
@@ -29,29 +30,38 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     if (config) {
-      setForm({
-        max_loan_days: String(config.max_loan_days),
-        daily_fine: String(config.daily_fine),
-        max_books_per_user: String(config.max_books_per_user),
-        reservation_window_hr: String(config.reservation_window_hr),
-        low_stock_threshold: String(config.low_stock_threshold),
-        never_returned_days: String(config.never_returned_days ?? 60),
-        enable_notifications: Boolean(config.enable_notifications),
-      });
+      const timer = setTimeout(() => {
+        setForm({
+          max_loan_days: String(config.max_loan_days),
+          daily_fine: String(config.daily_fine),
+          max_books_per_user: String(config.max_books_per_user),
+          reservation_window_hr: String(config.reservation_window_hr),
+          low_stock_threshold: String(config.low_stock_threshold),
+          never_returned_days: String(config.never_returned_days ?? 60),
+          enable_notifications: Boolean(config.enable_notifications),
+        });
+      }, 0);
+
+      return () => clearTimeout(timer);
     }
   }, [config]);
 
   const saveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateConfig.mutateAsync({
-      max_loan_days: Number(form.max_loan_days),
-      daily_fine: Number(form.daily_fine),
-      max_books_per_user: Number(form.max_books_per_user),
-      reservation_window_hr: Number(form.reservation_window_hr),
-      low_stock_threshold: Number(form.low_stock_threshold),
-      never_returned_days: Number(form.never_returned_days),
-      enable_notifications: form.enable_notifications,
-    });
+    try {
+      await updateConfig.mutateAsync({
+        max_loan_days: Number(form.max_loan_days),
+        daily_fine: Number(form.daily_fine),
+        max_books_per_user: Number(form.max_books_per_user),
+        reservation_window_hr: Number(form.reservation_window_hr),
+        low_stock_threshold: Number(form.low_stock_threshold),
+        never_returned_days: Number(form.never_returned_days),
+        enable_notifications: form.enable_notifications,
+      });
+      toast.success("Settings saved successfully");
+    } catch {
+      toast.error("Failed to save settings");
+    }
   };
 
   return (

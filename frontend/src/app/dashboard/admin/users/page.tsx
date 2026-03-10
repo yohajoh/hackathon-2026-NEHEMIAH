@@ -39,6 +39,9 @@ export default function AdminUsersPage() {
   
   const insights = insightsData?.data as UserInsights | null;
 
+  const getErrorMessage = (error: unknown, fallback: string) =>
+    error instanceof Error && error.message ? error.message : fallback;
+
   const filtered = users.filter((u) => {
     const q = search.toLowerCase();
     return u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.student_id?.toLowerCase().includes(q);
@@ -53,7 +56,7 @@ export default function AdminUsersPage() {
       await deleteUser.mutateAsync(id);
       toast.success("User deleted successfully");
     } catch (error) {
-      toast.error("Failed to delete user");
+      toast.error(getErrorMessage(error, "Failed to delete user"));
     }
   };
 
@@ -67,7 +70,7 @@ export default function AdminUsersPage() {
         toast.success("User blocked successfully");
       }
     } catch (error) {
-      toast.error("Failed to update user status");
+      toast.error(getErrorMessage(error, "Failed to update user status"));
     }
   };
 
@@ -102,8 +105,14 @@ export default function AdminUsersPage() {
             {paginated.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-[#AE9E85]"><p className="text-sm font-medium">No users found</p></div>
             ) : (
-              paginated.map((user) => (
-                <div key={user.id} onClick={() => setSelectedUser(user)} className="grid grid-cols-[2fr_2fr_1.5fr_0.8fr_1.2fr_1fr_auto_auto] gap-4 items-center px-6 py-4 border-b border-[#E1D2BD]/30 hover:bg-[#FDFAF6] transition-colors cursor-pointer">
+              paginated.map((user) => {
+                const isDeleting = deleteUser.isPending && deleteUser.variables === user.id;
+                const isToggling =
+                  (blockUser.isPending && blockUser.variables === user.id) ||
+                  (unblockUser.isPending && unblockUser.variables === user.id);
+
+                return (
+                  <div key={user.id} onClick={() => setSelectedUser(user)} className="grid grid-cols-[2fr_2fr_1.5fr_0.8fr_1.2fr_1fr_auto_auto] gap-4 items-center px-6 py-4 border-b border-[#E1D2BD]/30 hover:bg-[#FDFAF6] transition-colors cursor-pointer">
                   <span className="text-sm font-bold text-[#2B1A10] truncate">{user.name}</span>
                   <span className="text-sm text-[#8B6B4A] truncate">{user.email}</span>
                   <span className="text-sm text-[#2B1A10]/70">{user.student_id || "—"}</span>
@@ -112,14 +121,15 @@ export default function AdminUsersPage() {
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-lg w-fit ${user.is_blocked ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
                     {user.is_blocked ? "Blocked" : "Active"}
                   </span>
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(user.id); }} disabled={deleteUser.variables === user.id} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-red-500 hover:bg-red-50 disabled:opacity-40" title="Delete user">
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(user.id); }} disabled={isDeleting} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-red-500 hover:bg-red-50 disabled:opacity-40" title="Delete user">
                     <Trash2 size={16} strokeWidth={1.5} />
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); handleToggleBlock(user); }} disabled={blockUser.variables === user.id || unblockUser.variables === user.id} className="w-28 px-3 py-1.5 text-xs font-bold text-[#2B1A10] border border-[#C2B199] rounded-lg hover:bg-[#C2B199]/20 disabled:opacity-40">
-                    {blockUser.variables === user.id || unblockUser.variables === user.id ? "Updating..." : user.is_blocked ? "Unblock" : "Block"}
+                  <button onClick={(e) => { e.stopPropagation(); handleToggleBlock(user); }} disabled={isToggling} className="w-28 px-3 py-1.5 text-xs font-bold text-[#2B1A10] border border-[#C2B199] rounded-lg hover:bg-[#C2B199]/20 disabled:opacity-40">
+                    {isToggling ? "Updating..." : user.is_blocked ? "Unblock" : "Block"}
                   </button>
-                </div>
-              ))
+                  </div>
+                );
+              })
             )}
           </>
         )}

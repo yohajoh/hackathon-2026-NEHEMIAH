@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Trash2,
   Pencil,
@@ -12,18 +12,26 @@ import {
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useBooks, useDigitalBooks, useCategories, useAuthors, useCreateBook, useDeleteBook, useCreateCategory, useUpdateCategory, useDeleteCategory, useBookCopies, useConditionHistory, useUpdateCondition } from "@/lib/hooks/useQueries";
+import { useBooks, useDigitalBooks, useCategories, useAuthors, useCreateBook, useUpdateBook, useDeleteBook, useCreateCategory, useUpdateCategory, useDeleteCategory, useBookCopies, useConditionHistory, useUpdateCondition } from "@/lib/hooks/useQueries";
 
 type Tab = "all" | "physical" | "digital" | "categories";
 
 interface Book {
   id: string;
+  author_id?: string;
+  category_id?: string;
   title: string;
-  author?: { name: string };
-  category?: { name: string };
+  author?: { id: string; name: string };
+  category?: { id: string; name: string };
   total?: number;
+  copies?: number;
   available?: number;
   status?: string;
+  description?: string;
+  publication_year?: number;
+  pages?: number;
+  tags?: string[];
+  topics?: string[];
   pdf_access?: "FREE" | "PAID" | "RESTRICTED";
   type?: "physical" | "digital";
 }
@@ -63,6 +71,7 @@ export default function AdminBooksPage() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
+  const [editingBook, setEditingBook] = useState<Book | null>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [categoryName, setCategoryName] = useState("");
@@ -76,6 +85,7 @@ export default function AdminBooksPage() {
   const { data: authorsData, isLoading: authorsLoading } = useAuthors();
 
   const createBook = useCreateBook();
+  const updateBook = useUpdateBook();
   const deleteBook = useDeleteBook();
   const createCategoryFn = useCreateCategory();
   const updateCategoryFn = useUpdateCategory();
@@ -97,6 +107,12 @@ export default function AdminBooksPage() {
   const authors: Author[] = authorsData?.authors || [];
 
   const loading = booksLoading || digitalLoading || categoriesLoading || authorsLoading;
+  const deletingBookId = deleteBook.isPending ? deleteBook.variables?.id : undefined;
+  const deletingCategoryId = deleteCategoryFn.isPending ? deleteCategoryFn.variables : undefined;
+  const isBookSubmitting = createBook.isPending || updateBook.isPending;
+
+  const getErrorMessage = (error: unknown, fallback: string) =>
+    error instanceof Error && error.message ? error.message : fallback;
 
   const allBooks = [...physicalBooks, ...digitalBooksList];
 
@@ -115,8 +131,18 @@ export default function AdminBooksPage() {
       await deleteBook.mutateAsync({ id, type });
       toast.success("Book deleted successfully");
     } catch (error) {
-      toast.error("Failed to delete book");
+      toast.error(getErrorMessage(error, "Failed to delete book"));
     }
+  };
+
+  const openCreateBookModal = () => {
+    setEditingBook(null);
+    setShowModal(true);
+  };
+
+  const openEditBookModal = (book: Book) => {
+    setEditingBook(book);
+    setShowModal(true);
   };
 
   const TABS: { key: Tab; label: string }[] = [
@@ -162,7 +188,7 @@ export default function AdminBooksPage() {
       setEditingCategoryId(null);
       setCategoryName("");
     } catch (error) {
-      toast.error("Failed to save category");
+      toast.error(getErrorMessage(error, "Failed to save category"));
     }
   };
 
@@ -172,7 +198,7 @@ export default function AdminBooksPage() {
       await deleteCategoryFn.mutateAsync(id);
       toast.success("Category deleted successfully");
     } catch (error) {
-      toast.error("Failed to delete category");
+      toast.error(getErrorMessage(error, "Failed to delete category"));
     }
   };
 
@@ -189,7 +215,7 @@ export default function AdminBooksPage() {
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AE9E85]" />
               <input type="text" placeholder="Search book" value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }} disabled={activeTab === "categories"} className="pl-9 pr-4 py-2.5 text-sm bg-white border border-[#E1D2BD] rounded-xl text-[#2B1A10] placeholder:text-[#C4B49E] w-52 disabled:opacity-40" />
             </div>
-            <button onClick={() => activeTab === "categories" ? setShowCategoryModal(true) : setShowModal(true)} className="flex items-center gap-2 px-4 py-2.5 bg-[#2B1A10] text-white text-sm font-bold rounded-xl">
+            <button onClick={() => activeTab === "categories" ? setShowCategoryModal(true) : openCreateBookModal()} className="flex items-center gap-2 px-4 py-2.5 bg-[#2B1A10] text-white text-sm font-bold rounded-xl">
               <Plus size={16} />{activeTab === "categories" ? "Add new category" : "Add new book"}
             </button>
           </div>
@@ -207,9 +233,9 @@ export default function AdminBooksPage() {
           {loading ? (
             <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B6B4A]"></div></div>
           ) : activeTab === "categories" ? (
-            <CategoryTable categories={paginatedCategories} onEdit={openCategoryModal} onDelete={handleDeleteCategory} deletingId={deleteCategoryFn.variables} />
+            <CategoryTable categories={paginatedCategories} onEdit={openCategoryModal} onDelete={handleDeleteCategory} deletingId={deletingCategoryId} />
           ) : (
-            <BookTable books={paginatedBooks} onDelete={handleDeleteBook} deletingId={deleteBook.variables?.id} onCondition={(id, title) => { setConditionBookId(id); setConditionBookTitle(title); setShowConditionModal(true); }} />
+            <BookTable books={paginatedBooks} onDelete={handleDeleteBook} onEdit={openEditBookModal} deletingId={deletingBookId} onCondition={(id, title) => { setConditionBookId(id); setConditionBookTitle(title); setShowConditionModal(true); }} />
           )}
         </div>
 
@@ -230,7 +256,21 @@ export default function AdminBooksPage() {
         )}
       </div>
 
-      {showModal && <AddBookModal show={showModal} onClose={() => setShowModal(false)} authors={authors} categories={categories} onSubmit={async (type, data) => { await createBook.mutateAsync({ type, data }); setShowModal(false); }} submitting={createBook.isPending} />}
+      {showModal && <AddBookModal show={showModal} onClose={() => { setShowModal(false); setEditingBook(null); }} authors={authors} categories={categories} editingBook={editingBook} onSubmit={async (type, data) => {
+        try {
+          if (editingBook) {
+            await updateBook.mutateAsync({ id: editingBook.id, type, data });
+            toast.success(type === "physical" ? "Physical book updated" : "Digital book updated");
+          } else {
+            await createBook.mutateAsync({ type, data });
+            toast.success(type === "physical" ? "Physical book added" : "Digital book added");
+          }
+          setShowModal(false);
+          setEditingBook(null);
+        } catch (error) {
+          toast.error(getErrorMessage(error, editingBook ? "Failed to update book" : "Failed to add book"));
+        }
+      }} submitting={isBookSubmitting} />}
       
       {showCategoryModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setShowCategoryModal(false); }}>
@@ -254,7 +294,7 @@ export default function AdminBooksPage() {
   );
 }
 
-function BookTable({ books, onDelete, deletingId, onCondition }: { books: Book[]; onDelete: (id: string, type: "physical" | "digital") => void; deletingId?: string; onCondition: (id: string, title: string) => void }) {
+function BookTable({ books, onDelete, onEdit, deletingId, onCondition }: { books: Book[]; onDelete: (id: string, type: "physical" | "digital") => void; onEdit: (book: Book) => void; deletingId?: string; onCondition: (id: string, title: string) => void }) {
   if (books.length === 0) return <div className="py-16 text-center text-sm text-[#AE9E85]">No books found</div>;
   return (
     <>
@@ -277,7 +317,7 @@ function BookTable({ books, onDelete, deletingId, onCondition }: { books: Book[]
           </span>
           <div className="flex items-center gap-2">
             {book.type === "physical" && <button onClick={() => onCondition(book.id, book.title)} className="px-2 py-1 text-[10px] font-bold rounded-md border border-[#C2B199] text-[#2B1A10]">Condition</button>}
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-[#2B1A10] hover:bg-[#F3EFE6]"><Pencil size={15} /></button>
+            <button onClick={() => onEdit(book)} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-[#2B1A10] hover:bg-[#F3EFE6]"><Pencil size={15} /></button>
             <button onClick={() => onDelete(book.id, book.type || "physical")} disabled={deletingId === book.id} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-red-500 hover:bg-red-50 disabled:opacity-40"><Trash2 size={15} /></button>
           </div>
         </div>
@@ -309,7 +349,7 @@ function CategoryTable({ categories, onEdit, onDelete, deletingId }: { categorie
   );
 }
 
-function AddBookModal({ show, onClose, authors, categories, onSubmit, submitting }: { show: boolean; onClose: () => void; authors: Author[]; categories: Category[]; onSubmit: (type: "physical" | "digital", data: FormData) => Promise<void>; submitting: boolean }) {
+function AddBookModal({ show, onClose, authors, categories, editingBook, onSubmit, submitting }: { show: boolean; onClose: () => void; authors: Author[]; categories: Category[]; editingBook?: Book | null; onSubmit: (type: "physical" | "digital", data: FormData) => Promise<void>; submitting: boolean }) {
   const [modalTab, setModalTab] = useState<"physical" | "digital">("physical");
   const [form, setForm] = useState({ title: "", author_id: "", category_id: "", copies: "", pages: "", description: "", publication_year: "", tags: "", topics: "", pdf_access: "RESTRICTED" as "FREE" | "PAID" | "RESTRICTED" });
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -318,6 +358,43 @@ function AddBookModal({ show, onClose, authors, categories, onSubmit, submitting
   const imageInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!show) return;
+
+    if (!editingBook) {
+      const timer = setTimeout(() => {
+        setModalTab("physical");
+        setForm({ title: "", author_id: "", category_id: "", copies: "", pages: "", description: "", publication_year: "", tags: "", topics: "", pdf_access: "RESTRICTED" });
+        setImageFile(null);
+        setGalleryFiles([]);
+        setPdfFile(null);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+
+    const timer = setTimeout(() => {
+      const tab = editingBook.type === "digital" ? "digital" : "physical";
+      setModalTab(tab);
+      setForm({
+        title: editingBook.title || "",
+        author_id: editingBook.author_id || editingBook.author?.id || "",
+        category_id: editingBook.category_id || editingBook.category?.id || "",
+        copies: String(editingBook.copies ?? editingBook.total ?? ""),
+        pages: String(editingBook.pages ?? ""),
+        description: editingBook.description || "",
+        publication_year: String(editingBook.publication_year ?? ""),
+        tags: Array.isArray(editingBook.tags) ? editingBook.tags.join(", ") : "",
+        topics: Array.isArray(editingBook.topics) ? editingBook.topics.join(", ") : "",
+        pdf_access: editingBook.pdf_access || "RESTRICTED",
+      });
+      setImageFile(null);
+      setGalleryFiles([]);
+      setPdfFile(null);
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [show, editingBook]);
 
   if (!show) return null;
 
@@ -332,7 +409,7 @@ function AddBookModal({ show, onClose, authors, categories, onSubmit, submitting
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.author_id || !form.category_id) { alert("Please select both author and category."); return; }
-    if (modalTab === "digital" && !pdfFile) { alert("Please upload a PDF file for digital books."); return; }
+    if (!editingBook && modalTab === "digital" && !pdfFile) { alert("Please upload a PDF file for digital books."); return; }
     if (modalTab === "physical" && !form.copies) { alert("Please enter number of copies."); return; }
     
     const fd = new FormData();
@@ -365,8 +442,8 @@ function AddBookModal({ show, onClose, authors, categories, onSubmit, submitting
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden">
         <div className="flex items-center justify-center gap-8 pt-8 pb-4 border-b border-[#E1D2BD]/50 relative">
-          <button onClick={() => setModalTab("physical")} className={`text-sm font-bold pb-2 border-b-2 ${modalTab === "physical" ? "text-[#2B1A10] border-[#2B1A10]" : "text-[#AE9E85] border-transparent"}`}>Physical Book</button>
-          <button onClick={() => setModalTab("digital")} className={`text-sm font-bold pb-2 border-b-2 ${modalTab === "digital" ? "text-[#2B1A10] border-[#2B1A10]" : "text-[#AE9E85] border-transparent"}`}>Digital Book</button>
+          <button onClick={() => setModalTab("physical")} disabled={!!editingBook} className={`text-sm font-bold pb-2 border-b-2 ${modalTab === "physical" ? "text-[#2B1A10] border-[#2B1A10]" : "text-[#AE9E85] border-transparent"} disabled:opacity-50`}>Physical Book</button>
+          <button onClick={() => setModalTab("digital")} disabled={!!editingBook} className={`text-sm font-bold pb-2 border-b-2 ${modalTab === "digital" ? "text-[#2B1A10] border-[#2B1A10]" : "text-[#AE9E85] border-transparent"} disabled:opacity-50`}>Digital Book</button>
           <button onClick={onClose} className="absolute right-5 top-6 w-8 h-8 flex items-center justify-center text-[#AE9E85] hover:text-[#2B1A10] rounded-lg"><X size={18} /></button>
         </div>
         <form onSubmit={handleSubmit} className="px-8 py-6 space-y-4 max-h-[80vh] overflow-y-auto">
@@ -379,8 +456,8 @@ function AddBookModal({ show, onClose, authors, categories, onSubmit, submitting
             {modalTab === "physical" ? (
               <div><label className="block text-sm font-bold text-[#2B1A10] mb-1.5">Copies *</label><input type="number" min="1" value={form.copies} onChange={(e) => setForm((f) => ({ ...f, copies: e.target.value }))} required className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]" /></div>
             ) : (
-              <div><label className="block text-sm font-bold text-[#2B1A10] mb-1.5">PDF *</label><div onClick={() => pdfInputRef.current?.click()} className="w-full h-10 border-2 border-dashed border-[#E1D2BD] rounded-xl flex items-center justify-center cursor-pointer hover:border-[#8B6B4A]">
-                {pdfFile ? <p className="text-xs text-[#2B1A10] truncate px-2">{pdfFile.name}</p> : <p className="text-xs text-[#AE9E85]">Upload PDF</p>}
+              <div><label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{editingBook ? "PDF (optional)" : "PDF *"}</label><div onClick={() => pdfInputRef.current?.click()} className="w-full h-10 border-2 border-dashed border-[#E1D2BD] rounded-xl flex items-center justify-center cursor-pointer hover:border-[#8B6B4A]">
+                {pdfFile ? <p className="text-xs text-[#2B1A10] truncate px-2">{pdfFile.name}</p> : <p className="text-xs text-[#AE9E85]">{editingBook ? "Upload new PDF" : "Upload PDF"}</p>}
               </div><input ref={pdfInputRef} type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "pdf")} className="hidden" /></div>
             )}
             <div><label className="block text-sm font-bold text-[#2B1A10] mb-1.5">Year</label><input type="text" value={form.publication_year} onChange={(e) => setForm((f) => ({ ...f, publication_year: e.target.value }))} placeholder="e.g. 2024" className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]" /></div>
@@ -406,7 +483,7 @@ function AddBookModal({ show, onClose, authors, categories, onSubmit, submitting
             </div>
             <input ref={galleryInputRef} type="file" accept="image/*" multiple onChange={(e) => handleFileChange(e, "gallery")} className="hidden" />
           </div>
-          <button type="submit" disabled={submitting} className="w-full py-3 bg-[#2B1A10] text-white text-sm font-bold rounded-xl disabled:opacity-50 mt-2">{submitting ? "Adding..." : "Add book to collection"}</button>
+          <button type="submit" disabled={submitting} className="w-full py-3 bg-[#2B1A10] text-white text-sm font-bold rounded-xl disabled:opacity-50 mt-2">{submitting ? (editingBook ? "Updating..." : "Adding...") : (editingBook ? "Update Book" : "Add book to collection")}</button>
         </form>
       </div>
     </div>
@@ -430,7 +507,7 @@ function ConditionModal({ show, onClose, bookId, title }: { show: boolean; onClo
     try {
       await updateCondition.mutateAsync({ copyId: selectedCopyId, data: conditionForm });
       toast.success("Condition updated successfully");
-    } catch (error) {
+    } catch {
       toast.error("Failed to update condition");
     }
   };

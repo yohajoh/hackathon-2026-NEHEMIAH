@@ -25,8 +25,7 @@ export default function AdminReservationsPage() {
     try {
       await expireReservations.mutateAsync();
       toast.success("Pending reservations expired successfully");
-      refetch();
-    } catch (error) {
+    } catch {
       toast.error("Failed to expire reservations");
     }
   };

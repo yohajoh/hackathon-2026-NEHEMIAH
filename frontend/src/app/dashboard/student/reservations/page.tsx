@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useMyReservations, useCancelReservation } from "@/lib/hooks/useQueries";
+import { toast } from "sonner";
 
 type Reservation = {
   id: string;
@@ -19,7 +19,12 @@ export default function StudentReservationsPage() {
   const rows: Reservation[] = (reservationsData?.reservations || []) as unknown as Reservation[];
 
   const handleCancel = async (id: string) => {
-    await cancelReservation.mutateAsync(id);
+    try {
+      await cancelReservation.mutateAsync(id);
+      toast.success("Reservation cancelled");
+    } catch {
+      toast.error("Failed to cancel reservation");
+    }
   };
 
   return (
