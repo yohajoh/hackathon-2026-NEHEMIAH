@@ -1,6 +1,5 @@
 import express from "express";
 import * as authController from "../controllers/auth.controller.js";
-import * as authService from "../services/auth.service.js";
 import { body } from "express-validator";
 import passport from "passport";
 import { generateToken } from "../utils/token.utils.js";

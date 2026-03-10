@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, ChevronRight } from "lucide-react";
-import { useSocket } from "@/components/providers/SocketProvider";
 import { useAllNotifications, useMarkAsRead, Notification } from "@/lib/hooks/useNotifications";
 import { LoadingCard } from "@/components/ui/Loading";
 
@@ -11,7 +10,6 @@ export function AdminNotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const { unreadCount } = useSocket();
   const { data, isLoading, refetch } = useAllNotifications({ limit: 10 });
   const markAsReadMutation = useMarkAsRead();
 
@@ -55,8 +53,7 @@ export function AdminNotificationDropdown() {
   };
 
   const unreadNotifications = data?.notifications?.filter(n => !n.is_read) || [];
-  const apiUnreadCount = data?.unreadCount || 0;
-  const displayUnreadCount = apiUnreadCount > 0 ? apiUnreadCount : unreadCount;
+  const displayUnreadCount = data?.unreadCount || 0;
 
   return (
     <div className="relative" ref={dropdownRef}>

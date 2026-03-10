@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Bell, ChevronRight } from "lucide-react";
-import { useSocket } from "@/components/providers/SocketProvider";
 import { useNotifications, useMarkAsRead, Notification } from "@/lib/hooks/useNotifications";
 import { LoadingCard } from "@/components/ui/Loading";
 
@@ -11,7 +10,6 @@ function NotificationDropdownContent() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const { unreadCount } = useSocket();
   const { data, isLoading, refetch } = useNotifications({ limit: 10 });
   const markAsReadMutation = useMarkAsRead();
 
@@ -54,9 +52,8 @@ function NotificationDropdownContent() {
     setIsOpen(false);
   };
 
-  const apiUnreadCount = data?.unreadCount || 0;
   const unreadNotifications = data?.notifications?.filter(n => !n.is_read) || [];
-  const displayUnreadCount = apiUnreadCount > 0 ? apiUnreadCount : unreadNotifications.length;
+  const displayUnreadCount = data?.unreadCount || unreadNotifications.length;
 
   return (
     <div className="relative" ref={dropdownRef}>

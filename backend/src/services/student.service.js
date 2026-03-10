@@ -1,4 +1,4 @@
-import { prisma } from '../prisma.js';
+import { prisma } from "../prisma.js";
 
 const buildCategoryStats = (rows) => {
   const counts = rows.reduce((acc, row) => {
@@ -52,22 +52,22 @@ export const getStudentOverview = async (userId) => {
           },
         },
       },
-      orderBy: { loan_date: 'desc' },
+      orderBy: { loan_date: "desc" },
       take: 100,
     }),
     prisma.wishlist.count({ where: { user_id: userId } }),
-    prisma.reservation.count({ where: { user_id: userId, status: { in: ['QUEUED', 'NOTIFIED'] } } }),
+    prisma.reservation.count({ where: { user_id: userId, status: { in: ["QUEUED", "NOTIFIED"] } } }),
     prisma.notification.count({ where: { user_id: userId, is_read: false } }),
     prisma.payment.aggregate({
-      where: { rental: { user_id: userId }, status: 'SUCCESS' },
+      where: { rental: { user_id: userId }, status: "SUCCESS" },
       _sum: { amount: true },
       _count: { id: true },
     }),
   ]);
 
-  const active = rentals.filter((r) => r.status === 'BORROWED');
-  const pending = rentals.filter((r) => r.status === 'PENDING');
-  const completed = rentals.filter((r) => ['RETURNED', 'COMPLETED'].includes(r.status));
+  const active = rentals.filter((r) => r.status === "BORROWED");
+  const pending = rentals.filter((r) => r.status === "PENDING");
+  const completed = rentals.filter((r) => ["RETURNED", "COMPLETED"].includes(r.status));
 
   const overdueActive = active.filter((r) => new Date(r.due_date) < now);
   const dueSoon = active.filter((r) => {
@@ -140,7 +140,7 @@ export const getStudentRecommendations = async (userId, limit = 8) => {
         },
       },
     },
-    orderBy: { loan_date: 'desc' },
+    orderBy: { loan_date: "desc" },
     take: 20,
   });
 
@@ -184,7 +184,7 @@ export const getStudentRecommendations = async (userId, limit = 8) => {
         select: { rentals: true, reviews: true, wishlists: true },
       },
     },
-    orderBy: [{ available: 'desc' }, { title: 'asc' }],
+    orderBy: [{ available: "desc" }, { title: "asc" }],
     take: limit,
   });
 
@@ -202,7 +202,7 @@ export const getStudentRecommendations = async (userId, limit = 8) => {
       category: { select: { id: true, name: true } },
       _count: { select: { reviews: true, wishlists: true } },
     },
-    orderBy: [{ title: 'asc' }],
+    orderBy: [{ title: "asc" }],
     take: limit,
   });
 
@@ -215,26 +215,23 @@ export const getStudentRecommendations = async (userId, limit = 8) => {
 export const getStudentPopularity = async (limit = 8) => {
   const [mostRented, topRated] = await Promise.all([
     prisma.rental.groupBy({
-      by: ['book_id'],
+      by: ["book_id"],
       _count: { book_id: true },
-      orderBy: { _count: { book_id: 'desc' } },
+      orderBy: { _count: { book_id: "desc" } },
       take: limit,
     }),
     prisma.review.groupBy({
-      by: ['physical_book_id'],
+      by: ["physical_book_id"],
       where: { physical_book_id: { not: null } },
       _avg: { rating: true },
       _count: { rating: true },
-      orderBy: [{ _avg: { rating: 'desc' } }, { _count: { rating: 'desc' } }],
+      orderBy: [{ _avg: { rating: "desc" } }, { _count: { rating: "desc" } }],
       take: limit,
     }),
   ]);
 
   const ids = Array.from(
-    new Set([
-      ...mostRented.map((r) => r.book_id),
-      ...topRated.map((r) => r.physical_book_id).filter(Boolean),
-    ]),
+    new Set([...mostRented.map((r) => r.book_id), ...topRated.map((r) => r.physical_book_id).filter(Boolean)]),
   );
 
   const books = await prisma.book.findMany({
@@ -248,18 +245,27 @@ export const getStudentPopularity = async (limit = 8) => {
       category: { select: { name: true } },
     },
   });
+
   const map = Object.fromEntries(books.map((b) => [b.id, b]));
 
-  const trending = mostRented.slice(0, 5).map((row) => ({
-    book: map[row.book_id],
-    rentalCount: row._count.book_id,
-  })).filter((item) => item.book);
+  const trending = mostRented
+    .slice(0, 5)
+    .map((row) => ({
+      book: map[row.book_id],
+      rentalCount: row._count.book_id,
+    }))
+    .filter((item) => item.book);
 
-  const topRatedBooks = topRated.slice(0, 5).map((row) => ({
-    book: map[row.physical_book_id || ''],
-    avgRating: Number(Number(row._avg.rating || 0).toFixed(2)),
-    reviewCount: row._count.rating,
-  })).filter((item) => item.book);
+  const topRatedBooks = topRated
+    .slice(0, 5)
+    .map((row) => ({
+      book: map[row.physical_book_id || ""],
+      avgRating: Number(Number(row._avg.rating || 0).toFixed(2)),
+      reviewCount: row._count.rating,
+    }))
+    .filter((item) => item.book);
+
+  console.log(trending);
 
   return {
     trending,

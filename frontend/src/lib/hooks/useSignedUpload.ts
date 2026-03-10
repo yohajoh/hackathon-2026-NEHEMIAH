@@ -51,7 +51,6 @@ export function useSignedUpload() {
         
         xhr.addEventListener("error", () => reject(new Error("Upload failed")));
         
-        formData.append("file", file);
         xhr.open("POST", signedData.signedUrl);
         xhr.send(formData);
       });
