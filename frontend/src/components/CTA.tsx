@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export const CTA = () => {
   return (
-    <section className="w-full py-8 px-6 lg:px-16 relative z-1">
+    <section className="w-full py-8 px-6 lg:px-16 relative translate-y-18 z-1">
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col lg:flex-row items-center justify-between gap-12 rounded-[40px] bg-[#F3DFC0] px-10 py-16 lg:px-12 lg:py-20">
           <div className="space-y-8 max-w-xl">

@@ -8,7 +8,7 @@ import { LiaTelegram } from "react-icons/lia";
 
 export const Footer = () => {
   return (
-    <footer className="w-full bg-secondary/5 pt-24 pb-8 -mt-20 relative z-0">
+    <footer className="w-full bg-secondary/5 pt-10 pb-8 relative z-0">
       <div className="mx-auto max-w-7xl px-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-8 mt-8 justify-items-center">
           {/* Brand and Description */}
