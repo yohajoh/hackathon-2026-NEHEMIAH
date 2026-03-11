@@ -35,6 +35,8 @@ const parsePositiveInt = (value: string | null, fallback: number) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
+const INTERNAL_FILTER_KEYS = ["category_id", "author_id", "min_rating"] as const;
+
 export default function BooksPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -59,6 +61,7 @@ export default function BooksPage() {
   const updateQuery = useCallback(
     (updates: Record<string, string | null>, resetPage = false) => {
       const next = new URLSearchParams(searchParams.toString());
+      INTERNAL_FILTER_KEYS.forEach((key) => next.delete(key));
       Object.entries(updates).forEach(([key, value]) => {
         if (!value) next.delete(key);
         else next.set(key, value);
@@ -84,6 +87,44 @@ export default function BooksPage() {
     [categoriesData],
   );
   const authors: Author[] = useMemo(() => (authorsData?.authors || []) as unknown as Author[], [authorsData]);
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams.toString());
+    let changed = false;
+
+    const legacyCategoryId = next.get("category_id");
+    if (legacyCategoryId) {
+      const matched = categories.find((category) => category.id === legacyCategoryId);
+      if (matched && !next.get("category")) {
+        next.set("category", matched.name);
+      }
+      next.delete("category_id");
+      changed = true;
+    }
+
+    const legacyAuthorId = next.get("author_id");
+    if (legacyAuthorId) {
+      const matched = authors.find((author) => author.id === legacyAuthorId);
+      if (matched && !next.get("author")) {
+        next.set("author", matched.name);
+      }
+      next.delete("author_id");
+      changed = true;
+    }
+
+    const legacyMinRating = next.get("min_rating");
+    if (legacyMinRating) {
+      if (!next.get("minRating")) {
+        next.set("minRating", legacyMinRating);
+      }
+      next.delete("min_rating");
+      changed = true;
+    }
+
+    if (changed) {
+      router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+    }
+  }, [authors, categories, pathname, router, searchParams]);
 
   const selectedCategoryId = useMemo(() => {
     if (!selectedCategory) return "";

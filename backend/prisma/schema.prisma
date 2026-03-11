@@ -199,7 +199,6 @@ model Book {
   rentals          Rental[]
   reservations     Reservation[]
   reviews          Review[]
-  read_progress    DigitalReadProgress[]
   wishlists        Wishlist[]
 
   @@index([author_id])
@@ -229,6 +228,7 @@ model DigitalBook {
   author           Author      @relation(fields: [author_id], references: [id])
   category         Category    @relation(fields: [category_id], references: [id])
   reviews          Review[]
+  read_progress    DigitalReadProgress[]
   wishlists        Wishlist[]
 
   @@index([author_id])
