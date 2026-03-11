@@ -1,13 +1,13 @@
-import { prisma } from '../prisma.js';
-import { AppError } from '../middlewares/error.middleware.js';
-import { paginationMeta } from '../utils/apiFeatures.js';
-import { createNotification } from './notification.service.js';
+import { prisma } from "../prisma.js";
+import { AppError } from "../middlewares/error.middleware.js";
+import { paginationMeta } from "../utils/apiFeatures.js";
+import { createNotification } from "./notification.service.js";
 
 const getConfig = async () => {
   const defaults = { reservation_window_hr: 24 };
   try {
     const config = await prisma.systemConfig.findFirst({
-      orderBy: { id: 'desc' },
+      orderBy: { id: "desc" },
       select: {
         id: true,
         reservation_window_hr: true,
@@ -16,9 +16,9 @@ const getConfig = async () => {
     return config ? { ...defaults, ...config } : defaults;
   } catch (error) {
     // Backward compatibility: DB might not yet include reservation_window_hr.
-    if (error?.code === 'P2022') {
+    if (error?.code === "P2022") {
       const legacy = await prisma.systemConfig.findFirst({
-        orderBy: { id: 'desc' },
+        orderBy: { id: "desc" },
         select: { id: true },
       });
       return legacy ? { ...defaults, ...legacy } : defaults;
@@ -42,19 +42,22 @@ const RESERVATION_INCLUDE = {
   },
 };
 
-export const getMyReservations = async (userId, query) => {
+export const getMyReservations = async (userId, query, options = {}) => {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(query.limit, 10) || 10));
   const skip = (page - 1) * limit;
 
-  const where = { user_id: userId };
+  const where = {
+    user_id: userId,
+    ...(options.studentProfileId ? { student_profile_id: options.studentProfileId } : {}),
+  };
   if (query.status) where.status = query.status;
 
   const [reservations, total] = await Promise.all([
     prisma.reservation.findMany({
       where,
       include: RESERVATION_INCLUDE,
-      orderBy: [{ status: 'asc' }, { reserved_at: 'desc' }],
+      orderBy: [{ status: "asc" }, { reserved_at: "desc" }],
       skip,
       take: limit,
     }),
@@ -64,37 +67,40 @@ export const getMyReservations = async (userId, query) => {
   return { reservations, meta: paginationMeta(total, page, limit) };
 };
 
-export const createReservation = async (userId, { book_id }, io) => {
-  if (!book_id) throw new AppError('book_id is required', 400);
+export const createReservation = async (userId, { book_id }, io, options = {}) => {
+  if (!book_id) throw new AppError("book_id is required", 400);
 
   const book = await prisma.book.findFirst({
     where: { id: book_id, deleted_at: null },
     select: { id: true, title: true, available: true },
   });
-  if (!book) throw new AppError('Book not found', 404);
+  if (!book) throw new AppError("Book not found", 404);
   if (book.available > 0) {
-    throw new AppError('Book is currently available. Borrow directly instead of reserving.', 400);
+    throw new AppError("Book is currently available. Borrow directly instead of reserving.", 400);
   }
 
   const existing = await prisma.reservation.findFirst({
     where: {
       user_id: userId,
+      ...(options.studentProfileId ? { student_profile_id: options.studentProfileId } : {}),
       book_id,
-      status: { in: ['QUEUED', 'NOTIFIED'] },
+      status: { in: ["QUEUED", "NOTIFIED"] },
     },
   });
-  if (existing) throw new AppError('You already have an active reservation for this book', 409);
+  if (existing) throw new AppError("You already have an active reservation for this book", 409);
 
   const activeReservations = await prisma.reservation.count({
-    where: { book_id, status: { in: ['QUEUED', 'NOTIFIED'] } },
+    where: { book_id, status: { in: ["QUEUED", "NOTIFIED"] } },
   });
 
   const reservation = await prisma.reservation.create({
     data: {
       user_id: userId,
+      actor_user_id: options.actorUserId || userId,
+      student_profile_id: options.studentProfileId || null,
       book_id,
       queue_position: activeReservations + 1,
-      status: 'QUEUED',
+      status: "QUEUED",
     },
     include: RESERVATION_INCLUDE,
   });
@@ -102,28 +108,31 @@ export const createReservation = async (userId, { book_id }, io) => {
   await createNotification({
     userId,
     message: `You joined the waitlist for "${book.title}". Queue position: ${reservation.queue_position}.`,
-    type: 'RESERVATION',
+    type: "RESERVATION",
     io,
   });
 
   return reservation;
 };
 
-export const cancelReservation = async (reservationId, userId) => {
+export const cancelReservation = async (reservationId, userId, options = {}) => {
   const reservation = await prisma.reservation.findUnique({
     where: { id: reservationId },
     include: { book: { select: { id: true } } },
   });
 
-  if (!reservation) throw new AppError('Reservation not found', 404);
-  if (reservation.user_id !== userId) throw new AppError('Forbidden', 403);
-  if (!['QUEUED', 'NOTIFIED'].includes(reservation.status)) {
-    throw new AppError('Only active reservations can be cancelled', 400);
+  if (!reservation) throw new AppError("Reservation not found", 404);
+  if (reservation.user_id !== userId) throw new AppError("Forbidden", 403);
+  if (options.studentProfileId && reservation.student_profile_id !== options.studentProfileId) {
+    throw new AppError("Forbidden", 403);
+  }
+  if (!["QUEUED", "NOTIFIED"].includes(reservation.status)) {
+    throw new AppError("Only active reservations can be cancelled", 400);
   }
 
   const cancelled = await prisma.reservation.update({
     where: { id: reservationId },
-    data: { status: 'CANCELLED', cancelled_at: new Date() },
+    data: { status: "CANCELLED", cancelled_at: new Date() },
   });
 
   await rebalanceQueuePositions(reservation.book_id);
@@ -143,9 +152,9 @@ export const getAllReservations = async (query) => {
   if (query.search) {
     const q = query.search.trim();
     where.OR = [
-      { book: { title: { contains: q, mode: 'insensitive' } } },
-      { user: { name: { contains: q, mode: 'insensitive' } } },
-      { user: { email: { contains: q, mode: 'insensitive' } } },
+      { book: { title: { contains: q, mode: "insensitive" } } },
+      { user: { name: { contains: q, mode: "insensitive" } } },
+      { user: { email: { contains: q, mode: "insensitive" } } },
     ];
   }
 
@@ -153,7 +162,7 @@ export const getAllReservations = async (query) => {
     prisma.reservation.findMany({
       where,
       include: RESERVATION_INCLUDE,
-      orderBy: [{ status: 'asc' }, { reserved_at: 'asc' }],
+      orderBy: [{ status: "asc" }, { reserved_at: "asc" }],
       skip,
       take: limit,
     }),
@@ -167,7 +176,7 @@ export const expirePendingReservations = async (io) => {
   const now = new Date();
   const expired = await prisma.reservation.findMany({
     where: {
-      status: 'NOTIFIED',
+      status: "NOTIFIED",
       expires_at: { lt: now },
     },
     include: {
@@ -180,13 +189,13 @@ export const expirePendingReservations = async (io) => {
   for (const item of expired) {
     await prisma.reservation.update({
       where: { id: item.id },
-      data: { status: 'EXPIRED' },
+      data: { status: "EXPIRED" },
     });
 
     await createNotification({
       userId: item.user.id,
       message: `Your reservation window for "${item.book.title}" expired. You can reserve it again.`,
-      type: 'RESERVATION',
+      type: "RESERVATION",
       io,
     });
 
@@ -209,9 +218,9 @@ export const notifyNextInQueue = async (bookId, io) => {
   const nextReservation = await prisma.reservation.findFirst({
     where: {
       book_id: bookId,
-      status: 'QUEUED',
+      status: "QUEUED",
     },
-    orderBy: { queue_position: 'asc' },
+    orderBy: { queue_position: "asc" },
     include: { user: { select: { id: true } } },
   });
 
@@ -223,7 +232,7 @@ export const notifyNextInQueue = async (bookId, io) => {
   const updated = await prisma.reservation.update({
     where: { id: nextReservation.id },
     data: {
-      status: 'NOTIFIED',
+      status: "NOTIFIED",
       notified_at: new Date(),
       expires_at: expiresAt,
     },
@@ -233,21 +242,22 @@ export const notifyNextInQueue = async (bookId, io) => {
   await createNotification({
     userId: updated.user_id,
     message: `Good news! "${book.title}" is now available for you. Reserve window ends on ${expiresAt.toLocaleString()}.`,
-    type: 'RESERVATION',
+    type: "RESERVATION",
     io,
   });
 
   return updated;
 };
 
-export const markReservationFulfilledForBorrow = async (userId, bookId) => {
+export const markReservationFulfilledForBorrow = async (userId, bookId, options = {}) => {
   const reservation = await prisma.reservation.findFirst({
     where: {
       user_id: userId,
+      ...(options.studentProfileId ? { student_profile_id: options.studentProfileId } : {}),
       book_id: bookId,
-      status: { in: ['QUEUED', 'NOTIFIED'] },
+      status: { in: ["QUEUED", "NOTIFIED"] },
     },
-    orderBy: { reserved_at: 'asc' },
+    orderBy: { reserved_at: "asc" },
   });
 
   if (!reservation) return null;
@@ -255,7 +265,7 @@ export const markReservationFulfilledForBorrow = async (userId, bookId) => {
   const result = await prisma.reservation.update({
     where: { id: reservation.id },
     data: {
-      status: 'FULFILLED',
+      status: "FULFILLED",
       fulfilled_at: new Date(),
     },
   });
@@ -266,8 +276,8 @@ export const markReservationFulfilledForBorrow = async (userId, bookId) => {
 
 export const rebalanceQueuePositions = async (bookId) => {
   const active = await prisma.reservation.findMany({
-    where: { book_id: bookId, status: 'QUEUED' },
-    orderBy: { reserved_at: 'asc' },
+    where: { book_id: bookId, status: "QUEUED" },
+    orderBy: { reserved_at: "asc" },
     select: { id: true },
   });
 

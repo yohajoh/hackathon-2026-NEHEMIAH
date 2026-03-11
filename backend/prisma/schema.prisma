@@ -1,9 +1,412 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model PendingSignup {
+  id                 String   @id @default(uuid()) @db.Uuid
+  name               String
+  email              String
+  password_hash      String
+  confirmation_token String   @unique
+  created_at         DateTime @default(now())
+  department         String?
+  phone              String?
+  student_id         String?  @unique
+  year               String?
+}
+
+model User {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  student_id            String?                @unique
+  name                  String
+  email                 String                 @unique
+  phone                 String?
+  password_hash         String
+  role                  Role                   @default(STUDENT)
+  is_confirmed          Boolean                @default(false)
+  is_blocked            Boolean                @default(false)
+  confirmation_token    String?
+  reset_token           String?
+  reset_expiry          DateTime?
+  created_at            DateTime               @default(now())
+  department            String?
+  year                  String?
+  admin_activity_logs   AdminActivityLog[]     @relation("AdminActivityBy")
+  analytics_targets     AnalyticsTarget[]
+  condition_updates     BookConditionHistory[]
+  resolved_stock_alerts InventoryAlert[]       @relation("InventoryAlertResolvedBy")
+  notifications         Notification[]
+  rentals               Rental[]               @relation("RentalStudentOwner")
+  acted_rentals         Rental[]               @relation("RentalActor")
+  reservations          Reservation[]          @relation("ReservationStudentOwner")
+  acted_reservations    Reservation[]          @relation("ReservationActor")
+  reviews               Review[]
+  digital_reads         DigitalReadProgress[]
+  system_config_updates SystemConfig[]         @relation("SystemConfigUpdatedBy")
+  wishlists             Wishlist[]
+  student_profile       StudentProfile?
+  role_assignments      UserRoleAssignment[]
+
+  @@index([role])
+  @@index([is_blocked])
+}
+
+model StudentProfile {
+  id             String        @id @default(uuid()) @db.Uuid
+  user_id        String        @unique @db.Uuid
+  student_number String?       @unique
+  year           String?
+  department     String?
+  phone          String?
+  created_at     DateTime      @default(now())
+  updated_at     DateTime      @updatedAt
+  user           User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  rentals        Rental[]      @relation("RentalStudentProfile")
+  reservations   Reservation[] @relation("ReservationStudentProfile")
+
+  @@index([student_number])
+}
+
+model UserRoleAssignment {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  role       Role
+  created_at DateTime @default(now())
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, role])
+  @@index([role])
+}
+
+model SystemConfig {
+  id                       Int      @id @default(autoincrement())
+  max_loan_days            Int
+  daily_fine               Decimal
+  max_books_per_user       Int
+  enable_notifications     Boolean  @default(true)
+  last_updated_by_id       String   @db.Uuid
+  created_at               DateTime @default(now())
+  low_stock_threshold      Int      @default(2)
+  reservation_window_hr    Int      @default(24)
+  never_returned_days      Int      @default(60)
+  reminder_days_before_due Int      @default(3)
+  updated_by_user          User     @relation("SystemConfigUpdatedBy", fields: [last_updated_by_id], references: [id])
+}
+
+model Category {
+  id            String        @id @default(uuid()) @db.Uuid
+  name          String
+  slug          String        @unique
+  books         Book[]
+  digital_books DigitalBook[]
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model Author {
+  id            String        @id @default(uuid()) @db.Uuid
+  name          String
+  bio           String
+  image         String?
+  books         Book[]
+  digital_books DigitalBook[]
+}
+
+model Notification {
+  id         String           @id @default(uuid()) @db.Uuid
+  user_id    String           @db.Uuid
+  message    String
+  type       NotificationType
+  is_read    Boolean          @default(false)
+  created_at DateTime         @default(now())
+  dedupe_key String?
+  user       User             @relation(fields: [user_id], references: [id])
+
+  @@unique([user_id, dedupe_key])
+  @@index([user_id, is_read])
+  @@index([created_at])
+  @@index([user_id, created_at], map: "Notification_unread_user_created_idx", where: raw("(is_read = false)"))
+}
+
+model Rental {
+  id            String    @id @default(uuid()) @db.Uuid
+  user_id       String    @db.Uuid
+  actor_user_id String?   @db.Uuid
+  student_profile_id String? @db.Uuid
+  book_id       String    @db.Uuid
+  loan_date     DateTime  @default(now())
+  due_date      DateTime
+  return_date   DateTime?
+  status        Status    @default(BORROWED)
+  fine          Decimal?
+  copy_id       String?   @db.Uuid
+  payment       Payment?
+  physical_book Book      @relation(fields: [book_id], references: [id])
+  copy          BookCopy? @relation(fields: [copy_id], references: [id])
+  user          User      @relation("RentalStudentOwner", fields: [user_id], references: [id])
+  actor_user    User?     @relation("RentalActor", fields: [actor_user_id], references: [id])
+  student_profile StudentProfile? @relation("RentalStudentProfile", fields: [student_profile_id], references: [id])
+
+  @@index([user_id, status])
+  @@index([book_id, status])
+  @@index([status, due_date])
+  @@index([loan_date])
+  @@index([actor_user_id])
+  @@index([student_profile_id])
+  @@index([due_date], map: "Rental_due_date_borrowed_idx", where: raw("(status = 'BORROWED'::\"Status\")"))
+}
+
+model Payment {
+  id        String        @id @default(uuid()) @db.Uuid
+  rental_id String        @unique @db.Uuid
+  tx_ref    String        @unique
+  amount    Decimal
+  method    PaymentMethod
+  status    PaymentStatus @default(PENDING)
+  paid_at   DateTime      @default(now())
+  rental    Rental        @relation(fields: [rental_id], references: [id])
+
+  @@index([status, paid_at])
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model Book {
+  id               String           @id @default(uuid()) @db.Uuid
+  title            String
+  author_id        String           @db.Uuid
+  category_id      String           @db.Uuid
+  description      String
+  cover_image_url  String
+  copies           Int
+  available        Int
+  deleted_at       DateTime?
+  pages            Int
+  isbn             String?          @unique
+  language         String?
+  publication_year Int?
+  publisher        String?
+  tags             String[]         @default([])
+  topics           String[]         @default([])
+  author           Author           @relation(fields: [author_id], references: [id])
+  category         Category         @relation(fields: [category_id], references: [id])
+  copies_detail    BookCopy[]
+  images           BookImage[]
+  inventory_alerts InventoryAlert[]
+  rentals          Rental[]
+  reservations     Reservation[]
+  reviews          Review[]
+  read_progress    DigitalReadProgress[]
+  wishlists        Wishlist[]
+
+  @@index([author_id])
+  @@index([category_id])
+  @@index([available])
+  @@index([deleted_at])
+  @@index([publication_year])
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model DigitalBook {
+  id               String      @id @default(uuid()) @db.Uuid
+  title            String
+  author_id        String      @db.Uuid
+  category_id      String      @db.Uuid
+  description      String
+  cover_image_url  String
+  pdf_file         Bytes
+  pdf_name         String
+  pdf_access       PDFAccess
+  deleted_at       DateTime?
+  pages            Int
+  publication_year Int?
+  tags             String[]    @default([])
+  topics           String[]    @default([])
+  images           BookImage[]
+  author           Author      @relation(fields: [author_id], references: [id])
+  category         Category    @relation(fields: [category_id], references: [id])
+  reviews          Review[]
+  wishlists        Wishlist[]
+
+  @@index([author_id])
+  @@index([category_id])
+  @@index([deleted_at])
+  @@index([publication_year])
+}
+
+model BookImage {
+  id               String       @id @default(uuid()) @db.Uuid
+  book_id          String       @db.Uuid
+  book_type        BookType
+  image_url        String
+  sort_order       Int
+  physical_book_id String?      @db.Uuid
+  digital_book_id  String?      @db.Uuid
+  digital_book     DigitalBook? @relation(fields: [digital_book_id], references: [id])
+  physical_book    Book?        @relation(fields: [physical_book_id], references: [id])
+
+  @@index([physical_book_id, sort_order])
+  @@index([digital_book_id, sort_order])
+}
+
+model Review {
+  id               String       @id @default(uuid()) @db.Uuid
+  user_id          String       @db.Uuid
+  physical_book_id String?      @db.Uuid
+  digital_book_id  String?      @db.Uuid
+  book_type        BookType
+  rating           Int
+  comment          String?
+  created_at       DateTime     @default(now())
+  digital_book     DigitalBook? @relation(fields: [digital_book_id], references: [id])
+  physical_book    Book?        @relation(fields: [physical_book_id], references: [id])
+  user             User         @relation(fields: [user_id], references: [id])
+
+  @@unique([user_id, physical_book_id])
+  @@unique([user_id, digital_book_id])
+  @@index([physical_book_id, created_at])
+  @@index([digital_book_id, created_at])
+}
+
+model DigitalReadProgress {
+  id              String      @id @default(uuid()) @db.Uuid
+  user_id         String      @db.Uuid
+  digital_book_id String      @db.Uuid
+  first_read_at   DateTime    @default(now())
+  last_read_at    DateTime    @default(now())
+  read_count      Int         @default(1)
+  user            User        @relation(fields: [user_id], references: [id])
+  digital_book    DigitalBook @relation(fields: [digital_book_id], references: [id])
+
+  @@unique([user_id, digital_book_id])
+  @@index([digital_book_id, last_read_at])
+}
+
+model Wishlist {
+  id               String       @id @default(uuid()) @db.Uuid
+  user_id          String       @db.Uuid
+  physical_book_id String?      @db.Uuid
+  digital_book_id  String?      @db.Uuid
+  book_type        BookType
+  created_at       DateTime     @default(now())
+  digital_book     DigitalBook? @relation(fields: [digital_book_id], references: [id])
+  physical_book    Book?        @relation(fields: [physical_book_id], references: [id])
+  user             User         @relation(fields: [user_id], references: [id])
+
+  @@unique([user_id, physical_book_id])
+  @@unique([user_id, digital_book_id])
+  @@index([user_id, created_at])
+}
+
+model Reservation {
+  id             String            @id @default(uuid()) @db.Uuid
+  user_id        String            @db.Uuid
+  actor_user_id  String?           @db.Uuid
+  student_profile_id String?       @db.Uuid
+  book_id        String            @db.Uuid
+  queue_position Int
+  status         ReservationStatus @default(QUEUED)
+  reserved_at    DateTime          @default(now())
+  notified_at    DateTime?
+  expires_at     DateTime?
+  fulfilled_at   DateTime?
+  cancelled_at   DateTime?
+  book           Book              @relation(fields: [book_id], references: [id])
+  user           User              @relation("ReservationStudentOwner", fields: [user_id], references: [id])
+  actor_user     User?             @relation("ReservationActor", fields: [actor_user_id], references: [id])
+  student_profile StudentProfile?  @relation("ReservationStudentProfile", fields: [student_profile_id], references: [id])
+
+  @@unique([book_id, queue_position])
+  @@index([user_id, status])
+  @@index([actor_user_id])
+  @@index([student_profile_id])
+  @@index([book_id, status, reserved_at])
+  @@index([book_id, queue_position], map: "Reservation_book_id_queue_position_queued_idx", where: raw("(status = 'QUEUED'::\"ReservationStatus\")"))
+}
+
+model BookCopy {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  book_id               String                 @db.Uuid
+  copy_code             String                 @unique
+  condition             BookCondition          @default(GOOD)
+  is_available          Boolean                @default(true)
+  acquired_at           DateTime               @default(now())
+  last_condition_update DateTime               @default(now())
+  notes                 String?
+  deleted_at            DateTime?
+  condition_history     BookConditionHistory[]
+  book                  Book                   @relation(fields: [book_id], references: [id])
+  rentals               Rental[]
+
+  @@index([book_id, condition])
+  @@index([book_id, is_available])
+}
+
+model BookConditionHistory {
+  id                 String        @id @default(uuid()) @db.Uuid
+  copy_id            String        @db.Uuid
+  old_condition      BookCondition
+  new_condition      BookCondition
+  notes              String?
+  updated_by_user_id String?       @db.Uuid
+  created_at         DateTime      @default(now())
+  copy               BookCopy      @relation(fields: [copy_id], references: [id])
+  updated_by_user    User?         @relation(fields: [updated_by_user_id], references: [id])
+
+  @@index([copy_id, created_at])
+}
+
+model AnalyticsTarget {
+  id                     String   @id @default(uuid()) @db.Uuid
+  month_start            DateTime @unique
+  target_rentals         Int      @default(0)
+  target_active_readers  Int      @default(0)
+  target_on_time_returns Int      @default(0)
+  target_new_books       Int      @default(0)
+  updated_by_user_id     String?  @db.Uuid
+  created_at             DateTime @default(now())
+  updated_by_user        User?    @relation(fields: [updated_by_user_id], references: [id])
+
+  @@index([month_start])
+}
+
+model InventoryAlert {
+  id                  String             @id @default(uuid()) @db.Uuid
+  book_id             String             @db.Uuid
+  type                InventoryAlertType
+  severity            AlertSeverity      @default(MEDIUM)
+  threshold           Int?
+  current_available   Int?
+  message             String
+  is_resolved         Boolean            @default(false)
+  created_at          DateTime           @default(now())
+  resolved_at         DateTime?
+  resolved_by_user_id String?            @db.Uuid
+  book                Book               @relation(fields: [book_id], references: [id])
+  resolved_by_user    User?              @relation("InventoryAlertResolvedBy", fields: [resolved_by_user_id], references: [id])
+
+  @@index([book_id, is_resolved])
+  @@index([type, created_at])
+}
+
+model AdminActivityLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  admin_user_id String   @db.Uuid
+  action        String
+  entity_type   String
+  entity_id     String?
+  description   String
+  metadata      Json?
+  ip_address    String?
+  user_agent    String?
+  created_at    DateTime @default(now())
+  admin         User     @relation("AdminActivityBy", fields: [admin_user_id], references: [id])
+
+  @@index([admin_user_id, created_at])
+  @@index([entity_type, entity_id])
 }
 
 enum Role {
@@ -14,9 +417,9 @@ enum Role {
 enum Status {
   PENDING
   BORROWED
-  OVERDUE
   RETURNED
   COMPLETED
+  OVERDUE
 }
 
 enum BookType {
@@ -78,361 +481,4 @@ enum AlertSeverity {
   LOW
   MEDIUM
   HIGH
-}
-
-model PendingSignup {
-  id                 String   @id @default(uuid()) @db.Uuid
-  student_id         String?  @unique
-  name               String
-  email              String
-  phone              String?
-  year               String?
-  department         String?
-  password_hash      String
-  confirmation_token String   @unique
-  created_at         DateTime @default(now())
-}
-
-model User {
-  id                     String             @id @default(uuid()) @db.Uuid
-  student_id             String?            @unique
-  name                   String
-  email                  String             @unique
-  phone                  String?
-  year                   String?
-  department             String?
-  password_hash          String
-  role                   Role               @default(STUDENT)
-  is_confirmed           Boolean            @default(false)
-  is_blocked             Boolean            @default(false)
-  confirmation_token     String?
-  reset_token            String?
-  reset_expiry           DateTime?
-  created_at             DateTime           @default(now())
-
-  rentals                Rental[]
-  reservations           Reservation[]
-  notifications          Notification[]
-  reviews                Review[]
-  wishlists              Wishlist[]
-  system_config_updates  SystemConfig[]     @relation("SystemConfigUpdatedBy")
-  admin_activity_logs    AdminActivityLog[] @relation("AdminActivityBy")
-  resolved_stock_alerts  InventoryAlert[]   @relation("InventoryAlertResolvedBy")
-  condition_updates      BookConditionHistory[]
-  analytics_targets      AnalyticsTarget[]
-
-  @@index([role])
-  @@index([is_blocked])
-}
-
-model SystemConfig {
-  id                    Int      @id @default(autoincrement())
-  max_loan_days         Int
-  daily_fine            Decimal
-  max_books_per_user    Int
-  reservation_window_hr Int      @default(24)
-  low_stock_threshold   Int      @default(2)
-  never_returned_days   Int      @default(60)
-  enable_notifications  Boolean  @default(true)
-  reminder_days_before_due Int   @default(3)
-  last_updated_by_id    String   @db.Uuid
-  created_at            DateTime @default(now())
-
-  updated_by_user       User     @relation("SystemConfigUpdatedBy", fields: [last_updated_by_id], references: [id])
-}
-
-model Category {
-  id    String @id @default(uuid()) @db.Uuid
-  name  String
-  slug  String @unique
-
-  books         Book[]
-  digital_books DigitalBook[]
-}
-
-model Author {
-  id    String  @id @default(uuid()) @db.Uuid
-  name  String
-  bio   String  @db.Text
-  image String?
-
-  books         Book[]
-  digital_books DigitalBook[]
-}
-
-model Notification {
-  id         String           @id @default(uuid()) @db.Uuid
-  user_id    String           @db.Uuid
-  message    String           @db.Text
-  type       NotificationType
-  is_read    Boolean          @default(false)
-  dedupe_key String?
-  created_at DateTime         @default(now())
-
-  user       User     @relation(fields: [user_id], references: [id])
-
-  @@unique([user_id, dedupe_key])
-  @@index([user_id, is_read])
-  @@index([user_id, created_at])
-  @@index([created_at])
-}
-
-model Rental {
-  id               String    @id @default(uuid()) @db.Uuid
-  user_id          String    @db.Uuid
-  book_id          String    @db.Uuid
-  copy_id          String?   @db.Uuid
-  loan_date        DateTime  @default(now())
-  due_date         DateTime
-  return_date      DateTime?
-  status           Status    @default(BORROWED)
-  fine             Decimal?
-
-  user             User      @relation(fields: [user_id], references: [id])
-  physical_book    Book      @relation(fields: [book_id], references: [id])
-  copy             BookCopy? @relation(fields: [copy_id], references: [id])
-  payment          Payment?
-
-  @@index([user_id, status])
-  @@index([book_id, status])
-  @@index([status, due_date])
-  @@index([loan_date])
-}
-
-model Payment {
-  id          String        @id @default(uuid()) @db.Uuid
-  rental_id   String        @unique @db.Uuid
-  tx_ref      String        @unique
-  amount      Decimal
-  method      PaymentMethod
-  status      PaymentStatus @default(PENDING)
-  paid_at     DateTime      @default(now())
-
-  rental      Rental   @relation(fields: [rental_id], references: [id])
-
-  @@index([status, paid_at])
-}
-
-model Book {
-  id                String           @id @default(uuid()) @db.Uuid
-  title             String
-  author_id         String           @db.Uuid
-  category_id       String           @db.Uuid
-  description       String           @db.Text
-  cover_image_url   String
-  copies            Int
-  available         Int
-  pages             Int
-  isbn              String?          @unique
-  publication_year  Int?
-  publisher         String?
-  language          String?
-  tags              String[]         @default([])
-  topics            String[]         @default([])
-  borrow_count      Int?
-  deleted_at        DateTime?
-
-  author            Author      @relation(fields: [author_id], references: [id])
-  category          Category    @relation(fields: [category_id], references: [id])
-  images            BookImage[]
-  rentals           Rental[]
-  copies_detail     BookCopy[]
-  reservations      Reservation[]
-  inventory_alerts  InventoryAlert[]
-  reviews           Review[]
-  wishlists         Wishlist[]
-
-  @@index([author_id])
-  @@index([category_id])
-  @@index([available])
-  @@index([deleted_at])
-  @@index([publication_year])
-}
-
-model DigitalBook {
-  id                String      @id @default(uuid()) @db.Uuid
-  title             String
-  author_id         String      @db.Uuid
-  category_id       String      @db.Uuid
-  description       String      @db.Text
-  cover_image_url   String
-  pdf_file          Bytes
-  pdf_name          String
-  pdf_access        PDFAccess
-  pages             Int
-  tags              String[]     @default([])
-  topics            String[]     @default([])
-  publication_year  Int?
-  deleted_at        DateTime?
-
-  author            Author      @relation(fields: [author_id], references: [id])
-  category          Category    @relation(fields: [category_id], references: [id])
-  images            BookImage[]
-  reviews           Review[]
-  wishlists         Wishlist[]
-
-  @@index([author_id])
-  @@index([category_id])
-  @@index([deleted_at])
-  @@index([publication_year])
-}
-
-model BookImage {
-  id               String       @id @default(uuid()) @db.Uuid
-  book_id          String       @db.Uuid
-  book_type        BookType
-  image_url        String
-  sort_order       Int
-  physical_book_id String?      @db.Uuid
-  digital_book_id  String?      @db.Uuid
-
-  physical_book   Book?        @relation(fields: [physical_book_id], references: [id])
-  digital_book    DigitalBook? @relation(fields: [digital_book_id], references: [id])
-
-  @@index([physical_book_id, sort_order])
-  @@index([digital_book_id, sort_order])
-}
-
-model Review {
-  id               String       @id @default(uuid()) @db.Uuid
-  user_id          String       @db.Uuid
-  physical_book_id String?      @db.Uuid
-  digital_book_id  String?      @db.Uuid
-  book_type        BookType
-  rating           Int          // Diagram suggests integer for rating
-  comment          String?      @db.Text
-  created_at       DateTime     @default(now())
-
-  user             User         @relation(fields: [user_id], references: [id])
-  physical_book    Book?        @relation(fields: [physical_book_id], references: [id])
-  digital_book     DigitalBook? @relation(fields: [digital_book_id], references: [id])
-
-  @@unique([user_id, physical_book_id])
-  @@unique([user_id, digital_book_id])
-  @@index([physical_book_id, created_at])
-  @@index([digital_book_id, created_at])
-}
-
-model Wishlist {
-  id               String       @id @default(uuid()) @db.Uuid
-  user_id          String       @db.Uuid
-  physical_book_id String?      @db.Uuid
-  digital_book_id  String?      @db.Uuid
-  book_type        BookType
-  created_at       DateTime     @default(now())
-
-  user             User         @relation(fields: [user_id], references: [id])
-  physical_book    Book?        @relation(fields: [physical_book_id], references: [id])
-  digital_book     DigitalBook? @relation(fields: [digital_book_id], references: [id])
-
-  @@unique([user_id, physical_book_id])
-  @@unique([user_id, digital_book_id])
-  @@index([user_id, created_at])
-}
-
-model Reservation {
-  id                 String            @id @default(uuid()) @db.Uuid
-  user_id            String            @db.Uuid
-  book_id            String            @db.Uuid
-  queue_position     Int
-  status             ReservationStatus @default(QUEUED)
-  reserved_at        DateTime          @default(now())
-  notified_at        DateTime?
-  expires_at         DateTime?
-  fulfilled_at       DateTime?
-  cancelled_at       DateTime?
-
-  user               User              @relation(fields: [user_id], references: [id])
-  book               Book              @relation(fields: [book_id], references: [id])
-
-  @@unique([book_id, queue_position])
-  @@index([user_id, status])
-  @@index([book_id, status, reserved_at])
-}
-
-model BookCopy {
-  id                    String        @id @default(uuid()) @db.Uuid
-  book_id               String        @db.Uuid
-  copy_code             String        @unique
-  condition             BookCondition @default(GOOD)
-  is_available          Boolean       @default(true)
-  acquired_at           DateTime      @default(now())
-  last_condition_update DateTime      @default(now())
-  notes                 String?       @db.Text
-  deleted_at            DateTime?
-
-  book                  Book          @relation(fields: [book_id], references: [id])
-  rentals               Rental[]
-  condition_history     BookConditionHistory[]
-
-  @@index([book_id, condition])
-  @@index([book_id, is_available])
-}
-
-model BookConditionHistory {
-  id                 String        @id @default(uuid()) @db.Uuid
-  copy_id            String        @db.Uuid
-  old_condition      BookCondition
-  new_condition      BookCondition
-  notes              String?       @db.Text
-  updated_by_user_id String?       @db.Uuid
-  created_at         DateTime      @default(now())
-
-  copy               BookCopy      @relation(fields: [copy_id], references: [id])
-  updated_by_user    User?         @relation(fields: [updated_by_user_id], references: [id])
-
-  @@index([copy_id, created_at])
-}
-
-model AnalyticsTarget {
-  id                     String   @id @default(uuid()) @db.Uuid
-  month_start            DateTime @unique
-  target_rentals         Int      @default(0)
-  target_active_readers  Int      @default(0)
-  target_on_time_returns Int      @default(0)
-  target_new_books       Int      @default(0)
-  updated_by_user_id     String?  @db.Uuid
-  created_at             DateTime @default(now())
-
-  updated_by_user        User?    @relation(fields: [updated_by_user_id], references: [id])
-
-  @@index([month_start])
-}
-
-model InventoryAlert {
-  id                  String             @id @default(uuid()) @db.Uuid
-  book_id             String             @db.Uuid
-  type                InventoryAlertType
-  severity            AlertSeverity      @default(MEDIUM)
-  threshold           Int?
-  current_available   Int?
-  message             String             @db.Text
-  is_resolved         Boolean            @default(false)
-  created_at          DateTime           @default(now())
-  resolved_at         DateTime?
-  resolved_by_user_id String?            @db.Uuid
-
-  book                Book               @relation(fields: [book_id], references: [id])
-  resolved_by_user    User?              @relation("InventoryAlertResolvedBy", fields: [resolved_by_user_id], references: [id])
-
-  @@index([book_id, is_resolved])
-  @@index([type, created_at])
-}
-
-model AdminActivityLog {
-  id            String   @id @default(uuid()) @db.Uuid
-  admin_user_id String   @db.Uuid
-  action        String
-  entity_type   String
-  entity_id     String?
-  description   String   @db.Text
-  metadata      Json?
-  ip_address    String?
-  user_agent    String?
-  created_at    DateTime @default(now())
-
-  admin         User     @relation("AdminActivityBy", fields: [admin_user_id], references: [id])
-
-  @@index([admin_user_id, created_at])
-  @@index([entity_type, entity_id])
 }

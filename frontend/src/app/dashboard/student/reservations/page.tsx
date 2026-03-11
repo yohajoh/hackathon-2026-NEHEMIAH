@@ -49,13 +49,25 @@ export default function StudentReservationsPage() {
           <div className="py-16 text-center text-secondary text-sm">No reservations found.</div>
         ) : (
           rows.map((r) => (
-            <div key={r.id} className="grid grid-cols-[2.5fr_1fr_1fr_1fr_1fr] gap-4 items-center px-6 py-4 border-b border-border/30 last:border-0">
-              <div><p className="text-sm font-bold text-primary">{r.book.title}</p><p className="text-xs text-secondary">{r.book.author?.name}</p></div>
+            <div
+              key={r.id}
+              className="grid grid-cols-[2.5fr_1fr_1fr_1fr_1fr] gap-4 items-center px-6 py-4 border-b border-border/30 last:border-0"
+            >
+              <div>
+                <p className="text-sm font-bold text-primary">{r.book.title}</p>
+                <p className="text-xs text-secondary">{r.book.author?.name}</p>
+              </div>
               <span className="text-sm text-primary/80">#{r.queue_position}</span>
               <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-muted text-primary w-fit">{r.status}</span>
-              <span className="text-sm text-primary/70">{r.expires_at ? new Date(r.expires_at).toLocaleString() : "-"}</span>
-              <button disabled={!(["QUEUED", "NOTIFIED"] as string[]).includes(r.status)} onClick={() => handleCancel(r.id)} className="px-3 py-1.5 text-xs font-bold text-primary border border-border rounded-lg disabled:opacity-40">
-                {cancelReservation.variables === r.id ? "Cancelling..." : "Cancel"}
+              <span className="text-sm text-primary/70">
+                {r.expires_at ? new Date(r.expires_at).toLocaleString() : "-"}
+              </span>
+              <button
+                disabled={!(["QUEUED", "NOTIFIED"] as string[]).includes(r.status)}
+                onClick={() => handleCancel(r.id)}
+                className="px-3 py-1.5 text-xs font-bold text-primary border border-border rounded-lg disabled:opacity-40"
+              >
+                {cancelReservation.isPending && cancelReservation.variables === r.id ? "Cancelling..." : "Cancel"}
               </button>
             </div>
           ))

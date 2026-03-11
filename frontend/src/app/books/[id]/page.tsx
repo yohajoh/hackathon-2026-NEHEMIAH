@@ -7,6 +7,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Star, ChevronRight, Book as BookIcon, Info, Heart, AlertCircle, FileText } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { usePersona } from "@/components/providers/PersonaProvider";
 import { API_BASE_URL, fetchApi, fetchCurrentUser } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -44,6 +45,7 @@ type PhysicalUserContext = {
 type DigitalUserContext = {
   isInWishlist: boolean;
   wishlistId: string | null;
+  hasRead?: boolean;
 };
 
 type PhysicalBook = {
@@ -89,6 +91,8 @@ type RelatedBook = {
   cover_image_url: string;
   type: "physical" | "digital";
 };
+
+const REVIEWS_PER_PAGE = 5;
 
 const buildRatingSummary = (reviews: ReviewItem[]): RatingSummary => {
   const total = reviews.length;
@@ -154,6 +158,7 @@ function PrimaryActionButton({
 }
 
 export default function BookDetailPage() {
+  const { activePersona } = usePersona();
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -177,8 +182,9 @@ export default function BookDetailPage() {
   const [myReview, setMyReview] = useState<{ id: string; rating: number; comment: string | null } | null>(null);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
-  const [reviewBusy, setReviewBusy] = useState(false);
+  const [reviewAction, setReviewAction] = useState<"submit" | "remove" | null>(null);
   const [activeImage, setActiveImage] = useState<string>("");
+  const [reviewsPage, setReviewsPage] = useState(0);
 
   const book = bookType === "physical" ? physicalBook : digitalBook;
 
@@ -194,6 +200,18 @@ export default function BookDetailPage() {
     const extra = (book.images || []).map((img) => img.image_url);
     return Array.from(new Set([book.cover_image_url, ...extra].filter(Boolean)));
   }, [book]);
+
+  const pagedReviews = useMemo(() => {
+    if (!book?.reviews?.length) {
+      return [];
+    }
+
+    const start = reviewsPage * REVIEWS_PER_PAGE;
+    return book.reviews.slice(start, start + REVIEWS_PER_PAGE);
+  }, [book, reviewsPage]);
+
+  const hasPrevReviews = reviewsPage > 0;
+  const hasNextReviews = Boolean(book?.reviews?.length) && (reviewsPage + 1) * REVIEWS_PER_PAGE < book.reviews.length;
 
   const loadData = async () => {
     try {
@@ -268,15 +286,34 @@ export default function BookDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id, forcedType]);
 
-  const isAdmin = user?.role === "ADMIN";
+  useEffect(() => {
+    const totalReviews = book?.reviews?.length || 0;
+    if (totalReviews <= REVIEWS_PER_PAGE) {
+      if (reviewsPage !== 0) {
+        setReviewsPage(0);
+      }
+      return;
+    }
+
+    const maxPage = Math.max(0, Math.ceil(totalReviews / REVIEWS_PER_PAGE) - 1);
+    if (reviewsPage > maxPage) {
+      setReviewsPage(maxPage);
+    }
+  }, [book?.reviews?.length, reviewsPage]);
+
+  const isAdmin = Boolean(user) && activePersona === "ADMIN";
+  const isStudent = Boolean(user) && activePersona === "STUDENT";
   const reviewEligibility = physicalBook?.userContext?.reviewEligibility;
   const canManageReview =
-    !isAdmin &&
-    bookType === "physical" &&
-    Boolean(reviewEligibility?.hasReturnedRental) &&
-    !Boolean(reviewEligibility?.hasActiveRental);
+    isStudent &&
+    (bookType === "physical"
+      ? Boolean(reviewEligibility?.hasReturnedRental) && !Boolean(reviewEligibility?.hasActiveRental)
+      : Boolean(digitalBook?.userContext?.hasRead));
   const trimmedReviewComment = reviewComment.trim();
   const isReviewTextValid = trimmedReviewComment.length > 0;
+  const reviewBusy = reviewAction !== null;
+  const isSubmittingReview = reviewAction === "submit";
+  const isRemovingReview = reviewAction === "remove";
 
   const handleBorrow = async () => {
     if (!user) return router.push("/auth/login");
@@ -302,18 +339,6 @@ export default function BookDetailPage() {
         throw new Error("Borrowed rental was not created");
       }
 
-      // Optimistically reflect inventory change right after borrow creation.
-      if (!rentalId) {
-        setPhysicalBook((prev) =>
-          prev
-            ? {
-                ...prev,
-                available: Math.max(0, prev.available - 1),
-              }
-            : prev,
-        );
-      }
-
       const payRes = await fetchApi(`/payments/rental/${targetRentalId}/initiate`, {
         method: "POST",
         body: JSON.stringify({ method: "CHAPA", context: "BORROW" }),
@@ -326,16 +351,6 @@ export default function BookDetailPage() {
       return;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Borrow checkout failed";
-      if (!rentalId) {
-        setPhysicalBook((prev) =>
-          prev
-            ? {
-                ...prev,
-                available: Math.min(prev.copies, prev.available + 1),
-              }
-            : prev,
-        );
-      }
       toast.error(message);
     } finally {
       setBorrowLoading(false);
@@ -491,6 +506,10 @@ export default function BookDetailPage() {
       }
       if (!user) setUser(currentUser);
 
+      if (!download) {
+        await fetchApi(`/digital-books/${book.id}/read`, { method: "POST" });
+      }
+
       const url = `${API_BASE_URL}/digital-books/${book.id}/pdf${download ? "?download=true" : ""}`;
 
       const response = await fetch(url, {
@@ -530,6 +549,17 @@ export default function BookDetailPage() {
         document.body.removeChild(link);
       } else {
         window.open(blobUrl, "_blank");
+        setDigitalBook((prev) =>
+          prev
+            ? {
+                ...prev,
+                userContext: {
+                  ...(prev.userContext || { isInWishlist: false, wishlistId: null }),
+                  hasRead: true,
+                },
+              }
+            : prev,
+        );
       }
 
       setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
@@ -573,7 +603,7 @@ export default function BookDetailPage() {
     }));
 
     try {
-      setReviewBusy(true);
+      setReviewAction("submit");
       let response: { data?: { review?: ReviewItem; ratingSummary?: RatingSummary } } | undefined;
       if (myReview) {
         response = await fetchApi(`/reviews/${myReview.id}`, {
@@ -602,13 +632,13 @@ export default function BookDetailPage() {
         rating: savedRatingSummary,
       }));
       toast.success("Review saved");
-    } catch {
+    } catch (err) {
       setPhysicalBook(previousPhysicalBook);
       setDigitalBook(previousDigitalBook);
       setMyReview(previousMyReview);
-      toast.error("Failed to save review");
+      toast.error(err instanceof Error ? err.message : "Failed to save review");
     } finally {
-      setReviewBusy(false);
+      setReviewAction(null);
     }
   };
 
@@ -632,7 +662,7 @@ export default function BookDetailPage() {
     });
 
     try {
-      setReviewBusy(true);
+      setReviewAction("remove");
       await fetchApi(`/reviews/${myReview.id}`, { method: "DELETE" });
       toast.success("Review removed");
     } catch {
@@ -643,7 +673,7 @@ export default function BookDetailPage() {
       setReviewComment(previousMyReview.comment || "");
       toast.error("Failed to remove review");
     } finally {
-      setReviewBusy(false);
+      setReviewAction(null);
     }
   };
 
@@ -659,6 +689,10 @@ export default function BookDetailPage() {
     physicalBook &&
     physicalBook.userContext?.hasActiveRental &&
     !physicalBook.userContext?.hasCompletedBorrowPayment;
+  const displayedAvailableCopies =
+    bookType === "physical" && physicalBook
+      ? Math.min(physicalBook.copies, physicalBook.available + (hasPendingBorrowPayment ? 1 : 0))
+      : 0;
   const shouldShowReserve = bookType === "physical" && physicalBook && physicalBook.available === 0;
   const reserveCount = physicalBook?.reservationCount || 0;
 
@@ -743,8 +777,8 @@ export default function BookDetailPage() {
                     ? (book as DigitalBook).pdf_access === "RESTRICTED"
                       ? "Read Only"
                       : "Download"
-                    : (book as PhysicalBook).available > 0
-                      ? `Available on Shelf: ${(book as PhysicalBook).available}`
+                    : displayedAvailableCopies > 0
+                      ? `Available on Shelf: ${displayedAvailableCopies}`
                       : "Unavailable"}
                 </div>
               </div>
@@ -812,10 +846,15 @@ export default function BookDetailPage() {
                         )}
                       </>
                     ) : null
-                  ) : (
+                  ) : isStudent ? (
                     <>
                       <button
-                        onClick={() => openDigital(false)}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          void openDigital(false);
+                        }}
                         disabled={digitalLoading}
                         className="w-full rounded-lg px-4 py-2 text-sm font-bold shadow-xl transition-all bg-primary text-background hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
                       >
@@ -823,7 +862,12 @@ export default function BookDetailPage() {
                       </button>
                       {(book as DigitalBook).pdf_access !== "RESTRICTED" && (
                         <button
-                          onClick={() => openDigital(true)}
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            void openDigital(true);
+                          }}
                           disabled={digitalLoading}
                           className="w-full rounded-lg px-4 py-2 text-sm font-bold border border-primary text-primary hover:bg-primary hover:text-background transition-all disabled:cursor-not-allowed disabled:opacity-60"
                         >
@@ -831,9 +875,9 @@ export default function BookDetailPage() {
                         </button>
                       )}
                     </>
-                  )}
+                  ) : null}
 
-                  {!isAdmin && (
+                  {isStudent && (
                     <button
                       onClick={handleWishlist}
                       disabled={wishlistLoading}
@@ -876,7 +920,7 @@ export default function BookDetailPage() {
                       ? (book as DigitalBook).pdf_access === "RESTRICTED"
                         ? "Read Only"
                         : "Read + Download"
-                      : `${(book as PhysicalBook).available} copy${(book as PhysicalBook).available === 1 ? "" : "ies"}`}
+                      : `${displayedAvailableCopies} copy${displayedAvailableCopies === 1 ? "" : "ies"}`}
                   </p>
                 </div>
               </div>
@@ -944,19 +988,21 @@ export default function BookDetailPage() {
                       />
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                         <button
+                          type="button"
                           onClick={submitReview}
                           disabled={reviewBusy || reviewRating < 1 || !isReviewTextValid}
                           className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-background disabled:cursor-not-allowed disabled:opacity-40"
                         >
-                          {reviewBusy ? "Submitting Review..." : myReview ? "Update Review" : "Submit Review"}
+                          {isSubmittingReview ? "Submitting Review..." : myReview ? "Update Review" : "Submit Review"}
                         </button>
                         {myReview && (
                           <button
+                            type="button"
                             onClick={removeReview}
                             disabled={reviewBusy}
                             className="rounded-lg border border-border px-4 py-2 text-sm font-bold text-primary disabled:cursor-not-allowed disabled:opacity-40"
                           >
-                            {reviewBusy ? "Removing Review..." : "Remove"}
+                            {isRemovingReview ? "Removing Review..." : "Remove"}
                           </button>
                         )}
                       </div>
@@ -964,11 +1010,19 @@ export default function BookDetailPage() {
                   </section>
                 )}
 
+                {!isAdmin && bookType === "digital" && isStudent && !canManageReview && (
+                  <section className="rounded-xl border border-border/50 bg-card p-4">
+                    <p className="text-sm font-medium text-secondary">
+                      Read this digital book first to unlock the review form.
+                    </p>
+                  </section>
+                )}
+
                 {book.reviews.length > 0 && (
                   <section className="space-y-4">
                     <h2 className="text-2xl font-serif font-bold text-primary">Recent Reviews</h2>
                     <div className="space-y-4">
-                      {book.reviews.map((review) => (
+                      {pagedReviews.map((review) => (
                         <div key={review.id} className="bg-card rounded-xl p-4 border border-border/50">
                           <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <span className="wrap-break-word font-bold text-primary">{review.user.name}</span>
@@ -983,10 +1037,38 @@ export default function BookDetailPage() {
                               ))}
                             </div>
                           </div>
-                          {review.comment && <p className="wrap-break-word text-sm text-secondary">{review.comment}</p>}
+                          {review.comment && (
+                            <p className="wrap-break-word text-sm italic leading-relaxed text-secondary">
+                              &ldquo;{review.comment}&rdquo;
+                            </p>
+                          )}
                         </div>
                       ))}
                     </div>
+                    {book.reviews.length > REVIEWS_PER_PAGE && (
+                      <div className="flex items-center justify-between pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setReviewsPage((prev) => Math.max(0, prev - 1))}
+                          disabled={!hasPrevReviews}
+                          className="text-sm italic font-semibold text-secondary hover:text-primary disabled:opacity-40"
+                        >
+                          Previous
+                        </button>
+                        <p className="text-xs text-secondary/70">
+                          Showing {reviewsPage * REVIEWS_PER_PAGE + 1}-
+                          {Math.min((reviewsPage + 1) * REVIEWS_PER_PAGE, book.reviews.length)} of {book.reviews.length}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setReviewsPage((prev) => prev + 1)}
+                          disabled={!hasNextReviews}
+                          className="text-sm italic font-semibold text-secondary hover:text-primary disabled:opacity-40"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
                   </section>
                 )}
 

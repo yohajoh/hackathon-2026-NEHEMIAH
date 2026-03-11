@@ -72,13 +72,15 @@ export const CategorySidebar = ({ categories, selectedCategory, onCategoryChange
 
         {/* Category Options */}
         {categories.map((category) => {
-          const isSelected = selectedCategory === category.slug;
+          const normalizedSelected = (selectedCategory || "").trim().toLowerCase();
+          const isSelected =
+            normalizedSelected === category.slug.toLowerCase() || normalizedSelected === category.name.toLowerCase();
           const bookCount = category._count.books;
 
           return (
             <button
               key={category.id}
-              onClick={() => onCategoryChange(category.slug)}
+              onClick={() => onCategoryChange(category.name)}
               className={`flex items-center justify-between px-4 py-3 rounded-xl transition-all group ${
                 isSelected
                   ? "bg-muted text-primary font-bold shadow-sm"

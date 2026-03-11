@@ -12,6 +12,8 @@ import { prisma } from "../prisma.js";
 import { AppError } from "../middlewares/error.middleware.js";
 import { paginationMeta } from "../utils/apiFeatures.js";
 
+const hasDigitalReadProgressModel = () => Boolean(prisma?.digitalReadProgress);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -149,7 +151,7 @@ export const getMyReview = async (bookType, bookId, userId) => {
  *   - Book must exist and not be soft-deleted
  *   - User must have rented the physical book (optional rule, commented out for now)
  */
-export const createReview = async ({ userId, bookType, bookId, rating, comment }) => {
+export const createReview = async ({ userId, authContext, bookType, bookId, rating, comment }) => {
   const bt = validateBookType(bookType);
   const field = getBookField(bt);
 
@@ -160,11 +162,19 @@ export const createReview = async ({ userId, bookType, bookId, rating, comment }
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, role: true },
+    select: { id: true },
   });
   if (!user) throw new AppError("User not found", 404);
-  if (user.role === "ADMIN") {
-    throw new AppError("Admins cannot submit reviews", 403);
+
+  const roles = Array.isArray(authContext?.roles) ? authContext.roles : [];
+  const activePersona = typeof authContext?.activePersona === "string" ? authContext.activePersona : null;
+
+  if (!roles.includes("STUDENT")) {
+    throw new AppError("Only student accounts can submit reviews", 403);
+  }
+
+  if (activePersona === "ADMIN") {
+    throw new AppError("Switch to Student account to submit a review", 403);
   }
 
   // Validate book exists
@@ -188,8 +198,25 @@ export const createReview = async ({ userId, bookType, bookId, rating, comment }
       throw new AppError("You can review this book only after borrowing and returning it", 403);
     }
   } else {
-    const book = await prisma.digitalBook.findFirst({ where: { id: bookId, deleted_at: null } });
+    const [book, readProgress] = await Promise.all([
+      prisma.digitalBook.findFirst({ where: { id: bookId, deleted_at: null } }),
+      hasDigitalReadProgressModel()
+        ? prisma.digitalReadProgress.findUnique({
+            where: {
+              user_id_digital_book_id: {
+                user_id: userId,
+                digital_book_id: bookId,
+              },
+            },
+            select: { id: true },
+          })
+        : Promise.resolve({ id: "legacy-read-allowed" }),
+    ]);
+
     if (!book) throw new AppError("Digital book not found", 404);
+    if (!readProgress) {
+      throw new AppError("Read this digital book first before submitting a review", 403);
+    }
   }
 
   // One review per user per book

@@ -29,12 +29,21 @@ type Props = {
 };
 
 export const BookCardGrid = ({ books, loading, listQuery = "" }: Props) => {
+  const toSlug = (value: string) =>
+    value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
+
   const detailHref = (book: Book) => {
     const params = new URLSearchParams();
     if (book.type === "digital") params.set("type", "digital");
     if (listQuery) params.set("from", listQuery);
     const query = params.toString();
-    return query ? `/books/${book.id}?${query}` : `/books/${book.id}`;
+    const path = book.type === "digital" ? toSlug(book.title) : book.id;
+    return query ? `/books/${path}?${query}` : `/books/${path}`;
   };
 
   if (loading) {
@@ -57,12 +66,8 @@ export const BookCardGrid = ({ books, loading, listQuery = "" }: Props) => {
         <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-muted/50 mb-6">
           <BookIcon size={40} className="text-secondary/40" />
         </div>
-        <h3 className="text-xl font-serif font-bold text-primary mb-2">
-          No books found
-        </h3>
-        <p className="text-secondary">
-          Try adjusting your search or filter criteria
-        </p>
+        <h3 className="text-xl font-serif font-bold text-primary mb-2">No books found</h3>
+        <p className="text-secondary">Try adjusting your search or filter criteria</p>
       </div>
     );
   }
@@ -76,12 +81,7 @@ export const BookCardGrid = ({ books, loading, listQuery = "" }: Props) => {
             href={detailHref(book)}
             className="relative aspect-[3/4] w-full rounded-2xl overflow-hidden shadow-md group-hover:shadow-xl group-hover:-translate-y-1 transition-all duration-300 border border-border/40"
           >
-            <Image
-              src={book.cover_image_url || "/auth/image.png"}
-              alt={book.title}
-              fill
-              className="object-cover"
-            />
+            <Image src={book.cover_image_url || "/auth/image.png"} alt={book.title} fill className="object-cover" />
 
             {/* Availability Badge */}
             {book.type === "digital" ? (
@@ -92,9 +92,7 @@ export const BookCardGrid = ({ books, loading, listQuery = "" }: Props) => {
             ) : (
               <div
                 className={`absolute top-2 right-2 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 backdrop-blur-sm ${
-                  book.available > 0
-                    ? "bg-green-500/90 text-white"
-                    : "bg-red-500/90 text-white"
+                  book.available > 0 ? "bg-green-500/90 text-white" : "bg-red-500/90 text-white"
                 }`}
               >
                 <BookIcon size={10} />
@@ -121,18 +119,12 @@ export const BookCardGrid = ({ books, loading, listQuery = "" }: Props) => {
               {book.rating.total > 0 && (
                 <div className="flex items-center gap-1 text-[#E58A00]">
                   <Star size={12} fill="currentColor" />
-                  <span className="text-[10px] font-bold">
-                    {book.rating.average.toFixed(1)}
-                  </span>
+                  <span className="text-[10px] font-bold">{book.rating.average.toFixed(1)}</span>
                 </div>
               )}
             </div>
-            <p className="text-[11px] font-medium text-secondary/70 line-clamp-1">
-              {book.author.name}
-            </p>
-            <p className="text-[10px] font-medium text-secondary/50">
-              {book.category.name}
-            </p>
+            <p className="text-[11px] font-medium text-secondary/70 line-clamp-1">{book.author.name}</p>
+            <p className="text-[10px] font-medium text-secondary/50">{book.category.name}</p>
           </div>
         </div>
       ))}

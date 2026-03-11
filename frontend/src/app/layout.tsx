@@ -4,6 +4,7 @@ import "./globals.css";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { SocketProvider } from "@/components/providers/SocketProvider";
 import { ToastProvider } from "@/components/providers/ToastProvider";
+import { PersonaProvider } from "@/components/providers/PersonaProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,8 +31,10 @@ export default function RootLayout({
       <body className={`${inter.variable} ${lora.variable} antialiased`}>
         <QueryProvider>
           <SocketProvider>
-            <ToastProvider />
-            {children}
+            <PersonaProvider>
+              <ToastProvider />
+              {children}
+            </PersonaProvider>
           </SocketProvider>
         </QueryProvider>
       </body>

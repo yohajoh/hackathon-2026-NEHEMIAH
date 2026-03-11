@@ -17,9 +17,27 @@ interface User {
 
 interface UserInsights {
   user: User & { department?: string; is_confirmed?: boolean; created_at?: string };
-  stats: { totalRentals: number; activeOverdue: number; returnedOnTime: number; onTimeRate: number; wishlistCount: number; reviewCount: number; statusSummary: Record<string, number> };
+  stats: {
+    totalRentals: number;
+    activeOverdue: number;
+    returnedOnTime: number;
+    onTimeRate: number;
+    wishlistCount: number;
+    reviewCount: number;
+    statusSummary: Record<string, number>;
+  };
   favoriteCategories: Array<{ name: string; count: number }>;
-  history: Array<{ id: string; bookTitle: string; status: string; loanDate: string; dueDate: string; returnDate?: string | null; fine: number; isLate: boolean; daysLate: number }>;
+  history: Array<{
+    id: string;
+    bookTitle: string;
+    status: string;
+    loanDate: string;
+    dueDate: string;
+    returnDate?: string | null;
+    fine: number;
+    isLate: boolean;
+    daysLate: number;
+  }>;
 }
 
 const ITEMS_PER_PAGE = 8;
@@ -36,7 +54,7 @@ export default function AdminUsersPage() {
   const unblockUser = useUnblockUser();
 
   const users: User[] = usersData?.data?.users || [];
-  
+
   const insights = insightsData?.data as UserInsights | null;
 
   const getErrorMessage = (error: unknown, fallback: string) =>
@@ -44,7 +62,9 @@ export default function AdminUsersPage() {
 
   const filtered = users.filter((u) => {
     const q = search.toLowerCase();
-    return u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.student_id?.toLowerCase().includes(q);
+    return (
+      u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.student_id?.toLowerCase().includes(q)
+    );
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
@@ -83,13 +103,24 @@ export default function AdminUsersPage() {
         </div>
         <div className="relative mt-2">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AE9E85]" />
-          <input type="text" placeholder="Search user" value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }} className="pl-9 pr-4 py-2.5 text-sm bg-white border border-[#E1D2BD] rounded-xl text-[#2B1A10] placeholder:text-[#C4B49E] w-56" />
+          <input
+            type="text"
+            placeholder="Search user"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="pl-9 pr-4 py-2.5 text-sm bg-white border border-[#E1D2BD] rounded-xl text-[#2B1A10] placeholder:text-[#C4B49E] w-56"
+          />
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B6B4A]"></div></div>
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B6B4A]"></div>
+          </div>
         ) : (
           <>
             <div className="grid grid-cols-[2fr_2fr_1.5fr_0.8fr_1.2fr_1fr_auto_auto] gap-4 px-6 py-3 border-b border-[#E1D2BD]/50 bg-[#FDFAF6]">
@@ -103,7 +134,9 @@ export default function AdminUsersPage() {
               <span className="w-28"></span>
             </div>
             {paginated.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-[#AE9E85]"><p className="text-sm font-medium">No users found</p></div>
+              <div className="flex flex-col items-center justify-center py-16 text-[#AE9E85]">
+                <p className="text-sm font-medium">No users found</p>
+              </div>
             ) : (
               paginated.map((user) => {
                 const isDeleting = deleteUser.isPending && deleteUser.variables === user.id;
@@ -112,21 +145,42 @@ export default function AdminUsersPage() {
                   (unblockUser.isPending && unblockUser.variables === user.id);
 
                 return (
-                  <div key={user.id} onClick={() => setSelectedUser(user)} className="grid grid-cols-[2fr_2fr_1.5fr_0.8fr_1.2fr_1fr_auto_auto] gap-4 items-center px-6 py-4 border-b border-[#E1D2BD]/30 hover:bg-[#FDFAF6] transition-colors cursor-pointer">
-                  <span className="text-sm font-bold text-[#2B1A10] truncate">{user.name}</span>
-                  <span className="text-sm text-[#8B6B4A] truncate">{user.email}</span>
-                  <span className="text-sm text-[#2B1A10]/70">{user.student_id || "—"}</span>
-                  <span className="text-sm text-[#2B1A10]/70">{user.year || "—"}</span>
-                  <span className="text-sm text-[#2B1A10]/70">{user.phone || "—"}</span>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-lg w-fit ${user.is_blocked ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
-                    {user.is_blocked ? "Blocked" : "Active"}
-                  </span>
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(user.id); }} disabled={isDeleting} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-red-500 hover:bg-red-50 disabled:opacity-40" title="Delete user">
-                    <Trash2 size={16} strokeWidth={1.5} />
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); handleToggleBlock(user); }} disabled={isToggling} className="w-28 px-3 py-1.5 text-xs font-bold text-[#2B1A10] border border-[#C2B199] rounded-lg hover:bg-[#C2B199]/20 disabled:opacity-40">
-                    {isToggling ? "Updating..." : user.is_blocked ? "Unblock" : "Block"}
-                  </button>
+                  <div
+                    key={user.id}
+                    onClick={() => setSelectedUser(user)}
+                    className="grid grid-cols-[2fr_2fr_1.5fr_0.8fr_1.2fr_1fr_auto_auto] gap-4 items-center px-6 py-4 border-b border-[#E1D2BD]/30 hover:bg-[#FDFAF6] transition-colors cursor-pointer"
+                  >
+                    <span className="text-sm font-bold text-[#2B1A10] truncate">{user.name}</span>
+                    <span className="text-sm text-[#8B6B4A] truncate">{user.email}</span>
+                    <span className="text-sm text-[#2B1A10]/70">{user.student_id || "—"}</span>
+                    <span className="text-sm text-[#2B1A10]/70">{user.year || "—"}</span>
+                    <span className="text-sm text-[#2B1A10]/70">{user.phone || "—"}</span>
+                    <span
+                      className={`text-xs font-bold px-2.5 py-1 rounded-lg w-fit ${user.is_blocked ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}
+                    >
+                      {user.is_blocked ? "Blocked" : "Active"}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(user.id);
+                      }}
+                      disabled={isDeleting}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-red-500 hover:bg-red-50 disabled:opacity-40"
+                      title="Delete user"
+                    >
+                      <Trash2 size={16} strokeWidth={1.5} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleBlock(user);
+                      }}
+                      disabled={isToggling}
+                      className="w-28 px-3 py-1.5 text-xs font-bold text-[#2B1A10] border border-[#C2B199] rounded-lg hover:bg-[#C2B199]/20 disabled:opacity-40"
+                    >
+                      {isToggling ? "Updating..." : user.is_blocked ? "Unblock" : "Block"}
+                    </button>
                   </div>
                 );
               })
@@ -137,26 +191,55 @@ export default function AdminUsersPage() {
 
       {!isLoading && totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#2B1A10]/60 disabled:opacity-30">
-            <ChevronLeft size={16} />Previous
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#2B1A10]/60 disabled:opacity-30"
+          >
+            <ChevronLeft size={16} />
+            Previous
           </button>
           <div className="flex items-center gap-1.5">
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button key={page} onClick={() => setCurrentPage(page)} className={`w-8 h-8 rounded-lg text-sm font-bold ${page === currentPage ? "bg-[#2B1A10] text-white" : "text-[#2B1A10]/60 hover:bg-[#F3EFE6]"}`}>{page}</button>
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`w-8 h-8 rounded-lg text-sm font-bold ${page === currentPage ? "bg-[#2B1A10] text-white" : "text-[#2B1A10]/60 hover:bg-[#F3EFE6]"}`}
+              >
+                {page}
+              </button>
             ))}
           </div>
-          <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#2B1A10]/60 disabled:opacity-30">
-            Next<ChevronRight size={16} />
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#2B1A10]/60 disabled:opacity-30"
+          >
+            Next
+            <ChevronRight size={16} />
           </button>
         </div>
       )}
 
       {selectedUser && (
         <div className="fixed inset-0 z-50 bg-black/20" onClick={() => setSelectedUser(null)}>
-          <aside onClick={(e) => e.stopPropagation()} className="absolute right-0 top-0 h-full w-full md:w-[40%] bg-[#FDF8F0] border-l border-[#E1D2BD] p-6 overflow-y-auto">
+          <aside
+            onClick={(e) => e.stopPropagation()}
+            className="absolute right-0 top-0 h-full w-full md:w-[40%] bg-[#FDF8F0] border-l border-[#E1D2BD] p-6 overflow-y-auto"
+          >
             <div className="flex items-start justify-between mb-5">
-              <div><h2 className="text-2xl font-serif font-black text-[#2B1A10]">{selectedUser.name}</h2><p className="text-sm text-[#AE9E85]">{selectedUser.email}</p></div>
-              <button onClick={() => setSelectedUser(null)} className="w-9 h-9 rounded-xl border border-[#E1D2BD] flex items-center justify-center text-[#AE9E85]"><X size={16} /></button>
+              <div>
+                <h2 className="text-2xl font-serif font-black text-[#2B1A10]">{selectedUser.name}</h2>
+                <p className="text-sm text-[#AE9E85]">{selectedUser.email}</p>
+              </div>
+              <button
+                onClick={() => setSelectedUser(null)}
+                className="w-9 h-9 rounded-xl border border-[#E1D2BD] flex items-center justify-center text-[#AE9E85]"
+                title="Close user details"
+                aria-label="Close user details"
+              >
+                <X size={16} />
+              </button>
             </div>
             {insights ? (
               <div className="space-y-5">
@@ -168,20 +251,37 @@ export default function AdminUsersPage() {
                 </div>
                 <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 p-4">
                   <h3 className="text-sm font-bold text-[#2B1A10] mb-3">Favorite Categories</h3>
-                  {insights.favoriteCategories.length === 0 ? <p className="text-xs text-[#AE9E85]">No category data yet</p> : insights.favoriteCategories.map((cat) => (
-                    <div key={cat.name} className="flex items-center justify-between py-1.5 text-sm"><span className="text-[#2B1A10]">{cat.name}</span><span className="text-[#AE9E85]">{cat.count}</span></div>
-                  ))}
+                  {insights.favoriteCategories.length === 0 ? (
+                    <p className="text-xs text-[#AE9E85]">No category data yet</p>
+                  ) : (
+                    insights.favoriteCategories.map((cat) => (
+                      <div key={cat.name} className="flex items-center justify-between py-1.5 text-sm">
+                        <span className="text-[#2B1A10]">{cat.name}</span>
+                        <span className="text-[#AE9E85]">{cat.count}</span>
+                      </div>
+                    ))
+                  )}
                 </div>
                 <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-[#E1D2BD]/40"><h3 className="text-sm font-bold text-[#2B1A10]">Borrowing History</h3></div>
+                  <div className="px-4 py-3 border-b border-[#E1D2BD]/40">
+                    <h3 className="text-sm font-bold text-[#2B1A10]">Borrowing History</h3>
+                  </div>
                   <div className="max-h-[380px] overflow-y-auto">
-                    {insights.history.length === 0 ? <p className="p-4 text-xs text-[#AE9E85]">No history</p> : insights.history.map((item) => (
-                      <div key={item.id} className="p-4 border-b border-[#E1D2BD]/30 last:border-0">
-                        <p className="text-sm font-bold text-[#2B1A10]">{item.bookTitle}</p>
-                        <p className="text-xs text-[#AE9E85]">Due {new Date(item.dueDate).toLocaleDateString()} • {item.status}</p>
-                        <p className={`text-xs mt-1 ${item.isLate ? "text-red-700" : "text-green-700"}`}>{item.isLate ? `Late by ${item.daysLate} day(s)` : "Returned on time"}</p>
-                      </div>
-                    ))}
+                    {insights.history.length === 0 ? (
+                      <p className="p-4 text-xs text-[#AE9E85]">No history</p>
+                    ) : (
+                      insights.history.map((item) => (
+                        <div key={item.id} className="p-4 border-b border-[#E1D2BD]/30 last:border-0">
+                          <p className="text-sm font-bold text-[#2B1A10]">{item.bookTitle}</p>
+                          <p className="text-xs text-[#AE9E85]">
+                            Due {new Date(item.dueDate).toLocaleDateString()} • {item.status}
+                          </p>
+                          <p className={`text-xs mt-1 ${item.isLate ? "text-red-700" : "text-green-700"}`}>
+                            {item.isLate ? `Late by ${item.daysLate} day(s)` : "Returned on time"}
+                          </p>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>

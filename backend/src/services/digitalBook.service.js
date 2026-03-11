@@ -9,10 +9,10 @@
  *   - User wishlist / read-state context
  */
 
-import { prisma } from '../prisma.js';
-import { AppError } from '../middlewares/error.middleware.js';
-import { paginationMeta } from '../utils/apiFeatures.js';
-import { uploadImageToCloudinary } from '../utils/cloudinary.js';
+import { prisma } from "../prisma.js";
+import { AppError } from "../middlewares/error.middleware.js";
+import { paginationMeta } from "../utils/apiFeatures.js";
+import { uploadImageToCloudinary } from "../utils/cloudinary.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -32,13 +32,13 @@ const buildRatingSummaries = async (ids) => {
   const where = { digital_book_id: { in: uniqueIds } };
   const [avgRows, distributionRows] = await Promise.all([
     prisma.review.groupBy({
-      by: ['digital_book_id'],
+      by: ["digital_book_id"],
       where,
       _avg: { rating: true },
       _count: { rating: true },
     }),
     prisma.review.groupBy({
-      by: ['digital_book_id', 'rating'],
+      by: ["digital_book_id", "rating"],
       where,
       _count: { rating: true },
     }),
@@ -85,7 +85,7 @@ const DIGITAL_LIST_SELECT = /** @type {any} */ ({
   author: { select: { id: true, name: true, image: true } },
   category: { select: { id: true, name: true, slug: true } },
   images: {
-    orderBy: /** @type {any} */ ({ sort_order: 'asc' }),
+    orderBy: /** @type {any} */ ({ sort_order: "asc" }),
     take: 3,
     select: { id: true, image_url: true },
   },
@@ -106,7 +106,7 @@ const DIGITAL_DETAIL_SELECT = /** @type {any} */ ({
   deleted_at: true,
   author: { select: { id: true, name: true, bio: true, image: true } },
   category: { select: { id: true, name: true, slug: true } },
-  images: { orderBy: /** @type {any} */ ({ sort_order: 'asc' }) },
+  images: { orderBy: /** @type {any} */ ({ sort_order: "asc" }) },
   _count: { select: { reviews: true, wishlists: true } },
 });
 
@@ -122,13 +122,45 @@ const RELATED_DIGITAL_SELECT = {
   cover_image_url: true,
 };
 
-const DEFAULT_COVER_IMAGE = 'https://placehold.co/400x600?text=Brana+Digital';
+const DEFAULT_COVER_IMAGE = "https://placehold.co/400x600?text=Brana+Digital";
+
+const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const toTitleFromSlug = (value) =>
+  decodeURIComponent(String(value || ""))
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const digitalIdentifierWhere = (identifier) => {
+  const raw = String(identifier || "").trim();
+  if (!raw) return null;
+
+  const slugTitle = toTitleFromSlug(raw);
+  const or = [];
+
+  if (UUID_V4_REGEX.test(raw)) {
+    or.push({ id: raw });
+  }
+
+  if (slugTitle) {
+    or.push({ title: { equals: slugTitle, mode: "insensitive" } });
+    or.push({ title: { contains: slugTitle, mode: "insensitive" } });
+  }
+
+  if (or.length === 0) return null;
+  return { deleted_at: null, OR: or };
+};
+
+const hasDigitalReadProgressModel = () => {
+  return Boolean(prisma?.digitalReadProgress);
+};
 
 const parseList = (value) => {
   if (!value) return [];
   if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
   return String(value)
-    .split(',')
+    .split(",")
     .map((v) => v.trim())
     .filter(Boolean);
 };
@@ -136,14 +168,14 @@ const parseList = (value) => {
 const resolveAuthorId = async (data) => {
   if (data.author_id) {
     const author = await prisma.author.findUnique({ where: { id: data.author_id } });
-    if (!author) throw new AppError('Author not found', 404);
+    if (!author) throw new AppError("Author not found", 404);
     return data.author_id;
   }
 
   if (data.author_name?.trim()) {
     const normalizedName = data.author_name.trim();
     const existing = await prisma.author.findFirst({
-      where: { name: { equals: normalizedName, mode: 'insensitive' } },
+      where: { name: { equals: normalizedName, mode: "insensitive" } },
     });
     if (existing) return existing.id;
 
@@ -151,31 +183,31 @@ const resolveAuthorId = async (data) => {
       data: {
         name: normalizedName,
         bio: `Auto-created author profile for ${normalizedName}.`,
-        image: 'https://placehold.co/200x200?text=Author',
+        image: "https://placehold.co/200x200?text=Author",
       },
     });
     return created.id;
   }
 
-  throw new AppError('author_id or author_name is required', 400);
+  throw new AppError("author_id or author_name is required", 400);
 };
 
 const resolveCategoryId = async (data) => {
   if (data.category_id) {
     const category = await prisma.category.findUnique({ where: { id: data.category_id } });
-    if (!category) throw new AppError('Category not found', 404);
+    if (!category) throw new AppError("Category not found", 404);
     return data.category_id;
   }
 
   if (data.category_name?.trim()) {
     const normalizedName = data.category_name.trim();
-    const slug = normalizedName.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+    const slug = normalizedName
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-");
     const existing = await prisma.category.findFirst({
       where: {
-        OR: [
-          { name: { equals: normalizedName, mode: 'insensitive' } },
-          { slug },
-        ],
+        OR: [{ name: { equals: normalizedName, mode: "insensitive" } }, { slug }],
       },
     });
     if (existing) return existing.id;
@@ -186,7 +218,7 @@ const resolveCategoryId = async (data) => {
     return created.id;
   }
 
-  throw new AppError('category_id or category_name is required', 400);
+  throw new AppError("category_id or category_name is required", 400);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -216,7 +248,7 @@ export const getDigitalBooks = async (query, _requestUser = null) => {
   if (query.author_id) where.author_id = query.author_id;
 
   // PDF access type filter
-  const validAccess = ['FREE', 'PAID', 'RESTRICTED'];
+  const validAccess = ["FREE", "PAID", "RESTRICTED"];
   if (query.pdf_access && validAccess.includes(query.pdf_access.toUpperCase())) {
     where.pdf_access = query.pdf_access.toUpperCase();
   }
@@ -241,19 +273,19 @@ export const getDigitalBooks = async (query, _requestUser = null) => {
   if (query.search) {
     const q = query.search.trim();
     where.OR = [
-      { title: { contains: q, mode: 'insensitive' } },
-      { description: { contains: q, mode: 'insensitive' } },
-      { author: { name: { contains: q, mode: 'insensitive' } } },
+      { title: { contains: q, mode: "insensitive" } },
+      { description: { contains: q, mode: "insensitive" } },
+      { author: { name: { contains: q, mode: "insensitive" } } },
     ];
   }
 
   // Note: DigitalBook has no created_at – default sort by id desc (insertion order)
-  const ALLOWED = ['title', 'pages', 'pdf_access', 'id'];
-  let orderBy = /** @type {any} */ ([{ id: 'desc' }]);
+  const ALLOWED = ["title", "pages", "pdf_access", "id"];
+  let orderBy = /** @type {any} */ ([{ id: "desc" }]);
   if (query.sort) {
-    const desc = query.sort.startsWith('-');
+    const desc = query.sort.startsWith("-");
     const field = desc ? query.sort.slice(1) : query.sort;
-    if (ALLOWED.includes(field)) orderBy = [{ [field]: desc ? 'desc' : 'asc' }];
+    if (ALLOWED.includes(field)) orderBy = [{ [field]: desc ? "desc" : "asc" }];
   }
 
   const [books, total] = await Promise.all([
@@ -271,14 +303,12 @@ export const getDigitalBooks = async (query, _requestUser = null) => {
     const min = parseFloat(query.min_rating);
     if (!Number.isNaN(min)) {
       const qualified = await prisma.review.groupBy({
-        by: ['digital_book_id'],
+        by: ["digital_book_id"],
         where: { digital_book_id: { not: null } },
         _avg: { rating: true },
       });
       const allowed = new Set(
-        qualified
-          .filter((row) => Number(row._avg.rating ?? 0) >= min)
-          .map((row) => row.digital_book_id),
+        qualified.filter((row) => Number(row._avg.rating ?? 0) >= min).map((row) => row.digital_book_id),
       );
       const filtered = books.filter((b) => allowed.has(b.id));
       const ratingSummaries = await buildRatingSummaries(filtered.map((book) => book.id));
@@ -309,35 +339,54 @@ export const getDigitalBooks = async (query, _requestUser = null) => {
  * Does NOT include pdf_file bytes.
  */
 export const getDigitalBookById = async (id, userId = null) => {
+  const where = digitalIdentifierWhere(id);
+  if (!where) throw new AppError("Digital book not found", 404);
+
   const book = await prisma.digitalBook.findFirst({
-    where: { id, deleted_at: null },
+    where,
     select: {
       ...DIGITAL_DETAIL_SELECT,
       reviews: {
-        orderBy: { created_at: 'desc' },
+        orderBy: { created_at: "desc" },
         take: 5,
         select: {
-          id: true, rating: true, comment: true, created_at: true,
+          id: true,
+          rating: true,
+          comment: true,
+          created_at: true,
           user: { select: { id: true, name: true } },
         },
       },
     },
   });
-  if (!book) throw new AppError('Digital book not found', 404);
+  if (!book) throw new AppError("Digital book not found", 404);
 
-  const rating = await buildRatingSummary(id);
+  const rating = await buildRatingSummary(book.id);
 
   let userContext = null;
   if (userId) {
-    const wishlistItem = await prisma.wishlist.findFirst({
-      where: { user_id: userId, digital_book_id: id },
-      select: { id: true },
-    });
+    const [wishlistItem, readProgress] = await Promise.all([
+      prisma.wishlist.findFirst({
+        where: { user_id: userId, digital_book_id: book.id },
+        select: { id: true },
+      }),
+      hasDigitalReadProgressModel()
+        ? prisma.digitalReadProgress.findUnique({
+            where: {
+              user_id_digital_book_id: {
+                user_id: userId,
+                digital_book_id: book.id,
+              },
+            },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
+    ]);
+
     userContext = {
       isInWishlist: !!wishlistItem,
       wishlistId: wishlistItem?.id || null,
-      // For PAID/RESTRICTED, can check if user has a completed payment
-      // (future: when we add digital book payments)
+      hasRead: !!readProgress,
     };
   }
 
@@ -350,7 +399,7 @@ export const getDigitalBookPageData = async (id, userId = null) => {
   const [myReview, physicalByAuthor, digitalByAuthor] = await Promise.all([
     userId
       ? prisma.review.findFirst({
-          where: { user_id: userId, digital_book_id: id },
+          where: { user_id: userId, digital_book_id: book.id },
           select: { id: true, rating: true, comment: true },
         })
       : Promise.resolve(null),
@@ -361,25 +410,25 @@ export const getDigitalBookPageData = async (id, userId = null) => {
       },
       select: RELATED_PHYSICAL_SELECT,
       take: 12,
-      orderBy: { title: 'asc' },
+      orderBy: { title: "asc" },
     }),
     prisma.digitalBook.findMany({
       where: {
         deleted_at: null,
         author_id: book.author.id,
-        id: { not: id },
+        id: { not: book.id },
       },
       select: RELATED_DIGITAL_SELECT,
       take: 12,
-      orderBy: { title: 'asc' },
+      orderBy: { title: "asc" },
     }),
   ]);
 
   let related = [
-    ...physicalByAuthor.map((item) => ({ ...item, type: 'physical' })),
-    ...digitalByAuthor.map((item) => ({ ...item, type: 'digital' })),
+    ...physicalByAuthor.map((item) => ({ ...item, type: "physical" })),
+    ...digitalByAuthor.map((item) => ({ ...item, type: "digital" })),
   ].slice(0, 8);
-  let relatedSource = 'author';
+  let relatedSource = "author";
 
   if (related.length === 0) {
     const [physicalByCategory, digitalByCategory] = await Promise.all([
@@ -390,7 +439,7 @@ export const getDigitalBookPageData = async (id, userId = null) => {
         },
         select: RELATED_PHYSICAL_SELECT,
         take: 12,
-        orderBy: { title: 'asc' },
+        orderBy: { title: "asc" },
       }),
       prisma.digitalBook.findMany({
         where: {
@@ -400,17 +449,54 @@ export const getDigitalBookPageData = async (id, userId = null) => {
         },
         select: RELATED_DIGITAL_SELECT,
         take: 12,
-        orderBy: { title: 'asc' },
+        orderBy: { title: "asc" },
       }),
     ]);
     related = [
-      ...physicalByCategory.map((item) => ({ ...item, type: 'physical' })),
-      ...digitalByCategory.map((item) => ({ ...item, type: 'digital' })),
+      ...physicalByCategory.map((item) => ({ ...item, type: "physical" })),
+      ...digitalByCategory.map((item) => ({ ...item, type: "digital" })),
     ].slice(0, 8);
-    relatedSource = 'category';
+    relatedSource = "category";
   }
 
   return { book, myReview, related, relatedSource };
+};
+
+export const markDigitalBookAsRead = async (id, userId) => {
+  if (!hasDigitalReadProgressModel()) {
+    // If Prisma client is not regenerated yet, avoid runtime crash and allow reading.
+    return;
+  }
+
+  const where = digitalIdentifierWhere(id);
+  if (!where) throw new AppError("Digital book not found", 404);
+
+  const book = await prisma.digitalBook.findFirst({
+    where,
+    select: { id: true },
+  });
+  if (!book) throw new AppError("Digital book not found", 404);
+
+  const now = new Date();
+  await prisma.digitalReadProgress.upsert({
+    where: {
+      user_id_digital_book_id: {
+        user_id: userId,
+        digital_book_id: book.id,
+      },
+    },
+    create: {
+      user_id: userId,
+      digital_book_id: book.id,
+      first_read_at: now,
+      last_read_at: now,
+      read_count: 1,
+    },
+    update: {
+      last_read_at: now,
+      read_count: { increment: 1 },
+    },
+  });
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -420,9 +506,8 @@ export const getDigitalBookPageData = async (id, userId = null) => {
 /**
  * Returns the raw PDF bytes and filename for streaming.
  * Access control:
- *   FREE   – any authenticated user can download
- *   PAID   – only users who have a SUCCESS payment linked to this book (future)
- *   RESTRICTED – admin only
+ *   FREE/PAID/RESTRICTED – any authenticated user can read inline
+ *   Download permission is limited for RESTRICTED (admin only)
  */
 export const getPdfBytes = async (id, user) => {
   const book = await prisma.digitalBook.findFirst({
@@ -435,21 +520,14 @@ export const getPdfBytes = async (id, user) => {
       pdf_access: true,
     },
   });
-  if (!book) throw new AppError('Digital book not found', 404);
-  if (!book.pdf_file) throw new AppError('PDF file not available', 404);
+  if (!book) throw new AppError("Digital book not found", 404);
+  if (!book.pdf_file) throw new AppError("PDF file not available", 404);
 
-  // Access control
-  if (book.pdf_access === 'RESTRICTED' && user.role !== 'ADMIN') {
-    throw new AppError('Access restricted. Contact library admin.', 403);
-  }
+  const roles = Array.isArray(user?.roles) ? user.roles : [user?.role].filter(Boolean);
+  const isAdmin = roles.includes("ADMIN");
 
-  if (book.pdf_access === 'PAID' && user.role !== 'ADMIN') {
-    // Future: check payment here
-    // For now, allow authenticated students
-    // throw new AppError('This PDF requires a paid subscription', 402);
-  }
-
-  const canDownload = book.pdf_access !== 'RESTRICTED' || user.role === 'ADMIN';
+  // Students can read all uploaded PDFs inline. Restriction applies to download capability.
+  const canDownload = book.pdf_access !== "RESTRICTED" || isAdmin;
 
   return {
     bytes: book.pdf_file,
@@ -469,23 +547,20 @@ export const getPdfBytes = async (id, user) => {
  */
 export const createDigitalBook = async (data, pdfFile = null, imageFile = null, galleryFiles = []) => {
   const title = data.title?.trim();
-  if (!title) throw new AppError('title is required', 400);
+  if (!title) throw new AppError("title is required", 400);
 
-  if (!pdfFile) throw new AppError('PDF file is required', 400);
+  if (!pdfFile) throw new AppError("PDF file is required", 400);
 
-  const [author_id, category_id] = await Promise.all([
-    resolveAuthorId(data),
-    resolveCategoryId(data),
-  ]);
+  const [author_id, category_id] = await Promise.all([resolveAuthorId(data), resolveCategoryId(data)]);
 
-  const validAccess = ['FREE', 'PAID', 'RESTRICTED'];
-  const access = data.pdf_access?.toUpperCase() || 'FREE';
-  if (!validAccess.includes(access)) throw new AppError('Invalid pdf_access value', 400);
+  const validAccess = ["FREE", "PAID", "RESTRICTED"];
+  const access = data.pdf_access?.toUpperCase() || "FREE";
+  if (!validAccess.includes(access)) throw new AppError("Invalid pdf_access value", 400);
   const coverFromUpload = await uploadImageToCloudinary(imageFile, {
-    folder: 'brana/digital-books/covers',
+    folder: "brana/digital-books/covers",
   });
   const pagesInt = Math.max(1, parseInt(data.pages, 10) || 100);
-  const description = data.description?.trim() || 'No description provided.';
+  const description = data.description?.trim() || "No description provided.";
   const tags = parseList(data.tags);
   const topics = parseList(data.topics);
 
@@ -511,7 +586,7 @@ export const createDigitalBook = async (data, pdfFile = null, imageFile = null, 
     await prisma.bookImage.create({
       data: {
         book_id: created.id,
-        book_type: 'DIGITAL',
+        book_type: "DIGITAL",
         image_url: coverFromUpload,
         sort_order: 1,
         digital_book_id: created.id,
@@ -523,7 +598,7 @@ export const createDigitalBook = async (data, pdfFile = null, imageFile = null, 
     const galleryUrls = await Promise.all(
       galleryFiles.map((file) =>
         uploadImageToCloudinary(file, {
-          folder: 'brana/digital-books/gallery',
+          folder: "brana/digital-books/gallery",
         }),
       ),
     );
@@ -531,7 +606,7 @@ export const createDigitalBook = async (data, pdfFile = null, imageFile = null, 
     await prisma.bookImage.createMany({
       data: galleryUrls.map((url, idx) => ({
         book_id: created.id,
-        book_type: 'DIGITAL',
+        book_type: "DIGITAL",
         image_url: url,
         sort_order: (coverFromUpload ? 2 : 1) + idx,
         digital_book_id: created.id,
@@ -548,7 +623,7 @@ export const createDigitalBook = async (data, pdfFile = null, imageFile = null, 
 
 export const updateDigitalBook = async (id, data, pdfFile = null, imageFile = null, galleryFiles = []) => {
   const book = await prisma.digitalBook.findFirst({ where: { id, deleted_at: null } });
-  if (!book) throw new AppError('Digital book not found', 404);
+  if (!book) throw new AppError("Digital book not found", 404);
 
   const updateData = {};
   if (data.title) updateData.title = data.title.trim();
@@ -563,15 +638,15 @@ export const updateDigitalBook = async (id, data, pdfFile = null, imageFile = nu
   let uploadedCover = null;
   if (imageFile) {
     uploadedCover = await uploadImageToCloudinary(imageFile, {
-      folder: 'brana/digital-books/covers',
+      folder: "brana/digital-books/covers",
     });
     updateData.cover_image_url = uploadedCover;
   }
 
   if (data.pdf_access) {
-    const validAccess = ['FREE', 'PAID', 'RESTRICTED'];
+    const validAccess = ["FREE", "PAID", "RESTRICTED"];
     const access = data.pdf_access.toUpperCase();
-    if (!validAccess.includes(access)) throw new AppError('Invalid pdf_access value', 400);
+    if (!validAccess.includes(access)) throw new AppError("Invalid pdf_access value", 400);
     updateData.pdf_access = /** @type {any} */ (access);
   }
 
@@ -596,15 +671,15 @@ export const updateDigitalBook = async (id, data, pdfFile = null, imageFile = nu
 
   if (uploadedCover) {
     const lastImage = await prisma.bookImage.findFirst({
-      where: { digital_book_id: id, book_type: 'DIGITAL' },
-      orderBy: { sort_order: 'desc' },
+      where: { digital_book_id: id, book_type: "DIGITAL" },
+      orderBy: { sort_order: "desc" },
       select: { sort_order: true },
     });
 
     await prisma.bookImage.create({
       data: {
         book_id: id,
-        book_type: 'DIGITAL',
+        book_type: "DIGITAL",
         image_url: uploadedCover,
         sort_order: (lastImage?.sort_order ?? 0) + 1,
         digital_book_id: id,
@@ -616,21 +691,21 @@ export const updateDigitalBook = async (id, data, pdfFile = null, imageFile = nu
     const galleryUrls = await Promise.all(
       galleryFiles.map((file) =>
         uploadImageToCloudinary(file, {
-          folder: 'brana/digital-books/gallery',
+          folder: "brana/digital-books/gallery",
         }),
       ),
     );
 
     const lastImage = await prisma.bookImage.findFirst({
-      where: { digital_book_id: id, book_type: 'DIGITAL' },
-      orderBy: { sort_order: 'desc' },
+      where: { digital_book_id: id, book_type: "DIGITAL" },
+      orderBy: { sort_order: "desc" },
       select: { sort_order: true },
     });
 
     await prisma.bookImage.createMany({
       data: galleryUrls.map((url, idx) => ({
         book_id: id,
-        book_type: 'DIGITAL',
+        book_type: "DIGITAL",
         image_url: url,
         sort_order: (lastImage?.sort_order ?? 0) + idx + 1,
         digital_book_id: id,
@@ -647,7 +722,7 @@ export const updateDigitalBook = async (id, data, pdfFile = null, imageFile = nu
 
 export const deleteDigitalBook = async (id) => {
   const book = await prisma.digitalBook.findFirst({ where: { id, deleted_at: null } });
-  if (!book) throw new AppError('Digital book not found', 404);
+  if (!book) throw new AppError("Digital book not found", 404);
   return prisma.digitalBook.update({
     where: { id },
     data: { deleted_at: new Date() },
@@ -664,7 +739,7 @@ export const getAdminDigitalBooks = async (query) => {
   const skip = (page - 1) * limit;
 
   const where = /** @type {any} */ ({});
-  if (query.include_deleted !== 'true') where.deleted_at = null;
+  if (query.include_deleted !== "true") where.deleted_at = null;
   if (query.category_id) where.category_id = query.category_id;
   if (query.author_id) where.author_id = query.author_id;
   if (query.pdf_access) where.pdf_access = query.pdf_access.toUpperCase();
@@ -672,8 +747,8 @@ export const getAdminDigitalBooks = async (query) => {
   if (query.search) {
     const q = query.search.trim();
     where.OR = [
-      { title: { contains: q, mode: 'insensitive' } },
-      { author: { name: { contains: q, mode: 'insensitive' } } },
+      { title: { contains: q, mode: "insensitive" } },
+      { author: { name: { contains: q, mode: "insensitive" } } },
     ];
   }
 
@@ -681,7 +756,7 @@ export const getAdminDigitalBooks = async (query) => {
     prisma.digitalBook.findMany({
       where,
       select: DIGITAL_LIST_SELECT,
-      orderBy: /** @type {any} */ ({ id: 'desc' }),
+      orderBy: /** @type {any} */ ({ id: "desc" }),
       skip,
       take: limit,
     }),

@@ -1,28 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { User } from "lucide-react";
-import { fetchCurrentUser } from "@/lib/api";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 import { AdminNotificationDropdown } from "@/components/notifications/AdminNotificationDropdown";
 import Image from "next/image";
+import { PersonaSwitcher } from "@/components/PersonaSwitcher";
+import { usePersona } from "@/components/providers/PersonaProvider";
 
 export const Navbar = () => {
   const pathname = usePathname();
-  const [user, setUser] = useState<{
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-  } | null>(null);
+  const { user } = usePersona();
   const isStudentDashboard = pathname.startsWith("/dashboard/student");
   const isAdminDashboard = pathname.startsWith("/dashboard/admin");
-
-  useEffect(() => {
-    fetchCurrentUser().then(setUser);
-  }, []);
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -77,13 +67,7 @@ export const Navbar = () => {
             {isStudentDashboard && <NotificationDropdown />}
             {isAdminDashboard && <AdminNotificationDropdown />}
             {user ? (
-              <Link
-                href={user.role === "ADMIN" ? "/dashboard/admin" : "/dashboard/student"}
-                className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-secondary hover:text-primary hover:border-primary transition-all"
-              >
-                <User size={18} />
-                <span className="text-sm font-medium truncate max-w-[140px]">{user.name}</span>
-              </Link>
+              <PersonaSwitcher />
             ) : (
               <>
                 <Link

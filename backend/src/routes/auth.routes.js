@@ -1,5 +1,6 @@
 import express from "express";
 import * as authController from "../controllers/auth.controller.js";
+import * as authService from "../services/auth.service.js";
 import { body } from "express-validator";
 import passport from "passport";
 import { generateToken } from "../utils/token.utils.js";
@@ -24,7 +25,7 @@ router.post(
     body("year").notEmpty().withMessage("Year is required"),
     body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters long"),
   ],
-  authController.signup
+  authController.signup,
 );
 
 router.get("/confirm-email/:token", authController.confirmEmail);
@@ -40,25 +41,26 @@ router.get("/google", (req, res, next) => {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     return res.redirect(`${FRONTEND_URL}/auth/login?error=google_not_configured`);
   }
-  passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
+  passport.authenticate("google", { scope: ["profile", "email"], session: false })(req, res, next);
 });
 
 // Use passport's callback handler
-router.get(
-  "/google/callback",
-  passport.authenticate("google", { failureRedirect: `${FRONTEND_URL}/auth/login?error=google_auth_failed` }),
-  async (req, res) => {
-    try {
-      if (!req.user) {
-        return res.redirect(`${FRONTEND_URL}/auth/login?error=google_no_user`);
-      }
+router.get("/google/callback", (req, res, next) => {
+  passport.authenticate("google", { session: false }, async (err, user) => {
+    if (err) {
+      console.error("Google Auth callback error:", err);
+      return res.redirect(`${FRONTEND_URL}/auth/login?error=google_callback_error`);
+    }
 
-      const user = req.user;
-      const token = generateToken(user.id);
+    if (!user) {
+      return res.redirect(`${FRONTEND_URL}/auth/login?error=google_auth_failed`);
+    }
+
+    try {
+      const context = await authService.resolveUserSessionContext(user.id);
+      const token = generateToken(context.sessionPayload);
       const cookieOptions = {
-        expires: new Date(
-          Date.now() + Number(process.env.JWT_COOKIE_EXPIRE || 30) * 24 * 60 * 60 * 1000
-        ),
+        expires: new Date(Date.now() + Number(process.env.JWT_COOKIE_EXPIRE || 30) * 24 * 60 * 60 * 1000),
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
@@ -66,23 +68,24 @@ router.get(
       res.cookie("token", token, cookieOptions);
 
       const needsProfileCompletion =
-        user.role !== "ADMIN" &&
-        (!user.student_id || !user.phone || !user.year || !user.department);
+        context.sessionPayload.activePersona === "STUDENT" &&
+        (!context.user.student_id || !context.user.phone || !context.user.year || !context.user.department);
       const redirectPath = needsProfileCompletion
         ? "/auth/complete-profile"
-        : user.role === "ADMIN"
+        : context.sessionPayload.activePersona === "ADMIN"
           ? "/dashboard/admin"
           : "/dashboard/student";
 
-      res.redirect(`${FRONTEND_URL}${redirectPath}`);
-    } catch (error) {
-      console.error("Google Auth callback error:", error);
-      res.redirect(`${FRONTEND_URL}/auth/login?error=google_callback_error`);
+      return res.redirect(`${FRONTEND_URL}${redirectPath}`);
+    } catch (callbackError) {
+      console.error("Google Auth callback error:", callbackError);
+      return res.redirect(`${FRONTEND_URL}/auth/login?error=google_callback_error`);
     }
-  }
-);
+  })(req, res, next);
+});
 
 router.get("/me", protect, authController.getMe);
+router.patch("/persona", protect, authController.switchPersona);
 router.patch(
   "/update-me",
   protect,
@@ -92,7 +95,7 @@ router.patch(
     body("year").optional(),
     body("department").optional(),
   ],
-  authController.updateMe
+  authController.updateMe,
 );
 router.patch(
   "/change-password",
@@ -101,7 +104,7 @@ router.patch(
     body("currentPassword").notEmpty().withMessage("Current password is required"),
     body("newPassword").isLength({ min: 6 }).withMessage("New password must be at least 6 characters"),
   ],
-  authController.updatePassword
+  authController.updatePassword,
 );
 router.delete("/delete-me", protect, authController.deleteUser);
 

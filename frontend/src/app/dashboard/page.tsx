@@ -17,9 +17,9 @@ export default function DashboardPage() {
           return;
         }
 
-        // Redirect based on role
-        if (user.role === "ADMIN") {
-          router.push("/dashboard/admin/dashboard");
+        // Redirect based on currently active persona
+        if (user.activePersona === "ADMIN") {
+          router.push("/dashboard/admin");
         } else {
           router.push("/dashboard/student");
         }

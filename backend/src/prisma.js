@@ -12,10 +12,10 @@ console.log("📦 Connecting to database...");
 
 const pool = new pg.Pool({
   connectionString,
-  max: 1,
+  max: Number(process.env.PG_POOL_MAX || 5),
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 15000,
-  ssl: { rejectUnauthorized: false }
+  connectionTimeoutMillis: 5000,
+  ssl: { rejectUnauthorized: false },
 });
 
 const adapter = globalForPrisma.__prismaPgAdapter || new PrismaPg(pool);

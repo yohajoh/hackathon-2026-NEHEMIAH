@@ -1,11 +1,21 @@
 import jwt from "jsonwebtoken";
 
-export const generateToken = (id) => {
+export const generateToken = (payloadOrId) => {
   const secret = String(process.env.JWT_SECRET || "fallback_secret");
   const expiresIn = String(process.env.JWT_EXPIRE || "30d");
-  
+
+  const payload =
+    typeof payloadOrId === "string"
+      ? { id: payloadOrId }
+      : {
+          id: payloadOrId?.id,
+          ...(Array.isArray(payloadOrId?.roles) ? { roles: payloadOrId.roles } : {}),
+          ...(payloadOrId?.studentProfileId ? { studentProfileId: payloadOrId.studentProfileId } : {}),
+          ...(payloadOrId?.activePersona ? { activePersona: payloadOrId.activePersona } : {}),
+        };
+
   // @ts-ignore
-  return jwt.sign({ id }, secret, { expiresIn });
+  return jwt.sign(payload, secret, { expiresIn });
 };
 
 export const verifyToken = (token) => {
@@ -13,13 +23,11 @@ export const verifyToken = (token) => {
   return jwt.verify(token, secret);
 };
 
-export const sendTokenCookie = (user, statusCode, res) => {
-  const token = generateToken(user.id);
+export const sendTokenCookie = (user, statusCode, res, tokenPayload) => {
+  const token = generateToken(tokenPayload || user.id);
 
   const cookieOptions = {
-    expires: new Date(
-      Date.now() + Number(process.env.JWT_COOKIE_EXPIRE || 30) * 24 * 60 * 60 * 1000
-    ),
+    expires: new Date(Date.now() + Number(process.env.JWT_COOKIE_EXPIRE || 30) * 24 * 60 * 60 * 1000),
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "Strict",
@@ -34,6 +42,11 @@ export const sendTokenCookie = (user, statusCode, res) => {
     token,
     data: {
       user,
+      session: {
+        roles: tokenPayload?.roles || [user.role],
+        activePersona: tokenPayload?.activePersona || user.role,
+        studentProfileId: tokenPayload?.studentProfileId || null,
+      },
     },
   });
 };

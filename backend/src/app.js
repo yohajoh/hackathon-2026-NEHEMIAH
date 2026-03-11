@@ -5,7 +5,6 @@ import morgan from "morgan";
 import helmet from "helmet";
 import compression from "compression";
 import passport from "passport";
-import session from "express-session";
 import "./config/passport.js";
 
 import authRoutes from "./routes/auth.routes.js";
@@ -29,23 +28,9 @@ import { globalErrorHandler, AppError } from "./middlewares/error.middleware.js"
 
 const app = express();
 const compressionLevel = Number(process.env.HTTP_COMPRESSION_LEVEL);
-const resolvedCompressionLevel = Number.isFinite(compressionLevel)
-  ? Math.max(1, Math.min(9, compressionLevel))
-  : 6;
-
-app.use(session({
-  secret: process.env.JWT_SECRET || "brana_secret_key_123456789",
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === "production",
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000
-  }
-}));
+const resolvedCompressionLevel = Number.isFinite(compressionLevel) ? Math.max(1, Math.min(9, compressionLevel)) : 6;
 
 app.use(passport.initialize());
-app.use(passport.session());
 app.disable("x-powered-by");
 app.set("etag", "strong");
 app.set("json spaces", 0);
@@ -55,10 +40,12 @@ if (process.env.TRUST_PROXY) {
   app.set("trust proxy", Number.isNaN(trustProxyValue) ? process.env.TRUST_PROXY : trustProxyValue);
 }
 
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-  contentSecurityPolicy: false,
-}));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: false,
+  }),
+);
 
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
@@ -68,7 +55,15 @@ const envOrigins = (process.env.FRONTEND_URL || "")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
-const allowedOrigins = Array.from(new Set(["http://localhost:3000", "http://localhost:3001", ...envOrigins]));
+const allowedOrigins = Array.from(
+  new Set([
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    ...envOrigins,
+  ]),
+);
 
 const corsOptions = {
   origin: (origin, callback) => {

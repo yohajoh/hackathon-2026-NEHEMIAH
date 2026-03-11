@@ -4,6 +4,211 @@ import { AppError } from "../middlewares/error.middleware.js";
 import { sendEmail } from "./mail.service.js";
 import crypto from "crypto";
 
+const toNumber = (value, fallback) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const SESSION_CONTEXT_CACHE_TTL_MS = Math.max(0, toNumber(process.env.AUTH_SESSION_CONTEXT_CACHE_TTL_MS, 5000));
+const SESSION_CONTEXT_CACHE_MAX_SIZE = Math.max(100, toNumber(process.env.AUTH_SESSION_CONTEXT_CACHE_MAX_SIZE, 10000));
+const sessionContextCache = new Map();
+
+const getSessionContextCacheKey = (userId, preferredPersona) => `${userId}:${preferredPersona || "AUTO"}`;
+
+export const invalidateSessionContextCache = (userId) => {
+  if (!userId) {
+    sessionContextCache.clear();
+    return;
+  }
+
+  for (const key of sessionContextCache.keys()) {
+    if (key.startsWith(`${userId}:`)) {
+      sessionContextCache.delete(key);
+    }
+  }
+};
+
+const isDelegatedIdentitySchemaMissing = (error) => {
+  const message = String(error?.message || "");
+  return (
+    error?.code === "P2021" ||
+    error?.code === "P2022" ||
+    /StudentProfile|UserRoleAssignment|student_profile|role_assignments/i.test(message) ||
+    /Unknown arg|does not exist|Invalid .* invocation/i.test(message)
+  );
+};
+
+const hasPrismaModel = (modelName) => {
+  return Boolean(prisma && prisma[modelName]);
+};
+
+const ensureStudentProfile = async (user) => {
+  if (!hasPrismaModel("studentProfile")) return null;
+  try {
+    const existing = await prisma.studentProfile.findUnique({ where: { user_id: user.id } });
+    if (existing) return existing;
+
+    return prisma.studentProfile.create({
+      data: {
+        user_id: user.id,
+        student_number: user.student_id || null,
+        year: user.year || null,
+        department: user.department || null,
+        phone: user.phone || null,
+      },
+    });
+  } catch (error) {
+    if (isDelegatedIdentitySchemaMissing(error)) return null;
+    throw error;
+  }
+};
+
+export const resolveUserSessionContext = async (userId, preferredPersona) => {
+  const now = Date.now();
+  const cacheKey = getSessionContextCacheKey(userId, preferredPersona);
+  if (SESSION_CONTEXT_CACHE_TTL_MS > 0) {
+    const cached = sessionContextCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return cached.value;
+    }
+  }
+
+  let user;
+  try {
+    user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        year: true,
+        department: true,
+        student_id: true,
+        role: true,
+        is_confirmed: true,
+        is_blocked: true,
+        created_at: true,
+      },
+    });
+  } catch (error) {
+    if (!isDelegatedIdentitySchemaMissing(error)) {
+      throw error;
+    }
+
+    const legacyUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        student_id: true,
+        role: true,
+        is_confirmed: true,
+        is_blocked: true,
+        created_at: true,
+      },
+    });
+
+    user = legacyUser
+      ? {
+          ...legacyUser,
+          year: null,
+          department: null,
+        }
+      : null;
+  }
+
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+
+  let roles = [user.role];
+  if (hasPrismaModel("userRoleAssignment")) {
+    try {
+      const assignments = await prisma.userRoleAssignment.findMany({
+        where: { user_id: user.id },
+        select: { role: true },
+      });
+      const assignedRoles = assignments.map((item) => item.role);
+      roles = Array.from(new Set([user.role, ...assignedRoles]));
+    } catch (error) {
+      if (!isDelegatedIdentitySchemaMissing(error)) {
+        throw error;
+      }
+    }
+  }
+
+  const dedupedRoles = Array.from(new Set(roles));
+
+  const canActAsStudent = dedupedRoles.includes("STUDENT");
+  let studentProfileId = null;
+
+  if (hasPrismaModel("studentProfile")) {
+    try {
+      const profile = await prisma.studentProfile.findUnique({
+        where: { user_id: user.id },
+        select: { id: true },
+      });
+      studentProfileId = profile?.id || null;
+    } catch (error) {
+      if (!isDelegatedIdentitySchemaMissing(error)) {
+        throw error;
+      }
+    }
+  }
+
+  if (canActAsStudent && !studentProfileId) {
+    const profile = await ensureStudentProfile(user);
+    studentProfileId = profile?.id || null;
+  }
+
+  const activePersona =
+    preferredPersona && dedupedRoles.includes(preferredPersona)
+      ? preferredPersona
+      : dedupedRoles.includes("ADMIN")
+        ? "ADMIN"
+        : "STUDENT";
+
+  const value = {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      year: user.year,
+      department: user.department,
+      student_id: user.student_id,
+      role: user.role,
+      roles: dedupedRoles,
+      studentProfileId,
+      activePersona,
+      is_confirmed: user.is_confirmed,
+      is_blocked: user.is_blocked,
+      created_at: user.created_at,
+    },
+    sessionPayload: {
+      id: user.id,
+      roles: dedupedRoles,
+      studentProfileId,
+      activePersona,
+    },
+  };
+
+  if (SESSION_CONTEXT_CACHE_TTL_MS > 0) {
+    if (sessionContextCache.size >= SESSION_CONTEXT_CACHE_MAX_SIZE) {
+      sessionContextCache.clear();
+    }
+    sessionContextCache.set(cacheKey, {
+      value,
+      expiresAt: now + SESSION_CONTEXT_CACHE_TTL_MS,
+    });
+  }
+
+  return value;
+};
+
 export const signup = async (userData) => {
   const { name, email, password, student_id, year, phone, department } = userData;
 
@@ -56,7 +261,7 @@ export const signup = async (userData) => {
     message,
   });
   const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error("Email service timed out. Please try again.")), 15000)
+    setTimeout(() => reject(new Error("Email service timed out. Please try again.")), 15000),
   );
   await Promise.race([emailPromise, timeoutPromise]);
 
@@ -287,6 +492,38 @@ export const updateMe = async (userId, updateData) => {
       },
     });
 
+    const hasStudentDataUpdate = ["student_id", "year", "department", "phone"].some(
+      (field) => filteredData[field] !== undefined,
+    );
+
+    if (hasStudentDataUpdate) {
+      if (!hasPrismaModel("studentProfile")) {
+        return updatedUser;
+      }
+      try {
+        await prisma.studentProfile.upsert({
+          where: { user_id: userId },
+          update: {
+            student_number: updatedUser.student_id || null,
+            year: updatedUser.year || null,
+            department: updatedUser.department || null,
+            phone: updatedUser.phone || null,
+          },
+          create: {
+            user_id: userId,
+            student_number: updatedUser.student_id || null,
+            year: updatedUser.year || null,
+            department: updatedUser.department || null,
+            phone: updatedUser.phone || null,
+          },
+        });
+      } catch (profileError) {
+        if (!isDelegatedIdentitySchemaMissing(profileError)) {
+          throw profileError;
+        }
+      }
+    }
+
     return updatedUser;
   } catch (error) {
     if (error?.code === "P2002") {
@@ -362,10 +599,7 @@ export const deleteUser = async (userId, currentAdminId) => {
   }
 
   if (user._count.rentals > 0 || user._count.reservations > 0 || user._count.system_config_updates > 0) {
-    throw new AppError(
-      "Cannot delete this user because related records exist. Block the account instead.",
-      409,
-    );
+    throw new AppError("Cannot delete this user because related records exist. Block the account instead.", 409);
   }
 
   return prisma.$transaction([

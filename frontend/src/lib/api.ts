@@ -6,6 +6,9 @@ type CurrentUser = {
   name: string;
   email: string;
   role: string;
+  roles?: string[];
+  activePersona?: "ADMIN" | "STUDENT";
+  studentProfileId?: string | null;
   phone?: string | null;
   year?: string | null;
   department?: string | null;
@@ -65,6 +68,16 @@ export async function fetchCurrentUser(): Promise<CurrentUser> {
   return currentUserInFlight;
 }
 
+export async function switchPersona(activePersona: "ADMIN" | "STUDENT"): Promise<CurrentUser> {
+  const response = await fetchApi<{ data?: { user?: CurrentUser } }>("/auth/persona", {
+    method: "PATCH",
+    body: JSON.stringify({ activePersona }),
+  });
+  const user = response?.data?.user ?? null;
+  currentUserCache = { value: user, expiresAt: Date.now() + CURRENT_USER_CACHE_TTL_MS };
+  return user;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function fetchApi<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
@@ -92,9 +105,7 @@ export async function fetchApi<T = any>(endpoint: string, options: RequestInit =
       invalidateCurrentUserCache();
     }
     const message =
-      typeof data === "object" && data !== null && "message" in data
-        ? String(data.message)
-        : "Something went wrong";
+      typeof data === "object" && data !== null && "message" in data ? String(data.message) : "Something went wrong";
     throw new Error(message);
   }
 
@@ -104,7 +115,7 @@ export async function fetchApi<T = any>(endpoint: string, options: RequestInit =
   if (endpoint === "/auth/me") {
     const user =
       typeof data === "object" && data !== null && "data" in data && data.data
-        ? (data.data as { user?: CurrentUser }).user ?? null
+        ? ((data.data as { user?: CurrentUser }).user ?? null)
         : null;
     currentUserCache = { value: user, expiresAt: Date.now() + CURRENT_USER_CACHE_TTL_MS };
   }

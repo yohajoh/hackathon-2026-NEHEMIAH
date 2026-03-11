@@ -23,12 +23,12 @@
  *   - Admin:   new borrow, overdue alert, book returned
  */
 
-import { prisma } from '../prisma.js';
-import { AppError } from '../middlewares/error.middleware.js';
-import { paginationMeta } from '../utils/apiFeatures.js';
-import { createNotification, notifyAdmins } from './notification.service.js';
-import { notifyNextInQueue, markReservationFulfilledForBorrow } from './reservation.service.js';
-import { syncLowStockAlertForBook } from './inventoryAlert.service.js';
+import { prisma } from "../prisma.js";
+import { AppError } from "../middlewares/error.middleware.js";
+import { paginationMeta } from "../utils/apiFeatures.js";
+import { createNotification, notifyAdmins } from "./notification.service.js";
+import { notifyNextInQueue, markReservationFulfilledForBorrow } from "./reservation.service.js";
+import { syncLowStockAlertForBook } from "./inventoryAlert.service.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -44,7 +44,7 @@ const getConfig = async () => {
 
   try {
     const config = await prisma.systemConfig.findFirst({
-      orderBy: { id: 'desc' },
+      orderBy: { id: "desc" },
       select: {
         id: true,
         max_loan_days: true,
@@ -55,16 +55,13 @@ const getConfig = async () => {
     return config ? { ...defaults, ...config } : defaults;
   } catch (error) {
     // Backward compatibility: DB might be behind the Prisma schema.
-    if (error?.code === 'P2022') {
+    if (error?.code === "P2022") {
       const legacy = await prisma.systemConfig.findFirst({
-        orderBy: { id: 'desc' },
+        orderBy: { id: "desc" },
         select: { id: true },
       });
       if (!legacy) {
-        throw new AppError(
-          'System configuration is not set up. Please contact the admin.',
-          503
-        );
+        throw new AppError("System configuration is not set up. Please contact the admin.", 503);
       }
       return { ...defaults, ...legacy };
     }
@@ -98,20 +95,25 @@ const RENTAL_INCLUDE = {
   },
   payment: {
     select: {
-      id: true, tx_ref: true, amount: true, method: true, status: true, paid_at: true,
+      id: true,
+      tx_ref: true,
+      amount: true,
+      method: true,
+      status: true,
+      paid_at: true,
     },
   },
 };
 
 const buildCopyCode = (bookId, sequence) => {
-  const seq = String(sequence).padStart(4, '0');
+  const seq = String(sequence).padStart(4, "0");
   return `BC-${bookId.slice(0, 8).toUpperCase()}-${seq}`;
 };
 
 const ensureAvailableCopy = async (bookId, copies, available) => {
   let copy = await prisma.bookCopy.findFirst({
     where: { book_id: bookId, deleted_at: null, is_available: true },
-    orderBy: [{ acquired_at: 'asc' }, { copy_code: 'asc' }],
+    orderBy: [{ acquired_at: "asc" }, { copy_code: "asc" }],
     select: { id: true },
   });
   if (copy) return copy;
@@ -129,14 +131,14 @@ const ensureAvailableCopy = async (bookId, copies, available) => {
       data: Array.from({ length: copies }).map((_, idx) => ({
         book_id: bookId,
         copy_code: buildCopyCode(bookId, allCopiesCount + idx + 1),
-        condition: 'GOOD',
+        condition: "GOOD",
         is_available: idx >= unavailableCount,
       })),
     });
 
     copy = await prisma.bookCopy.findFirst({
       where: { book_id: bookId, deleted_at: null, is_available: true },
-      orderBy: [{ acquired_at: 'asc' }, { copy_code: 'asc' }],
+      orderBy: [{ acquired_at: "asc" }, { copy_code: "asc" }],
       select: { id: true },
     });
   }
@@ -164,7 +166,7 @@ export const getAllRentals = async (query) => {
   const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 20));
   const skip = (page - 1) * limit;
 
-  const VALID_STATUSES = ['BORROWED', 'PENDING', 'RETURNED', 'COMPLETED'];
+  const VALID_STATUSES = ["BORROWED", "PENDING", "RETURNED", "COMPLETED"];
   const where = /** @type {any} */ ({});
 
   if (query.status) {
@@ -177,8 +179,8 @@ export const getAllRentals = async (query) => {
   if (query.book_id) where.book_id = query.book_id;
 
   // Overdue filter: borrowed AND past due date
-  if (query.overdue === 'true') {
-    where.status = 'BORROWED';
+  if (query.overdue === "true") {
+    where.status = "BORROWED";
     where.due_date = { lt: new Date() };
   }
 
@@ -186,18 +188,18 @@ export const getAllRentals = async (query) => {
   if (query.search) {
     const q = query.search.trim();
     where.OR = [
-      { user: { name: { contains: q, mode: 'insensitive' } } },
-      { user: { email: { contains: q, mode: 'insensitive' } } },
-      { physical_book: { title: { contains: q, mode: 'insensitive' } } },
+      { user: { name: { contains: q, mode: "insensitive" } } },
+      { user: { email: { contains: q, mode: "insensitive" } } },
+      { physical_book: { title: { contains: q, mode: "insensitive" } } },
     ];
   }
 
-  const ALLOWED = ['loan_date', 'due_date', 'return_date'];
-  let orderBy = [{ loan_date: 'desc' }];
+  const ALLOWED = ["loan_date", "due_date", "return_date"];
+  let orderBy = [{ loan_date: "desc" }];
   if (query.sort) {
-    const desc = query.sort.startsWith('-');
+    const desc = query.sort.startsWith("-");
     const field = desc ? query.sort.slice(1) : query.sort;
-    if (ALLOWED.includes(field)) orderBy = [{ [field]: desc ? 'desc' : 'asc' }];
+    if (ALLOWED.includes(field)) orderBy = [{ [field]: desc ? "desc" : "asc" }];
   }
 
   const [rentals, total] = await Promise.all([
@@ -209,9 +211,9 @@ export const getAllRentals = async (query) => {
   const now = new Date();
   const enriched = rentals.map((r) => ({
     ...r,
-    isOverdue: r.status === 'BORROWED' && new Date(r.due_date) < now,
+    isOverdue: r.status === "BORROWED" && new Date(r.due_date) < now,
     daysOverdue:
-      r.status === 'BORROWED' && new Date(r.due_date) < now
+      r.status === "BORROWED" && new Date(r.due_date) < now
         ? Math.ceil((now.getTime() - new Date(r.due_date).getTime()) / (1000 * 60 * 60 * 24))
         : 0,
   }));
@@ -230,13 +232,16 @@ export const getAllRentals = async (query) => {
  *   ?status=BORROWED|PENDING|RETURNED|COMPLETED
  *   ?active=true  – only show BORROWED + PENDING
  */
-export const getMyRentals = async (userId, query) => {
+export const getMyRentals = async (userId, query, options = {}) => {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(query.limit, 10) || 10));
   const skip = (page - 1) * limit;
 
-  const VALID_STATUSES = ['BORROWED', 'PENDING', 'RETURNED', 'COMPLETED'];
+  const VALID_STATUSES = ["BORROWED", "PENDING", "RETURNED", "COMPLETED"];
   const where = /** @type {any} */ ({ user_id: userId });
+  if (options.studentProfileId) {
+    where.student_profile_id = options.studentProfileId;
+  }
 
   if (query.status) {
     const s = query.status.toUpperCase();
@@ -245,23 +250,25 @@ export const getMyRentals = async (userId, query) => {
   }
 
   // Convenience: ?active=true → show only BORROWED and PENDING
-  if (query.active === 'true') {
-    where.status = { in: ['BORROWED', 'PENDING'] };
+  if (query.active === "true") {
+    where.status = { in: ["BORROWED", "PENDING"] };
   }
 
   const [rentals, total, counts] = await Promise.all([
     prisma.rental.findMany({
       where,
       include: RENTAL_INCLUDE,
-      orderBy: { loan_date: 'desc' },
+      orderBy: { loan_date: "desc" },
       skip,
       take: limit,
     }),
     prisma.rental.count({ where }),
     // Summary counts for student dashboard header
     prisma.rental.groupBy({
-      by: ['status'],
-      where: { user_id: userId },
+      by: ["status"],
+      where: options.studentProfileId
+        ? { user_id: userId, student_profile_id: options.studentProfileId }
+        : { user_id: userId },
       _count: true,
     }),
   ]);
@@ -269,13 +276,13 @@ export const getMyRentals = async (userId, query) => {
   const now = new Date();
   const enriched = rentals.map((r) => ({
     ...r,
-    isOverdue: r.status === 'BORROWED' && new Date(r.due_date) < now,
+    isOverdue: r.status === "BORROWED" && new Date(r.due_date) < now,
     daysOverdue:
-      r.status === 'BORROWED' && new Date(r.due_date) < now
+      r.status === "BORROWED" && new Date(r.due_date) < now
         ? Math.ceil((now.getTime() - new Date(r.due_date).getTime()) / (1000 * 60 * 60 * 24))
         : 0,
     daysUntilDue:
-      r.status === 'BORROWED' && new Date(r.due_date) >= now
+      r.status === "BORROWED" && new Date(r.due_date) >= now
         ? Math.ceil((new Date(r.due_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
         : null,
   }));
@@ -297,19 +304,19 @@ export const getRentalById = async (id, user) => {
     where: { id },
     include: RENTAL_INCLUDE,
   });
-  if (!rental) throw new AppError('Rental not found', 404);
+  if (!rental) throw new AppError("Rental not found", 404);
 
   // Students can only see their own
-  if (user.role !== 'ADMIN' && rental.user_id !== user.id) {
-    throw new AppError('Forbidden', 403);
+  if (user.role !== "ADMIN" && rental.user_id !== user.id) {
+    throw new AppError("Forbidden", 403);
   }
 
   const now = new Date();
   return {
     ...rental,
-    isOverdue: rental.status === 'BORROWED' && new Date(rental.due_date) < now,
+    isOverdue: rental.status === "BORROWED" && new Date(rental.due_date) < now,
     daysOverdue:
-      rental.status === 'BORROWED' && new Date(rental.due_date) < now
+      rental.status === "BORROWED" && new Date(rental.due_date) < now
         ? Math.ceil((now.getTime() - new Date(rental.due_date).getTime()) / (1000 * 60 * 60 * 24))
         : 0,
   };
@@ -334,8 +341,8 @@ export const getRentalById = async (id, user) => {
  *   - Notifies student (INFO)
  *   - Notifies admins (INFO)
  */
-export const borrowBook = async (userId, { book_id, loan_days }, io) => {
-  if (!book_id) throw new AppError('book_id is required', 400);
+export const borrowBook = async (userId, { book_id, loan_days }, io, options = {}) => {
+  if (!book_id) throw new AppError("book_id is required", 400);
 
   const [config, book, user] = await Promise.all([
     getConfig(),
@@ -349,33 +356,42 @@ export const borrowBook = async (userId, { book_id, loan_days }, io) => {
     }),
   ]);
 
-  if (!book) throw new AppError('Book not found', 404);
-  if (!user) throw new AppError('User not found', 404);
-  if (user.is_blocked) throw new AppError('Your account is blocked. Contact the library.', 403);
+  if (!book) throw new AppError("Book not found", 404);
+  if (!user) throw new AppError("User not found", 404);
+  if (user.is_blocked) throw new AppError("Your account is blocked. Contact the library.", 403);
   if (book.available <= 0) {
     throw new AppError(
       `"${book.title}" has no available copies. Please check back later or add to your wishlist.`,
-      400
+      400,
     );
   }
 
   // Check per-user active rental limit
   const activeRentals = await prisma.rental.count({
-    where: { user_id: userId, status: { in: ['BORROWED', 'PENDING'] } },
+    where: {
+      user_id: userId,
+      ...(options.studentProfileId ? { student_profile_id: options.studentProfileId } : {}),
+      status: { in: ["BORROWED", "PENDING"] },
+    },
   });
   if (activeRentals >= config.max_books_per_user) {
     throw new AppError(
       `You have reached your maximum of ${config.max_books_per_user} active rental(s). Return a book first.`,
-      400
+      400,
     );
   }
 
   // Prevent duplicate borrow
   const alreadyBorrowed = await prisma.rental.findFirst({
-    where: { user_id: userId, book_id, status: { in: ['BORROWED', 'PENDING'] } },
+    where: {
+      user_id: userId,
+      ...(options.studentProfileId ? { student_profile_id: options.studentProfileId } : {}),
+      book_id,
+      status: { in: ["BORROWED", "PENDING"] },
+    },
   });
   if (alreadyBorrowed) {
-    throw new AppError('You already have this book. Return it before borrowing again.', 409);
+    throw new AppError("You already have this book. Return it before borrowing again.", 409);
   }
 
   // Calculate due date
@@ -396,10 +412,12 @@ export const borrowBook = async (userId, { book_id, loan_days }, io) => {
     prisma.rental.create({
       data: {
         user_id: userId,
+        actor_user_id: options.actorUserId || userId,
+        student_profile_id: options.studentProfileId || null,
         book_id,
         copy_id: copy.id,
         due_date: dueDate,
-        status: 'BORROWED',
+        status: "BORROWED",
       },
       include: RENTAL_INCLUDE,
     }),
@@ -414,28 +432,33 @@ export const borrowBook = async (userId, { book_id, loan_days }, io) => {
   ]);
 
   await Promise.all([
-    markReservationFulfilledForBorrow(userId, book_id),
+    markReservationFulfilledForBorrow(userId, book_id, {
+      studentProfileId: options.studentProfileId || null,
+    }),
     syncLowStockAlertForBook(book_id),
   ]);
 
   // ── Notifications ──────────────────────────────────────────────────────────
 
-  const dueDateStr = dueDate.toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  const dueDateStr = dueDate.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 
   // Student notification
   await createNotification({
     userId,
     message: `📚 You have successfully borrowed "${book.title}". Please return it by ${dueDateStr}. Loan period: ${loanDays} day(s).`,
-    type: 'INFO',
+    type: "INFO",
     io,
   });
 
   // Admin notifications
   await notifyAdmins({
     message: `📖 ${user.name} (${user.email}) has borrowed "${book.title}". Due: ${dueDateStr}. Remaining copies: ${book.available - 1}.`,
-    type: 'INFO',
+    type: "INFO",
     io,
   });
 
@@ -464,15 +487,15 @@ export const returnBook = async (rentalId, io) => {
       user: { select: { id: true, name: true, email: true } },
     },
   });
-  if (!rental) throw new AppError('Rental not found', 404);
-  if (rental.status === 'RETURNED' || rental.status === 'COMPLETED') {
-    throw new AppError('This book has already been returned', 400);
+  if (!rental) throw new AppError("Rental not found", 404);
+  if (rental.status === "RETURNED" || rental.status === "COMPLETED") {
+    throw new AppError("This book has already been returned", 400);
   }
 
   const config = await getConfig();
   const returnDate = new Date();
   const fine = calculateFine(rental.due_date, returnDate, config.daily_fine);
-  const newStatus = fine > 0 ? 'PENDING' : 'RETURNED';
+  const newStatus = fine > 0 ? "PENDING" : "RETURNED";
 
   // Atomic: update rental + restore available
   const txOps = [
@@ -495,39 +518,37 @@ export const returnBook = async (rentalId, io) => {
       prisma.bookCopy.update({
         where: { id: rental.copy_id },
         data: { is_available: true, last_condition_update: returnDate },
-      })
+      }),
     );
   }
   const [updated] = await prisma.$transaction(txOps);
 
-  await Promise.all([
-    notifyNextInQueue(rental.book_id, io),
-    syncLowStockAlertForBook(rental.book_id),
-  ]);
+  await Promise.all([notifyNextInQueue(rental.book_id, io), syncLowStockAlertForBook(rental.book_id)]);
 
   // ── Notifications ──────────────────────────────────────────────────────────
 
-  const returnDateStr = returnDate.toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  const returnDateStr = returnDate.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 
   if (fine > 0) {
-    const overdueDays = Math.ceil(
-      (returnDate.getTime() - new Date(rental.due_date).getTime()) / (1000 * 60 * 60 * 24)
-    );
+    const overdueDays = Math.ceil((returnDate.getTime() - new Date(rental.due_date).getTime()) / (1000 * 60 * 60 * 24));
 
     // Student: fine applied
     await createNotification({
       userId: rental.user_id,
       message: `⚠️ You returned "${rental.physical_book.title}" ${overdueDays} day(s) late. A fine of ${fine.toFixed(2)} ETB has been applied. Please pay to complete the return.`,
-      type: 'ALERT',
+      type: "ALERT",
       io,
     });
 
     // Admins
     await notifyAdmins({
       message: `📋 ${rental.user.name} returned "${rental.physical_book.title}" ${overdueDays} day(s) late. Fine: ${fine.toFixed(2)} ETB. Awaiting payment.`,
-      type: 'INFO',
+      type: "INFO",
       io,
     });
   } else {
@@ -535,14 +556,14 @@ export const returnBook = async (rentalId, io) => {
     await createNotification({
       userId: rental.user_id,
       message: `✅ You have successfully returned "${rental.physical_book.title}" on ${returnDateStr}. Thank you!`,
-      type: 'INFO',
+      type: "INFO",
       io,
     });
 
     // Admins
     await notifyAdmins({
       message: `✅ ${rental.user.name} returned "${rental.physical_book.title}" on time on ${returnDateStr}.`,
-      type: 'INFO',
+      type: "INFO",
       io,
     });
   }
@@ -564,7 +585,7 @@ export const getOverdueRentals = async (query) => {
   const skip = (page - 1) * limit;
 
   const where = /** @type {any} */ ({
-    status: 'BORROWED',
+    status: "BORROWED",
     due_date: { lt: new Date() },
   });
 
@@ -574,7 +595,7 @@ export const getOverdueRentals = async (query) => {
     prisma.rental.findMany({
       where,
       include: RENTAL_INCLUDE,
-      orderBy: { due_date: 'asc' }, // most overdue first
+      orderBy: { due_date: "asc" }, // most overdue first
       skip,
       take: limit,
     }),
@@ -584,9 +605,7 @@ export const getOverdueRentals = async (query) => {
 
   const now = new Date();
   const enriched = rentals.map((r) => {
-    const daysOverdue = Math.ceil(
-      (now.getTime() - new Date(r.due_date).getTime()) / (1000 * 60 * 60 * 24)
-    );
+    const daysOverdue = Math.ceil((now.getTime() - new Date(r.due_date).getTime()) / (1000 * 60 * 60 * 24));
     return {
       ...r,
       daysOverdue,
@@ -603,7 +622,7 @@ export const getOverdueRanking = async (query) => {
   const now = new Date();
 
   const rows = await prisma.rental.findMany({
-    where: /** @type {any} */ ({ status: 'BORROWED', due_date: { lt: now } }),
+    where: /** @type {any} */ ({ status: "BORROWED", due_date: { lt: now } }),
     select: {
       id: true,
       due_date: true,
@@ -615,9 +634,8 @@ export const getOverdueRanking = async (query) => {
 
   const grouped = rows.reduce((acc, row) => {
     const days = Math.ceil((now.getTime() - new Date(row.due_date).getTime()) / (1000 * 60 * 60 * 24));
-    const estimated = Number(row.fine ?? 0) > 0
-      ? Number(row.fine ?? 0)
-      : parseFloat((days * Number(config.daily_fine)).toFixed(2));
+    const estimated =
+      Number(row.fine ?? 0) > 0 ? Number(row.fine ?? 0) : parseFloat((days * Number(config.daily_fine)).toFixed(2));
     if (!acc[row.user.id]) {
       acc[row.user.id] = {
         user: row.user,
@@ -660,7 +678,7 @@ export const getOverdueRanking = async (query) => {
  */
 export const sendOverdueReminders = async (io) => {
   const overdue = await prisma.rental.findMany({
-    where: /** @type {any} */ ({ status: 'BORROWED', due_date: { lt: new Date() } }),
+    where: /** @type {any} */ ({ status: "BORROWED", due_date: { lt: new Date() } }),
     select: {
       id: true,
       user_id: true,
@@ -674,15 +692,13 @@ export const sendOverdueReminders = async (io) => {
   let sent = 0;
 
   for (const rental of overdue) {
-    const daysOverdue = Math.ceil(
-      (now.getTime() - new Date(rental.due_date).getTime()) / (1000 * 60 * 60 * 24)
-    );
+    const daysOverdue = Math.ceil((now.getTime() - new Date(rental.due_date).getTime()) / (1000 * 60 * 60 * 24));
     const estimatedFine = parseFloat((daysOverdue * Number(config.daily_fine)).toFixed(2));
 
     await createNotification({
       userId: rental.user_id,
       message: `🔴 OVERDUE ALERT: "${rental.physical_book.title}" was due ${daysOverdue} day(s) ago. Estimated fine: ${estimatedFine} ETB. Please return it immediately.`,
-      type: 'ALERT',
+      type: "ALERT",
       io,
     });
     sent++;
@@ -707,14 +723,14 @@ export const extendRental = async (rentalId, { extra_days }, io) => {
       physical_book: { select: { title: true } },
     },
   });
-  if (!rental) throw new AppError('Rental not found', 404);
-  if (rental.status !== 'BORROWED') {
-    throw new AppError('Can only extend active (BORROWED) rentals', 400);
+  if (!rental) throw new AppError("Rental not found", 404);
+  if (rental.status !== "BORROWED") {
+    throw new AppError("Can only extend active (BORROWED) rentals", 400);
   }
 
   const days = parseInt(extra_days, 10);
   if (!days || days < 1 || days > 30) {
-    throw new AppError('extra_days must be between 1 and 30', 400);
+    throw new AppError("extra_days must be between 1 and 30", 400);
   }
 
   const newDueDate = new Date(rental.due_date);
@@ -730,7 +746,7 @@ export const extendRental = async (rentalId, { extra_days }, io) => {
   await createNotification({
     userId: rental.user_id,
     message: `📅 Great news! Your rental of "${rental.physical_book.title}" has been extended by ${days} day(s). New due date: ${newDueDate.toDateString()}.`,
-    type: 'INFO',
+    type: "INFO",
     io,
   });
 
