@@ -1,7 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Trash2, Pencil, MoreHorizontal, Search, Plus, ChevronLeft, ChevronRight, X, Upload } from "lucide-react";
+import {
+  Trash2,
+  Pencil,
+  MoreHorizontal,
+  Search,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  X,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   useBooks,
@@ -14,6 +25,7 @@ import {
   useCreateCategory,
   useUpdateCategory,
   useDeleteCategory,
+  useCreateAuthor,
   useBookCopies,
   useConditionHistory,
   useUpdateCondition,
@@ -34,6 +46,8 @@ interface Book {
   status?: string;
   description?: string;
   publication_year?: number;
+  loan_duration_days?: number | null;
+  rental_price?: number;
   pages?: number;
   tags?: string[];
   topics?: string[];
@@ -91,10 +105,10 @@ export default function AdminBooksPage() {
   const [conditionBookTitle, setConditionBookTitle] = useState("");
   const [deleteBookCandidate, setDeleteBookCandidate] = useState<DeleteBookCandidate>(null);
 
-  const { data: booksData, isLoading: booksLoading } = useBooks();
-  const { data: digitalData, isLoading: digitalLoading } = useDigitalBooks();
-  const { data: categoriesData, isLoading: categoriesLoading } = useCategories();
-  const { data: authorsData, isLoading: authorsLoading } = useAuthors();
+  const { data: booksData, isLoading: booksLoading } = useBooks("limit=200");
+  const { data: digitalData, isLoading: digitalLoading } = useDigitalBooks("limit=200");
+  const { data: categoriesData, isLoading: categoriesLoading } = useCategories("limit=200");
+  const { data: authorsData, isLoading: authorsLoading } = useAuthors("limit=200");
 
   const createBook = useCreateBook();
   const updateBook = useUpdateBook();
@@ -624,6 +638,123 @@ function CategoryTable({
   );
 }
 
+function SearchableDropdown({
+  label,
+  placeholder,
+  options,
+  selectedId,
+  onSelect,
+  onCreate,
+  createLabel,
+  isCreating,
+}: {
+  label: string;
+  placeholder: string;
+  options: Array<{ id: string; name: string }>;
+  selectedId: string;
+  onSelect: (option: { id: string; name: string }) => void;
+  onCreate: (value: string) => Promise<void> | void;
+  createLabel: string;
+  isCreating: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const normalizedSearch = searchText.trim().toLowerCase();
+  const selectedOption = options.find((option) => option.id === selectedId) || null;
+  const filteredOptions = options.filter((option) => option.name.toLowerCase().includes(normalizedSearch));
+  const showCreateAction =
+    normalizedSearch.length > 0 && !options.some((option) => option.name.toLowerCase() === normalizedSearch);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{label} *</label>
+      <button
+        type="button"
+        title={`Select ${label.toLowerCase()}`}
+        aria-label={`Select ${label.toLowerCase()}`}
+        onClick={() => {
+          const nextOpen = !isOpen;
+          setIsOpen(nextOpen);
+          if (nextOpen) {
+            // Fresh search each time the dropdown opens.
+            setSearchText("");
+          }
+        }}
+        className="flex w-full items-center justify-between border border-[#E1D2BD] bg-white px-3 py-2.5 text-sm text-[#2B1A10]"
+      >
+        <span className={selectedOption ? "text-[#2B1A10]" : "text-[#AE9E85]"}>
+          {selectedOption?.name || placeholder}
+        </span>
+        <ChevronDown size={16} className={`text-[#8B6B4A] transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+
+      {isOpen ? (
+        <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden border border-[#E1D2BD] bg-white shadow-[0_12px_24px_rgba(0,0,0,0.12)]">
+          <div className="border-b border-[#F1E7DA] p-3">
+            <input
+              type="text"
+              title={`Search ${label.toLowerCase()}`}
+              aria-label={`Search ${label.toLowerCase()}`}
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder={`Search ${label.toLowerCase()}`}
+              className="w-full border border-[#E1D2BD] px-3 py-2.5 text-sm text-[#2B1A10] outline-none focus:border-[#8B6B4A]"
+            />
+          </div>
+
+          <div className="max-h-56 overflow-y-auto p-2">
+            {filteredOptions.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-[#AE9E85]">No matching {label.toLowerCase()} found.</div>
+            ) : (
+              filteredOptions.map((option) => (
+                <div
+                  key={option.id}
+                  onClick={() => {
+                    onSelect(option);
+                    setSearchText("");
+                    setIsOpen(false);
+                  }}
+                  className={`cursor-pointer px-3 py-2.5 text-left text-sm ${selectedId === option.id ? "bg-[#F5EBDD] font-bold text-[#2B1A10]" : "text-[#2B1A10] hover:bg-[#FBF3E7]"}`}
+                >
+                  {option.name}
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="border-t border-[#F1E7DA] p-2">
+            <button
+              type="button"
+              title={createLabel}
+              onClick={async () => {
+                await onCreate(searchText.trim());
+                setSearchText("");
+                setIsOpen(false);
+              }}
+              disabled={isCreating || !showCreateAction}
+              className="w-full rounded-xl border border-[#2B1A10] bg-[#2B1A10] px-3 py-2.5 text-center text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {isCreating ? `Adding ${label.toLowerCase()}...` : createLabel}
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function AddBookModal({
   show,
   onClose,
@@ -650,16 +781,29 @@ function AddBookModal({
     pages: "",
     description: "",
     publication_year: "",
+    loan_duration_days: "",
+    rental_price: "10",
     tags: "",
     topics: "",
     pdf_access: "RESTRICTED" as "FREE" | "PAID" | "RESTRICTED",
   });
+  const [authorSearch, setAuthorSearch] = useState("");
+  const [categorySearch, setCategorySearch] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const createAuthorFn = useCreateAuthor();
+  const createCategoryFn = useCreateCategory();
   const imageInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
+
+  const syncSelectedLabels = (nextForm: typeof form) => {
+    const selectedAuthor = authors.find((item) => item.id === nextForm.author_id);
+    const selectedCategory = categories.find((item) => item.id === nextForm.category_id);
+    setAuthorSearch(selectedAuthor?.name || "");
+    setCategorySearch(selectedCategory?.name || "");
+  };
 
   useEffect(() => {
     if (!show) return;
@@ -675,10 +819,14 @@ function AddBookModal({
           pages: "",
           description: "",
           publication_year: "",
+          loan_duration_days: "",
+          rental_price: "10",
           tags: "",
           topics: "",
           pdf_access: "RESTRICTED",
         });
+        setAuthorSearch("");
+        setCategorySearch("");
         setImageFile(null);
         setGalleryFiles([]);
         setPdfFile(null);
@@ -697,6 +845,22 @@ function AddBookModal({
         pages: String(editingBook.pages ?? ""),
         description: editingBook.description || "",
         publication_year: String(editingBook.publication_year ?? ""),
+        loan_duration_days: String(editingBook.loan_duration_days ?? ""),
+        rental_price: String(editingBook.rental_price ?? 10),
+        tags: Array.isArray(editingBook.tags) ? editingBook.tags.join(", ") : "",
+        topics: Array.isArray(editingBook.topics) ? editingBook.topics.join(", ") : "",
+        pdf_access: editingBook.pdf_access || "RESTRICTED",
+      });
+      syncSelectedLabels({
+        title: editingBook.title || "",
+        author_id: editingBook.author_id || editingBook.author?.id || "",
+        category_id: editingBook.category_id || editingBook.category?.id || "",
+        copies: String(editingBook.copies ?? editingBook.total ?? ""),
+        pages: String(editingBook.pages ?? ""),
+        description: editingBook.description || "",
+        publication_year: String(editingBook.publication_year ?? ""),
+        loan_duration_days: String(editingBook.loan_duration_days ?? ""),
+        rental_price: String(editingBook.rental_price ?? 10),
         tags: Array.isArray(editingBook.tags) ? editingBook.tags.join(", ") : "",
         topics: Array.isArray(editingBook.topics) ? editingBook.topics.join(", ") : "",
         pdf_access: editingBook.pdf_access || "RESTRICTED",
@@ -740,6 +904,8 @@ function AddBookModal({
     fd.append("category_id", form.category_id);
     fd.append("description", form.description);
     if (form.publication_year) fd.append("publication_year", form.publication_year);
+    if (form.loan_duration_days) fd.append("loan_duration_days", form.loan_duration_days);
+    if (form.rental_price) fd.append("rental_price", form.rental_price);
     if (form.tags.trim()) fd.append("tags", form.tags);
     if (form.topics.trim()) fd.append("topics", form.topics);
     if (form.pages) fd.append("pages", form.pages);
@@ -763,13 +929,73 @@ function AddBookModal({
       pages: "",
       description: "",
       publication_year: "",
+      loan_duration_days: "",
+      rental_price: "10",
       tags: "",
       topics: "",
       pdf_access: "RESTRICTED",
     });
+    setAuthorSearch("");
+    setCategorySearch("");
     setImageFile(null);
     setGalleryFiles([]);
     setPdfFile(null);
+  };
+
+  const createInlineAuthor = async (nameInput: string) => {
+    const name = nameInput.trim();
+    if (!name) return;
+    try {
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("bio", `Auto-created from add book modal for ${name}.`);
+      formData.append("image", "https://placehold.co/200x200?text=Author");
+      const response = await createAuthorFn.mutateAsync(formData);
+      const created = (response as { data?: { author?: { id?: string; name?: string } } })?.data?.author;
+      if (created?.id) {
+        setForm((prev) => ({ ...prev, author_id: created.id || "" }));
+        setAuthorSearch(created.name || name);
+        toast.success("Author created");
+        return;
+      }
+
+      const fallback = authors.find((author) => author.name.toLowerCase() === name.toLowerCase());
+      if (fallback) {
+        setForm((prev) => ({ ...prev, author_id: fallback.id }));
+        setAuthorSearch(fallback.name);
+        toast.success("Author created");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to create author";
+      toast.error(message);
+      throw error;
+    }
+  };
+
+  const createInlineCategory = async (nameInput: string) => {
+    const name = nameInput.trim();
+    if (!name) return;
+    try {
+      const response = await createCategoryFn.mutateAsync({ name });
+      const created = (response as { data?: { category?: { id?: string; name?: string } } })?.data?.category;
+      if (created?.id) {
+        setForm((prev) => ({ ...prev, category_id: created.id || "" }));
+        setCategorySearch(created.name || name);
+        toast.success("Category created");
+        return;
+      }
+
+      const fallback = categories.find((category) => category.name.toLowerCase() === name.toLowerCase());
+      if (fallback) {
+        setForm((prev) => ({ ...prev, category_id: fallback.id }));
+        setCategorySearch(fallback.name);
+        toast.success("Category created");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to create category";
+      toast.error(message);
+      throw error;
+    }
   };
 
   return (
@@ -779,7 +1005,7 @@ function AddBookModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden">
         <div className="flex items-center justify-center gap-8 pt-8 pb-4 border-b border-[#E1D2BD]/50 relative">
           <button
             onClick={() => setModalTab("physical")}
@@ -803,51 +1029,73 @@ function AddBookModal({
           </button>
         </div>
         <form onSubmit={handleSubmit} className="px-8 py-6 space-y-4 max-h-[80vh] overflow-y-auto">
-          <div>
-            <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">Title *</label>
-            <input
-              type="text"
-              value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              required
-              className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">Title *</label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                required
+                className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
+              />
+            </div>
+            <SearchableDropdown
+              label="Author"
+              placeholder="Select author"
+              options={authors}
+              selectedId={form.author_id}
+              onSelect={(author) => {
+                setForm((prev) => ({ ...prev, author_id: author.id }));
+                setAuthorSearch(author.name);
+              }}
+              onCreate={createInlineAuthor}
+              createLabel="Add new author"
+              isCreating={createAuthorFn.isPending}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">Author *</label>
-              <select
-                value={form.author_id}
-                onChange={(e) => setForm((f) => ({ ...f, author_id: e.target.value }))}
-                required
-                className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
-              >
-                <option value="">Select author</option>
-                {authors.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">Category *</label>
-              <select
-                value={form.category_id}
-                onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value }))}
-                required
-                className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
-              >
-                <option value="">Select category</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SearchableDropdown
+              label="Category"
+              placeholder="Select category"
+              options={categories.map((category) => ({ id: category.id, name: category.name }))}
+              selectedId={form.category_id}
+              onSelect={(category) => {
+                setForm((prev) => ({ ...prev, category_id: category.id }));
+                setCategorySearch(category.name);
+              }}
+              onCreate={createInlineCategory}
+              createLabel="Add new category"
+              isCreating={createCategoryFn.isPending}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">Rental Price *</label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={form.rental_price}
+                  onChange={(e) => setForm((f) => ({ ...f, rental_price: e.target.value }))}
+                  className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">Loan Days Override</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="365"
+                  value={form.loan_duration_days}
+                  onChange={(e) => setForm((f) => ({ ...f, loan_duration_days: e.target.value }))}
+                  placeholder="System default"
+                  className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
+                />
+              </div>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {modalTab === "physical" ? (
               <div>
                 <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">Copies *</label>

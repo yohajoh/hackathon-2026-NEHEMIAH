@@ -166,6 +166,10 @@ model Payment {
   rental_id String        @unique @db.Uuid
   tx_ref    String        @unique
   amount    Decimal
+  context   PaymentContext @default(FINE)
+  rental_charge Decimal?
+  debt_amount Decimal?
+  debt_rental_ids String[] @default([])
   method    PaymentMethod
   status    PaymentStatus @default(PENDING)
   paid_at   DateTime      @default(now())
@@ -189,6 +193,8 @@ model Book {
   isbn             String?          @unique
   language         String?
   publication_year Int?
+  loan_duration_days Int?
+  rental_price     Decimal          @default(10)
   publisher        String?
   tags             String[]         @default([])
   topics           String[]         @default([])
@@ -449,6 +455,11 @@ enum PDFAccess {
 enum PaymentMethod {
   CASH
   CHAPA
+}
+
+enum PaymentContext {
+  BORROW
+  FINE
 }
 
 enum PaymentStatus {

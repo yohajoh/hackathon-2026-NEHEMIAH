@@ -88,7 +88,14 @@ const calculateFine = (dueDate, returnDate, dailyFine) => {
 const RENTAL_INCLUDE = {
   user: { select: { id: true, name: true, email: true, student_id: true } },
   physical_book: {
-    select: { id: true, title: true, cover_image_url: true, pages: true },
+    select: {
+      id: true,
+      title: true,
+      cover_image_url: true,
+      pages: true,
+      loan_duration_days: true,
+      rental_price: true,
+    },
   },
   copy: {
     select: { id: true, copy_code: true, condition: true, is_available: true },
@@ -348,7 +355,14 @@ export const borrowBook = async (userId, { book_id, loan_days }, io, options = {
     getConfig(),
     prisma.book.findFirst({
       where: { id: book_id, deleted_at: null },
-      select: { id: true, title: true, available: true, copies: true },
+      select: {
+        id: true,
+        title: true,
+        available: true,
+        copies: true,
+        loan_duration_days: true,
+        rental_price: true,
+      },
     }),
     prisma.user.findUnique({
       where: { id: userId },
@@ -394,10 +408,32 @@ export const borrowBook = async (userId, { book_id, loan_days }, io, options = {
     throw new AppError("You already have this book. Return it before borrowing again.", 409);
   }
 
+  // Users with debt must explicitly settle it through borrow checkout flow.
+  const debt = await prisma.rental.aggregate({
+    where: {
+      user_id: userId,
+      ...(options.studentProfileId ? { student_profile_id: options.studentProfileId } : {}),
+      status: "PENDING",
+      fine: { gt: 0 },
+      return_date: { not: null },
+    },
+    _sum: { fine: true },
+  });
+  const outstandingDebt = Number(debt._sum.fine ?? 0);
+  const allowDebtSettlement =
+    options.allowDebtSettlement === true || options.allowDebtSettlement === "true" || options.allowDebtSettlement === 1;
+  if (outstandingDebt > 0 && !allowDebtSettlement) {
+    throw new AppError(
+      `You have outstanding debt of ${outstandingDebt.toFixed(2)} ETB. Complete checkout with debt settlement before borrowing.`,
+      409,
+    );
+  }
+
   // Calculate due date
-  const loanDays = parseInt(loan_days, 10) || config.max_loan_days;
-  if (loanDays < 1 || loanDays > config.max_loan_days) {
-    throw new AppError(`Loan period must be between 1 and ${config.max_loan_days} days`, 400);
+  const maxAllowedLoanDays = book.loan_duration_days || config.max_loan_days;
+  const loanDays = parseInt(loan_days, 10) || maxAllowedLoanDays;
+  if (loanDays < 1 || loanDays > maxAllowedLoanDays) {
+    throw new AppError(`Loan period must be between 1 and ${maxAllowedLoanDays} days`, 400);
   }
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + loanDays);

@@ -104,6 +104,17 @@ export type Payment = {
   paid_at?: string;
 };
 
+export type DebtSummary = {
+  totalDebt: number;
+  hasDebt: boolean;
+  count: number;
+  overdueFines: Array<{
+    rental_id: string;
+    amount: number;
+    book_title: string;
+  }>;
+};
+
 export type SystemConfig = {
   max_loan_days: number;
   daily_fine: number;
@@ -161,6 +172,7 @@ type ReservationsResponse = { reservations: Reservation[] };
 type WishlistResponse = { wishlist: WishlistItem[]; meta: { totalPages: number } };
 type AlertsResponse = { alerts: unknown[]; meta?: unknown };
 type PaymentsResponse = { payments: Payment[] };
+type DebtSummaryResponse = { data: DebtSummary };
 type ActivityLogsResponse = { logs: ActivityLog[]; meta?: unknown };
 
 const defaultOptions = {
@@ -264,6 +276,7 @@ export const queryKeys = {
   alerts: ["alerts"] as const,
   payments: (params?: string) => ["payments", params] as const,
   myPayments: (params?: string) => ["payments", "mine", params] as const,
+  debtSummary: ["payments", "debt-summary"] as const,
 };
 
 export function useBooks(params?: string) {
@@ -271,6 +284,8 @@ export function useBooks(params?: string) {
     queryKey: queryKeys.books(params),
     queryFn: () => api.get<BooksResponse>(`/books?${params || "limit=24"}`),
     ...defaultOptions,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
@@ -279,6 +294,8 @@ export function useDigitalBooks(params?: string) {
     queryKey: queryKeys.digitalBooks(params),
     queryFn: () => api.get<DigitalBooksResponse>(`/digital-books?${params || "limit=24"}`),
     ...defaultOptions,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
@@ -425,6 +442,8 @@ export function useCategories(params?: string) {
     queryKey: queryKeys.categories(params),
     queryFn: () => api.get<CategoriesResponse>(`/categories?${params || "limit=50"}`),
     ...defaultOptions,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
@@ -528,6 +547,8 @@ export function useAuthors(params?: string) {
     queryKey: queryKeys.authors(params),
     queryFn: () => api.get<AuthorsResponse>(`/authors?${params || "limit=50"}`),
     ...defaultOptions,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
@@ -759,6 +780,14 @@ export function useRentals(params?: string) {
   return useQuery<RentalsResponse>({
     queryKey: queryKeys.rentals(params),
     queryFn: () => api.get<RentalsResponse>(`/rentals?${params || "limit=20"}`),
+    ...defaultOptions,
+  });
+}
+
+export function useMyDebtSummary() {
+  return useQuery<DebtSummaryResponse>({
+    queryKey: queryKeys.debtSummary,
+    queryFn: () => api.get<DebtSummaryResponse>("/payments/debt-summary"),
     ...defaultOptions,
   });
 }

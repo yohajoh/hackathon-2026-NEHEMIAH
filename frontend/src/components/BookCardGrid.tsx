@@ -29,20 +29,12 @@ type Props = {
 };
 
 export const BookCardGrid = ({ books, loading, listQuery = "" }: Props) => {
-  const toSlug = (value: string) =>
-    value
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-");
-
   const detailHref = (book: Book) => {
     const params = new URLSearchParams();
     if (book.type === "digital") params.set("type", "digital");
     if (listQuery) params.set("from", listQuery);
     const query = params.toString();
-    const path = book.type === "digital" ? toSlug(book.title) : book.id;
+    const path = book.id;
     return query ? `/books/${path}?${query}` : `/books/${path}`;
   };
 

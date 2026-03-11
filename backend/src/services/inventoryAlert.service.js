@@ -1,6 +1,6 @@
-import { prisma } from '../prisma.js';
-import { AppError } from '../middlewares/error.middleware.js';
-import { paginationMeta } from '../utils/apiFeatures.js';
+import { prisma } from "../prisma.js";
+import { AppError } from "../middlewares/error.middleware.js";
+import { paginationMeta } from "../utils/apiFeatures.js";
 
 const DEFAULT_CONFIG = {
   low_stock_threshold: 2,
@@ -10,7 +10,7 @@ const DEFAULT_CONFIG = {
 const getConfig = async () => {
   try {
     const config = await prisma.systemConfig.findFirst({
-      orderBy: { id: 'desc' },
+      orderBy: { id: "desc" },
       select: {
         id: true,
         low_stock_threshold: true,
@@ -20,9 +20,9 @@ const getConfig = async () => {
     return config ? { ...DEFAULT_CONFIG, ...config } : { ...DEFAULT_CONFIG };
   } catch (error) {
     // Backward compatibility: older DBs may not have new SystemConfig columns yet.
-    if (error?.code === 'P2022') {
+    if (error?.code === "P2022") {
       const legacy = await prisma.systemConfig.findFirst({
-        orderBy: { id: 'desc' },
+        orderBy: { id: "desc" },
         select: { id: true },
       });
       return legacy ? { ...DEFAULT_CONFIG, ...legacy } : { ...DEFAULT_CONFIG };
@@ -46,13 +46,39 @@ export const syncLowStockAlertForBook = async (bookId) => {
   const existing = await prisma.inventoryAlert.findFirst({
     where: {
       book_id: book.id,
-      type: 'LOW_STOCK',
+      type: "LOW_STOCK",
       is_resolved: false,
     },
-    orderBy: { created_at: 'desc' },
+    orderBy: { created_at: "desc" },
   });
 
-  if (book.available <= threshold) {
+  if (book.available === 0) {
+    const message = `Out of stock: "${book.title}" has 0/${book.copies} copies available.`;
+    if (existing) {
+      return prisma.inventoryAlert.update({
+        where: { id: existing.id },
+        data: {
+          current_available: book.available,
+          threshold,
+          message,
+          severity: "HIGH",
+        },
+      });
+    }
+
+    return prisma.inventoryAlert.create({
+      data: {
+        book_id: book.id,
+        type: "LOW_STOCK",
+        severity: "HIGH",
+        threshold,
+        current_available: book.available,
+        message,
+      },
+    });
+  }
+
+  if (book.available > 0 && book.available <= threshold) {
     const message = `Low stock: "${book.title}" has ${book.available}/${book.copies} copies available.`;
     if (existing) {
       return prisma.inventoryAlert.update({
@@ -61,7 +87,7 @@ export const syncLowStockAlertForBook = async (bookId) => {
           current_available: book.available,
           threshold,
           message,
-          severity: book.available === 0 ? 'HIGH' : 'MEDIUM',
+          severity: "MEDIUM",
         },
       });
     }
@@ -69,8 +95,8 @@ export const syncLowStockAlertForBook = async (bookId) => {
     return prisma.inventoryAlert.create({
       data: {
         book_id: book.id,
-        type: 'LOW_STOCK',
-        severity: book.available === 0 ? 'HIGH' : 'MEDIUM',
+        type: "LOW_STOCK",
+        severity: "MEDIUM",
         threshold,
         current_available: book.available,
         message,
@@ -95,7 +121,7 @@ export const scanExtendedOverdueAlerts = async () => {
   const now = new Date();
   const rentals = await prisma.rental.findMany({
     where: /** @type {any} */ ({
-      status: 'BORROWED',
+      status: "BORROWED",
       due_date: { lt: now },
     }),
     select: {
@@ -116,7 +142,7 @@ export const scanExtendedOverdueAlerts = async () => {
     const existing = await prisma.inventoryAlert.findFirst({
       where: {
         book_id: rental.book_id,
-        type: 'EXTENDED_OVERDUE',
+        type: "EXTENDED_OVERDUE",
         is_resolved: false,
         message: { contains: rental.id },
       },
@@ -126,8 +152,8 @@ export const scanExtendedOverdueAlerts = async () => {
       await prisma.inventoryAlert.create({
         data: {
           book_id: rental.book_id,
-          type: 'EXTENDED_OVERDUE',
-          severity: days >= 30 ? 'HIGH' : 'MEDIUM',
+          type: "EXTENDED_OVERDUE",
+          severity: days >= 30 ? "HIGH" : "MEDIUM",
           message: `Extended overdue rental ${rental.id}: "${rental.physical_book.title}" is ${days} day(s) overdue by ${rental.user.name} (${rental.user.email}).`,
           current_available: null,
           threshold: 14,
@@ -148,7 +174,7 @@ export const scanNeverReturnedAlerts = async () => {
   const now = new Date();
   const rentals = await prisma.rental.findMany({
     where: /** @type {any} */ ({
-      status: 'BORROWED',
+      status: "BORROWED",
       due_date: { lt: now },
     }),
     select: {
@@ -168,7 +194,7 @@ export const scanNeverReturnedAlerts = async () => {
     const existing = await prisma.inventoryAlert.findFirst({
       where: {
         book_id: rental.book_id,
-        type: 'NEVER_RETURNED',
+        type: "NEVER_RETURNED",
         is_resolved: false,
         message: { contains: rental.id },
       },
@@ -178,8 +204,8 @@ export const scanNeverReturnedAlerts = async () => {
     await prisma.inventoryAlert.create({
       data: {
         book_id: rental.book_id,
-        type: 'NEVER_RETURNED',
-        severity: days >= thresholdDays * 2 ? 'HIGH' : 'MEDIUM',
+        type: "NEVER_RETURNED",
+        severity: days >= thresholdDays * 2 ? "HIGH" : "MEDIUM",
         threshold: thresholdDays,
         current_available: null,
         message: `Never-returned risk rental ${rental.id}: "${rental.physical_book.title}" is ${days} day(s) overdue by ${rental.user.name} (${rental.user.email}).`,
@@ -199,8 +225,8 @@ export const getInventoryAlerts = async (query) => {
   const where = {};
   if (query.type) where.type = query.type;
   if (query.severity) where.severity = query.severity;
-  if (query.is_resolved === 'true') where.is_resolved = true;
-  if (query.is_resolved === 'false') where.is_resolved = false;
+  if (query.is_resolved === "true") where.is_resolved = true;
+  if (query.is_resolved === "false") where.is_resolved = false;
 
   const [alerts, total] = await Promise.all([
     prisma.inventoryAlert.findMany({
@@ -220,7 +246,7 @@ export const getInventoryAlerts = async (query) => {
           select: { id: true, name: true, email: true },
         },
       },
-      orderBy: [{ is_resolved: 'asc' }, { created_at: 'desc' }],
+      orderBy: [{ is_resolved: "asc" }, { created_at: "desc" }],
       skip,
       take: limit,
     }),
@@ -232,7 +258,7 @@ export const getInventoryAlerts = async (query) => {
 
 export const resolveInventoryAlert = async (id, adminUserId) => {
   const alert = await prisma.inventoryAlert.findUnique({ where: { id } });
-  if (!alert) throw new AppError('Inventory alert not found', 404);
+  if (!alert) throw new AppError("Inventory alert not found", 404);
   if (alert.is_resolved) return alert;
 
   return prisma.inventoryAlert.update({

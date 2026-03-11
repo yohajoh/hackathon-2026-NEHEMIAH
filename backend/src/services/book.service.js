@@ -112,6 +112,28 @@ const BOOK_LIST_INCLUDE = {
   _count: { select: { rentals: true, reviews: true, wishlists: true } },
 };
 
+const BOOK_LIST_SELECT = {
+  id: true,
+  title: true,
+  author_id: true,
+  category_id: true,
+  description: true,
+  cover_image_url: true,
+  copies: true,
+  available: true,
+  pages: true,
+  isbn: true,
+  language: true,
+  publication_year: true,
+  publisher: true,
+  tags: true,
+  topics: true,
+  author: BOOK_LIST_INCLUDE.author,
+  category: BOOK_LIST_INCLUDE.category,
+  images: BOOK_LIST_INCLUDE.images,
+  _count: BOOK_LIST_INCLUDE._count,
+};
+
 /**
  * Standard include block for a physical book detail view.
  */
@@ -376,7 +398,7 @@ export const getBooks = async (query) => {
   const [books, total] = await Promise.all([
     prisma.book.findMany({
       where,
-      include: BOOK_LIST_INCLUDE,
+      select: BOOK_LIST_SELECT,
       orderBy,
       skip,
       take: limit,
@@ -615,6 +637,17 @@ export const createBook = async (data, imageFile = null, galleryFiles = []) => {
   const copiesRaw = data.copies ?? data.total;
   const copiesInt = Math.max(1, parseInt(copiesRaw, 10) || 1);
   const pagesInt = Math.max(1, parseInt(data.pages, 10) || 100);
+  const loanDurationDays = data.loan_duration_days ? parseInt(data.loan_duration_days, 10) : null;
+  const rentalPrice = data.rental_price !== undefined ? Number(data.rental_price) : 10;
+  if (
+    loanDurationDays !== null &&
+    (!Number.isFinite(loanDurationDays) || loanDurationDays < 1 || loanDurationDays > 365)
+  ) {
+    throw new AppError("loan_duration_days must be between 1 and 365", 400);
+  }
+  if (!Number.isFinite(rentalPrice) || rentalPrice <= 0) {
+    throw new AppError("rental_price must be a positive number", 400);
+  }
   const description = data.description?.trim() || "No description provided.";
   const tags = parseList(data.tags);
   const topics = parseList(data.topics);
@@ -640,6 +673,8 @@ export const createBook = async (data, imageFile = null, galleryFiles = []) => {
       available: copiesInt, // all copies start available
       pages: pagesInt,
       publication_year: data.publication_year ? parseInt(data.publication_year, 10) : null,
+      loan_duration_days: loanDurationDays,
+      rental_price: rentalPrice,
       tags,
       topics,
     },
@@ -692,6 +727,20 @@ export const updateBook = async (id, data, imageFile = null, galleryFiles = []) 
   if (data.pages) updateData.pages = parseInt(data.pages, 10);
   if (data.publication_year !== undefined) {
     updateData.publication_year = data.publication_year ? parseInt(data.publication_year, 10) : null;
+  }
+  if (data.loan_duration_days !== undefined) {
+    const parsedLoanDays = data.loan_duration_days ? parseInt(data.loan_duration_days, 10) : null;
+    if (parsedLoanDays !== null && (!Number.isFinite(parsedLoanDays) || parsedLoanDays < 1 || parsedLoanDays > 365)) {
+      throw new AppError("loan_duration_days must be between 1 and 365", 400);
+    }
+    updateData.loan_duration_days = parsedLoanDays;
+  }
+  if (data.rental_price !== undefined) {
+    const parsedPrice = Number(data.rental_price);
+    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+      throw new AppError("rental_price must be a positive number", 400);
+    }
+    updateData.rental_price = parsedPrice;
   }
   if (data.tags !== undefined) updateData.tags = parseList(data.tags);
   if (data.topics !== undefined) updateData.topics = parseList(data.topics);
@@ -856,6 +905,13 @@ export const deleteBook = async (id) => {
 
 /** Get real-time availability status for a book. */
 export const getBookAvailability = async (id) => {
+  const config = await prisma.systemConfig
+    .findFirst({
+      orderBy: { id: "desc" },
+      select: { low_stock_threshold: true },
+    })
+    .catch(() => null);
+
   const book = await prisma.book.findFirst({
     where: { id, deleted_at: null },
     select: {
@@ -879,6 +935,8 @@ export const getBookAvailability = async (id) => {
     available: book.available,
     borrowed: activeRentals,
     isAvailable: book.available > 0,
+    isLowStock: book.available > 0 && book.available <= Number(config?.low_stock_threshold ?? 2),
+    lowStockThreshold: Number(config?.low_stock_threshold ?? 2),
   };
 };
 

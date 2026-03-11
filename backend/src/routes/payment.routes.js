@@ -17,8 +17,9 @@ router.post("/webhook", express.raw({ type: "application/json", limit: "1mb" }),
 router.use(protect);
 
 // ─── Student routes ───────────────────────────────────────────────────────────
-router.use(["/mine", "/rental/:rentalId/initiate", "/verify/:txRef"], restrictTo("STUDENT"));
+router.use(["/mine", "/debt-summary", "/rental/:rentalId/initiate", "/verify/:txRef"], restrictTo("STUDENT"));
 router.get("/mine", paymentController.getMyPayments); // Payment history
+router.get("/debt-summary", paymentController.getMyDebtSummary); // Outstanding overdue fines summary
 router.post("/rental/:rentalId/initiate", paymentController.initiatePayment); // Start payment
 router.get("/verify/:txRef", paymentController.verifyPayment); // Verify against Chapa
 

@@ -330,7 +330,7 @@ export default function BookDetailPage() {
       if (!targetRentalId) {
         const borrowRes = await fetchApi("/rentals/borrow", {
           method: "POST",
-          body: JSON.stringify({ book_id: physicalBook.id }),
+          body: JSON.stringify({ book_id: physicalBook.id, allow_debt_settlement: true }),
         });
         targetRentalId = borrowRes?.data?.rental?.id;
       }

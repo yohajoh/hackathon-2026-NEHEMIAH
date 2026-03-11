@@ -28,6 +28,7 @@ export const borrowBook = async (req, res) => {
   const rental = await rentalService.borrowBook(req.user.id, req.body, getIo(req), {
     actorUserId: req.user.id,
     studentProfileId: req.authContext?.activePersona === "STUDENT" ? req.authContext.studentProfileId : null,
+    allowDebtSettlement: req.body?.allow_debt_settlement,
   });
 
   res.status(201).json({ status: "success", data: { rental } });

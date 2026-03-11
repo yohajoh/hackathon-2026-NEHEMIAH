@@ -13,11 +13,11 @@
  */
 /* eslint-disable n/no-unsupported-features/node-builtins */
 
-import { prisma } from '../prisma.js';
-import { AppError } from '../middlewares/error.middleware.js';
-import { paginationMeta } from '../utils/apiFeatures.js';
-import { createNotification, notifyAdmins } from './notification.service.js';
-import crypto from 'crypto';
+import { prisma } from "../prisma.js";
+import { AppError } from "../middlewares/error.middleware.js";
+import { paginationMeta } from "../utils/apiFeatures.js";
+import { createNotification, notifyAdmins } from "./notification.service.js";
+import crypto from "crypto";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -26,20 +26,20 @@ import crypto from 'crypto';
 /** Generate unique transaction reference */
 const generateTxRef = (_userId) => {
   const timestamp = Date.now();
-  const random = crypto.randomBytes(4).toString('hex').toUpperCase();
+  const random = crypto.randomBytes(4).toString("hex").toUpperCase();
   return `BRANA-${timestamp}-${random}`;
 };
 
 const formatChapaErrorMessage = (message) => {
-  if (!message) return 'Failed to initialize Chapa payment';
-  if (typeof message === 'string') return message;
-  if (Array.isArray(message)) return message.join(', ');
-  if (typeof message === 'object') {
+  if (!message) return "Failed to initialize Chapa payment";
+  if (typeof message === "string") return message;
+  if (Array.isArray(message)) return message.join(", ");
+  if (typeof message === "object") {
     const parts = Object.entries(message).map(([field, value]) => {
-      if (Array.isArray(value)) return `${field}: ${value.join(', ')}`;
+      if (Array.isArray(value)) return `${field}: ${value.join(", ")}`;
       return `${field}: ${String(value)}`;
     });
-    return parts.join(' | ');
+    return parts.join(" | ");
   }
   return String(message);
 };
@@ -53,16 +53,7 @@ const sanitizeChapaText = (value, fallback) => {
   return cleaned || fallback;
 };
 
-const initializeChapaPayment = async ({
-  amount,
-  email,
-  firstName,
-  lastName,
-  txRef,
-  rentalId,
-  title,
-  description,
-}) => {
+const initializeChapaPayment = async ({ amount, email, firstName, lastName, txRef, rentalId, title, description }) => {
   const chapaSecret = process.env.CHAPA_SECRET_KEY;
   if (!chapaSecret) {
     return {
@@ -119,21 +110,13 @@ const initializeChapaPayment = async ({
   return result?.data || {};
 };
 
-const getBorrowPaymentAmount = () => {
-  const parsed = Number(process.env.BORROW_PAYMENT_AMOUNT ?? 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new AppError('BORROW_PAYMENT_AMOUNT must be a positive number', 500);
-  }
-  return parsed;
-};
-
 /** Verify Chapa HMAC signature */
 const verifySignature = (payload, signature) => {
   const secret = process.env.CHAPA_WEBHOOK_SECRET;
   if (!secret) return true; // Skip in dev if not set
 
-  const rawBody = typeof payload === 'string' ? payload : JSON.stringify(payload);
-  const computed = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+  const rawBody = typeof payload === "string" ? payload : JSON.stringify(payload);
+  const computed = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
   return computed === signature;
 };
 
@@ -141,9 +124,70 @@ const PAYMENT_INCLUDE = {
   rental: {
     include: {
       user: { select: { id: true, name: true, email: true, student_id: true } },
-      physical_book: { select: { id: true, title: true } },
+      physical_book: { select: { id: true, title: true, rental_price: true } },
     },
   },
+};
+
+const roundMoney = (value) => Number(Number(value || 0).toFixed(2));
+
+const getOutstandingFineRentals = async (userId, excludeRentalId = null) => {
+  const rentals = await prisma.rental.findMany({
+    where: {
+      user_id: userId,
+      status: "PENDING",
+      fine: { gt: 0 },
+      return_date: { not: null },
+      ...(excludeRentalId ? { id: { not: excludeRentalId } } : {}),
+    },
+    select: {
+      id: true,
+      fine: true,
+      physical_book: { select: { title: true } },
+    },
+  });
+
+  const total = roundMoney(rentals.reduce((sum, item) => sum + Number(item.fine || 0), 0));
+  return { rentals, total };
+};
+
+export const getMyDebtSummary = async (userId) => {
+  const { rentals, total } = await getOutstandingFineRentals(userId);
+  return {
+    totalDebt: total,
+    hasDebt: total > 0,
+    count: rentals.length,
+    overdueFines: rentals.map((item) => ({
+      rental_id: item.id,
+      amount: roundMoney(item.fine),
+      book_title: item.physical_book?.title || "Book",
+    })),
+  };
+};
+
+const settlePaymentSuccessEffects = async (tx, payment) => {
+  const context = payment.context || "FINE";
+  if (context === "FINE") {
+    if (payment.rental.status === "PENDING" && Number(payment.rental.fine || 0) > 0) {
+      await tx.rental.update({
+        where: { id: payment.rental_id },
+        data: { status: "COMPLETED" },
+      });
+    }
+    return;
+  }
+
+  const debtIds = Array.isArray(payment.debt_rental_ids) ? payment.debt_rental_ids : [];
+  if (debtIds.length === 0) return;
+
+  await tx.rental.updateMany({
+    where: {
+      id: { in: debtIds },
+      user_id: payment.rental.user_id,
+      status: "PENDING",
+    },
+    data: { status: "COMPLETED" },
+  });
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -156,53 +200,67 @@ const PAYMENT_INCLUDE = {
  *
  * Returns: { payment, chapaUrl } or { payment, message } for CASH type.
  */
-export const initiatePayment = async (rentalId, userId, { method = 'CHAPA', context = 'FINE' } = {}, io) => {
+export const initiatePayment = async (rentalId, userId, { method = "CHAPA", context = "FINE" } = {}, io) => {
   const rental = await prisma.rental.findUnique({
     where: { id: rentalId },
     include: {
       user: { select: { id: true, name: true, email: true } },
-      physical_book: { select: { id: true, title: true } },
+      physical_book: { select: { id: true, title: true, rental_price: true } },
       payment: true,
     },
   });
 
-  if (!rental) throw new AppError('Rental not found', 404);
-  if (rental.user_id !== userId) throw new AppError('This is not your rental', 403);
-  const normalizedContext = String(context || 'FINE').toUpperCase();
-  const isBorrowPayment = normalizedContext === 'BORROW';
+  if (!rental) throw new AppError("Rental not found", 404);
+  if (rental.user_id !== userId) throw new AppError("This is not your rental", 403);
+  const normalizedContext = String(context || "FINE").toUpperCase();
+  const isBorrowPayment = normalizedContext === "BORROW";
+
+  let payableAmount = 0;
+  let rentalCharge = null;
+  let debtAmount = null;
+  let debtRentalIds = [];
 
   if (isBorrowPayment) {
-    if (rental.status !== 'BORROWED') {
-      throw new AppError('Borrow payment can only be initiated for BORROWED rentals', 400);
+    if (rental.status !== "BORROWED") {
+      throw new AppError("Borrow payment can only be initiated for BORROWED rentals", 400);
     }
+
+    rentalCharge = roundMoney(Number(rental.physical_book?.rental_price || 0));
+    if (rentalCharge <= 0) {
+      throw new AppError("Book rental price is invalid. Please contact admin.", 400);
+    }
+
+    const outstandingDebt = await getOutstandingFineRentals(userId, rentalId);
+    debtAmount = outstandingDebt.total;
+    debtRentalIds = outstandingDebt.rentals.map((entry) => entry.id);
+    payableAmount = roundMoney(rentalCharge + debtAmount);
   } else {
-    if (rental.status !== 'PENDING') {
-      throw new AppError(
-        'Payment can only be initiated for rentals with a pending fine (PENDING status)',
-        400
-      );
+    if (rental.status !== "PENDING") {
+      throw new AppError("Payment can only be initiated for rentals with a pending fine (PENDING status)", 400);
     }
     if (!rental.fine || Number(rental.fine) <= 0) {
-      throw new AppError('No fine is due for this rental', 400);
+      throw new AppError("No fine is due for this rental", 400);
     }
+    payableAmount = roundMoney(Number(rental.fine));
+    debtAmount = 0;
+    debtRentalIds = [];
   }
 
-  const payableAmount = isBorrowPayment ? getBorrowPaymentAmount() : Number(rental.fine);
-  const validMethods = ['CHAPA', 'CASH'];
-  const paymentMethod = String(method || 'CHAPA').toUpperCase();
+  const validMethods = ["CHAPA", "CASH"];
+  const paymentMethod = String(method || "CHAPA").toUpperCase();
   if (!validMethods.includes(paymentMethod)) {
-    throw new AppError('Payment method must be CHAPA or CASH', 400);
+    throw new AppError("Payment method must be CHAPA or CASH", 400);
   }
 
   // Only one payment per rental
   if (rental.payment) {
-    if (rental.payment.status === 'SUCCESS') {
+    if (rental.payment.status === "SUCCESS" && rental.payment.context === (isBorrowPayment ? "BORROW" : "FINE")) {
       throw new AppError(
-        isBorrowPayment ? 'Borrow payment has already been completed' : 'Fine has already been paid successfully',
-        409
+        isBorrowPayment ? "Borrow payment has already been completed" : "Fine has already been paid successfully",
+        409,
       );
     }
-    if (rental.payment.status === 'PENDING') {
+    if (rental.payment.status === "PENDING") {
       // Re-issue a fresh tx_ref + checkout URL because prior checkout links can expire.
       const tx_ref = generateTxRef(userId);
       const updated = await prisma.payment.update({
@@ -210,18 +268,22 @@ export const initiatePayment = async (rentalId, userId, { method = 'CHAPA', cont
         data: {
           tx_ref,
           amount: payableAmount,
+          context: isBorrowPayment ? "BORROW" : "FINE",
+          rental_charge: rentalCharge,
+          debt_amount: debtAmount,
+          debt_rental_ids: debtRentalIds,
           method: /** @type {any} */ (paymentMethod),
-          status: 'PENDING',
+          status: "PENDING",
           paid_at: new Date(),
         },
       });
 
-      if (paymentMethod === 'CASH') {
+      if (paymentMethod === "CASH") {
         return {
           payment: updated,
           message: isBorrowPayment
-            ? 'Please visit the library desk to record your borrow payment in cash.'
-            : 'Please visit the library desk to pay your fine in cash.',
+            ? "Please visit the library desk to record your borrow payment in cash."
+            : "Please visit the library desk to pay your fine in cash.",
         };
       }
 
@@ -238,7 +300,7 @@ export const initiatePayment = async (rentalId, userId, { method = 'CHAPA', cont
           : `Fine payment for rental ${rentalId}`,
       });
       const chapaUrl = chapaData.checkout_url || `https://checkout.chapa.co/checkout/payment/${tx_ref}`;
-      return { payment: updated, chapaUrl, message: 'Payment checkout refreshed.' };
+      return { payment: updated, chapaUrl, message: "Payment checkout refreshed." };
     }
     // FAILED → allow retry: update existing payment
     const tx_ref = generateTxRef(userId);
@@ -247,18 +309,22 @@ export const initiatePayment = async (rentalId, userId, { method = 'CHAPA', cont
       data: {
         tx_ref,
         amount: payableAmount,
+        context: isBorrowPayment ? "BORROW" : "FINE",
+        rental_charge: rentalCharge,
+        debt_amount: debtAmount,
+        debt_rental_ids: debtRentalIds,
         method: /** @type {any} */ (method.toUpperCase()),
-        status: 'PENDING',
+        status: "PENDING",
         paid_at: new Date(),
       },
     });
 
-    if (method.toUpperCase() === 'CASH') {
+    if (method.toUpperCase() === "CASH") {
       return {
         payment: updated,
         message: isBorrowPayment
-          ? 'Please visit the library desk to record your borrow payment in cash.'
-          : 'Please visit the library desk to pay your fine in cash.',
+          ? "Please visit the library desk to record your borrow payment in cash."
+          : "Please visit the library desk to pay your fine in cash.",
       };
     }
 
@@ -275,7 +341,7 @@ export const initiatePayment = async (rentalId, userId, { method = 'CHAPA', cont
         : `Fine payment for rental ${rentalId}`,
     });
     const chapaUrl = chapaData.checkout_url || `https://checkout.chapa.co/checkout/payment/${tx_ref}`;
-    return { payment: updated, chapaUrl, message: 'Retrying payment.' };
+    return { payment: updated, chapaUrl, message: "Retrying payment." };
   }
 
   const tx_ref = generateTxRef(userId);
@@ -285,8 +351,12 @@ export const initiatePayment = async (rentalId, userId, { method = 'CHAPA', cont
       rental_id: rentalId,
       tx_ref,
       amount: payableAmount,
+      context: isBorrowPayment ? "BORROW" : "FINE",
+      rental_charge: rentalCharge,
+      debt_amount: debtAmount,
+      debt_rental_ids: debtRentalIds,
       method: /** @type {any} */ (paymentMethod),
-      status: 'PENDING',
+      status: "PENDING",
       paid_at: new Date(),
     },
     include: PAYMENT_INCLUDE,
@@ -296,18 +366,18 @@ export const initiatePayment = async (rentalId, userId, { method = 'CHAPA', cont
   await createNotification({
     userId,
     message: isBorrowPayment
-      ? `💳 Borrow payment initiated for "${rental.physical_book.title}". Amount: ${payableAmount.toFixed(2)} ETB. Please complete payment.`
+      ? `💳 Borrow checkout started for "${rental.physical_book.title}". Amount: ${payableAmount.toFixed(2)} ETB${debtAmount > 0 ? ` (includes ${debtAmount.toFixed(2)} ETB debt)` : ""}. Please complete payment.`
       : `💳 Fine payment initiated for "${rental.physical_book.title}". Amount: ${payableAmount.toFixed(2)} ETB. Please complete payment.`,
-    type: 'INFO',
+    type: "INFO",
     io,
   });
 
-  if (paymentMethod === 'CASH') {
+  if (paymentMethod === "CASH") {
     return {
       payment,
       message: isBorrowPayment
-        ? 'Please visit the library desk to record your borrow payment in cash.'
-        : 'Please visit the library desk to pay your fine in cash.',
+        ? "Please visit the library desk to record your borrow payment in cash."
+        : "Please visit the library desk to pay your fine in cash.",
     };
   }
 
@@ -341,13 +411,14 @@ export const initiatePayment = async (rentalId, userId, { method = 'CHAPA', cont
 export const handleWebhook = async (rawPayload, payload, signature, io) => {
   // Verify signature
   if (!verifySignature(rawPayload, signature)) {
-    throw new AppError('Invalid webhook signature', 401);
+    throw new AppError("Invalid webhook signature", 401);
   }
 
   const normalized = payload?.data ? payload.data : payload;
   const tx_ref = normalized?.tx_ref || normalized?.trx_ref || normalized?.reference;
   const status = normalized?.status;
-  if (!tx_ref) throw new AppError('Missing tx_ref in webhook payload', 400);
+  const paidAmount = Number(normalized?.amount ?? normalized?.data?.amount ?? normalized?.charged_amount ?? NaN);
+  if (!tx_ref) throw new AppError("Missing tx_ref in webhook payload", 400);
 
   const payment = await prisma.payment.findUnique({
     where: { tx_ref },
@@ -356,13 +427,33 @@ export const handleWebhook = async (rawPayload, payload, signature, io) => {
   if (!payment) throw new AppError(`Payment not found for tx_ref: ${tx_ref}`, 404);
 
   // Idempotency: ignore if already processed
-  if (payment.status === 'SUCCESS') {
-    return { message: 'Already processed', payment };
+  if (payment.status === "SUCCESS") {
+    return { message: "Already processed", payment };
   }
 
-  const isSuccess = status?.toLowerCase() === 'success';
-  const newPaymentStatus = isSuccess ? 'SUCCESS' : 'FAILED';
-  const isFinePayment = payment.rental.status === 'PENDING' && Number(payment.rental.fine || 0) > 0;
+  const isSuccess = status?.toLowerCase() === "success";
+  const newPaymentStatus = isSuccess ? "SUCCESS" : "FAILED";
+  const expectedAmount = roundMoney(payment.amount);
+  const hasAmountMismatch = Number.isFinite(paidAmount) && roundMoney(paidAmount) !== expectedAmount;
+  const context = payment.context || "FINE";
+  const isFinePayment = context === "FINE";
+
+  if (isSuccess && hasAmountMismatch) {
+    const mismatch = await prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: "FAILED", paid_at: new Date() },
+      include: PAYMENT_INCLUDE,
+    });
+
+    await createNotification({
+      userId: payment.rental.user_id,
+      message: `❌ Payment amount mismatch for "${payment.rental.physical_book.title}". Expected ${expectedAmount.toFixed(2)} ETB. Please retry payment.`,
+      type: "ALERT",
+      io,
+    });
+
+    return mismatch;
+  }
 
   // Atomic update: payment + rental
   const updated = await prisma.$transaction(async (tx) => {
@@ -375,11 +466,8 @@ export const handleWebhook = async (rawPayload, payload, signature, io) => {
       include: PAYMENT_INCLUDE,
     });
 
-    if (isSuccess && isFinePayment) {
-      await tx.rental.update({
-        where: { id: payment.rental_id },
-        data: { status: 'COMPLETED' },
-      });
+    if (isSuccess) {
+      await settlePaymentSuccessEffects(tx, updatedPayment);
     }
 
     return updatedPayment;
@@ -397,7 +485,7 @@ export const handleWebhook = async (rawPayload, payload, signature, io) => {
       message: isFinePayment
         ? `✅ Payment of ${amount} ETB for "${bookTitle}" was successful. Your rental is now fully completed. Thank you!`
         : `✅ Payment of ${amount} ETB for "${bookTitle}" was successful. You can continue using your borrowed book.`,
-      type: 'INFO',
+      type: "INFO",
       io,
     });
 
@@ -405,8 +493,8 @@ export const handleWebhook = async (rawPayload, payload, signature, io) => {
     await notifyAdmins({
       message: isFinePayment
         ? `💰 ${rental.user.name} paid ${amount} ETB fine for "${bookTitle}". Rental #${payment.rental_id} is now COMPLETED.`
-        : `💰 ${rental.user.name} paid ${amount} ETB borrow payment for "${bookTitle}".`,
-      type: 'INFO',
+        : `💰 ${rental.user.name} paid ${amount} ETB borrow checkout for "${bookTitle}"${Number(payment.debt_amount || 0) > 0 ? ` and settled ${Number(payment.debt_amount).toFixed(2)} ETB debt` : ""}.`,
+      type: "INFO",
       io,
     });
   } else {
@@ -414,7 +502,7 @@ export const handleWebhook = async (rawPayload, payload, signature, io) => {
     await createNotification({
       userId,
       message: `❌ Payment of ${amount} ETB for "${bookTitle}" failed (tx_ref: ${tx_ref}). Please try again from your rental history.`,
-      type: 'ALERT',
+      type: "ALERT",
       io,
     });
   }
@@ -435,27 +523,22 @@ export const recordCashPayment = async (paymentId, adminId, io) => {
     where: { id: paymentId },
     include: PAYMENT_INCLUDE,
   });
-  if (!payment) throw new AppError('Payment not found', 404);
-  if (payment.status === 'SUCCESS') {
-    throw new AppError('Payment has already been recorded as successful', 409);
+  if (!payment) throw new AppError("Payment not found", 404);
+  if (payment.status === "SUCCESS") {
+    throw new AppError("Payment has already been recorded as successful", 409);
   }
-  if (payment.method !== 'CASH') {
-    throw new AppError('This endpoint is only for CASH payments. Use the Chapa webhook for online payments.', 400);
+  if (payment.method !== "CASH") {
+    throw new AppError("This endpoint is only for CASH payments. Use the Chapa webhook for online payments.", 400);
   }
 
-  const isFinePayment = payment.rental.status === 'PENDING' && Number(payment.rental.fine || 0) > 0;
+  const isFinePayment = (payment.context || "FINE") === "FINE";
   const updated = await prisma.$transaction(async (tx) => {
     const updatedPayment = await tx.payment.update({
       where: { id: paymentId },
-      data: { status: 'SUCCESS', paid_at: new Date() },
+      data: { status: "SUCCESS", paid_at: new Date() },
       include: PAYMENT_INCLUDE,
     });
-    if (isFinePayment) {
-      await tx.rental.update({
-        where: { id: payment.rental_id },
-        data: { status: 'COMPLETED' },
-      });
-    }
+    await settlePaymentSuccessEffects(tx, updatedPayment);
     return updatedPayment;
   });
 
@@ -468,7 +551,7 @@ export const recordCashPayment = async (paymentId, adminId, io) => {
     message: isFinePayment
       ? `✅ Your cash payment of ${Number(payment.amount).toFixed(2)} ETB for "${bookTitle}" has been recorded by the librarian. Rental completed!`
       : `✅ Your cash payment of ${Number(payment.amount).toFixed(2)} ETB for "${bookTitle}" has been recorded by the librarian.`,
-    type: 'INFO',
+    type: "INFO",
     io,
   });
 
@@ -483,51 +566,57 @@ export const verifyPaymentByTxRef = async (txRef, user, io) => {
     where: { tx_ref: txRef },
     include: PAYMENT_INCLUDE,
   });
-  if (!payment) throw new AppError('Payment not found', 404);
+  if (!payment) throw new AppError("Payment not found", 404);
 
-  if (user.role !== 'ADMIN' && payment.rental.user_id !== user.id) {
-    throw new AppError('Forbidden', 403);
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN" && payment.rental.user_id !== user.id) {
+    throw new AppError("Forbidden", 403);
   }
 
-  if (payment.status === 'SUCCESS') {
-    return { payment, source: 'local' };
+  if (payment.status === "SUCCESS") {
+    return { payment, source: "local" };
   }
 
   const secret = process.env.CHAPA_SECRET_KEY;
   if (!secret) {
-    return { payment, source: 'local' };
+    return { payment, source: "local" };
   }
 
   const response = await fetch(`https://api.chapa.co/v1/transaction/verify/${encodeURIComponent(txRef)}`, {
-    method: 'GET',
+    method: "GET",
     headers: {
       Authorization: `Bearer ${secret}`,
       "Content-Type": "application/json",
     },
   });
   const result = await response.json();
-  const chapaStatus = String(result?.data?.status || result?.status || '').toLowerCase();
-  const isSuccess = chapaStatus === 'success';
-  const isFailed = chapaStatus === 'failed';
+  const chapaStatus = String(result?.data?.status || result?.status || "").toLowerCase();
+  const isSuccess = chapaStatus === "success";
+  const isFailed = chapaStatus === "failed";
 
   if (!response.ok || (!isSuccess && !isFailed)) {
-    return { payment, source: 'local' };
+    return { payment, source: "local" };
   }
 
-  if (isSuccess && payment.status !== 'SUCCESS') {
-    const isFinePayment = payment.rental.status === 'PENDING' && Number(payment.rental.fine || 0) > 0;
+  if (isSuccess && payment.status !== "SUCCESS") {
+    const chapaAmount = Number(result?.data?.amount ?? NaN);
+    const expectedAmount = roundMoney(payment.amount);
+    if (Number.isFinite(chapaAmount) && roundMoney(chapaAmount) !== expectedAmount) {
+      const mismatch = await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: "FAILED", paid_at: new Date() },
+        include: PAYMENT_INCLUDE,
+      });
+      return { payment: mismatch, source: "chapa" };
+    }
+
+    const isFinePayment = (payment.context || "FINE") === "FINE";
     const updated = await prisma.$transaction(async (tx) => {
       const updatedPayment = await tx.payment.update({
         where: { id: payment.id },
-        data: { status: 'SUCCESS', paid_at: new Date() },
+        data: { status: "SUCCESS", paid_at: new Date() },
         include: PAYMENT_INCLUDE,
       });
-      if (isFinePayment) {
-        await tx.rental.update({
-          where: { id: payment.rental_id },
-          data: { status: 'COMPLETED' },
-        });
-      }
+      await settlePaymentSuccessEffects(tx, updatedPayment);
       return updatedPayment;
     });
 
@@ -536,23 +625,23 @@ export const verifyPaymentByTxRef = async (txRef, user, io) => {
       message: isFinePayment
         ? `✅ Payment of ${Number(updated.amount).toFixed(2)} ETB for "${updated.rental.physical_book.title}" was verified successfully.`
         : `✅ Borrow payment of ${Number(updated.amount).toFixed(2)} ETB for "${updated.rental.physical_book.title}" was verified successfully.`,
-      type: 'INFO',
+      type: "INFO",
       io,
     });
 
-    return { payment: updated, source: 'chapa' };
+    return { payment: updated, source: "chapa" };
   }
 
-  if (isFailed && payment.status !== 'FAILED') {
+  if (isFailed && payment.status !== "FAILED") {
     const updated = await prisma.payment.update({
       where: { id: payment.id },
-      data: { status: 'FAILED', paid_at: new Date() },
+      data: { status: "FAILED", paid_at: new Date() },
       include: PAYMENT_INCLUDE,
     });
-    return { payment: updated, source: 'chapa' };
+    return { payment: updated, source: "chapa" };
   }
 
-  return { payment, source: 'chapa' };
+  return { payment, source: "chapa" };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -573,19 +662,24 @@ export const getMyPayments = async (userId, query) => {
   const where = /** @type {any} */ ({ rental: { user_id: userId } });
   if (query.status) {
     const s = query.status.toUpperCase();
-    if (['PENDING', 'SUCCESS', 'FAILED'].includes(s)) where.status = s;
+    if (["PENDING", "SUCCESS", "FAILED"].includes(s)) where.status = s;
   }
 
   const [payments, total, totals] = await Promise.all([
     prisma.payment.findMany({
       where,
-      orderBy: { paid_at: 'desc' },
+      orderBy: { paid_at: "desc" },
       skip,
       take: limit,
       include: {
         rental: {
           select: {
-            id: true, loan_date: true, due_date: true, return_date: true, status: true, fine: true,
+            id: true,
+            loan_date: true,
+            due_date: true,
+            return_date: true,
+            status: true,
+            fine: true,
             physical_book: { select: { id: true, title: true, cover_image_url: true } },
           },
         },
@@ -593,7 +687,7 @@ export const getMyPayments = async (userId, query) => {
     }),
     prisma.payment.count({ where }),
     prisma.payment.aggregate({
-      where: { rental: { user_id: userId }, status: 'SUCCESS' },
+      where: { rental: { user_id: userId }, status: "SUCCESS" },
       _sum: { amount: true },
       _count: { id: true },
     }),
@@ -632,11 +726,11 @@ export const getAllPayments = async (query) => {
 
   if (query.status) {
     const s = query.status.toUpperCase();
-    if (['PENDING', 'SUCCESS', 'FAILED'].includes(s)) where.status = s;
+    if (["PENDING", "SUCCESS", "FAILED"].includes(s)) where.status = s;
   }
   if (query.method) {
     const m = query.method.toUpperCase();
-    if (['CHAPA', 'CASH'].includes(m)) where.method = m;
+    if (["CHAPA", "CASH"].includes(m)) where.method = m;
   }
 
   // Date range filter
@@ -654,10 +748,7 @@ export const getAllPayments = async (query) => {
     const q = query.search.trim();
     where.rental = {
       user: {
-        OR: [
-          { name: { contains: q, mode: 'insensitive' } },
-          { email: { contains: q, mode: 'insensitive' } },
-        ],
+        OR: [{ name: { contains: q, mode: "insensitive" } }, { email: { contains: q, mode: "insensitive" } }],
       },
     };
   }
@@ -665,7 +756,7 @@ export const getAllPayments = async (query) => {
   const [payments, total, revenueStats] = await Promise.all([
     prisma.payment.findMany({
       where,
-      orderBy: { paid_at: 'desc' },
+      orderBy: { paid_at: "desc" },
       skip,
       take: limit,
       include: PAYMENT_INCLUDE,
@@ -673,7 +764,7 @@ export const getAllPayments = async (query) => {
     prisma.payment.count({ where }),
     // Revenue breakdown for the current filter
     prisma.payment.aggregate({
-      where: { ...where, status: 'SUCCESS' },
+      where: { ...where, status: "SUCCESS" },
       _sum: { amount: true },
       _count: { id: true },
     }),
