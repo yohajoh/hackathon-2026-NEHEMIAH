@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2, Pencil, Search, Plus, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Search, Plus, ChevronLeft, ChevronRight, X, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from "@/lib/hooks/useQueries";
 
@@ -19,6 +19,8 @@ export default function AdminCategoriesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [openMenuCategoryId, setOpenMenuCategoryId] = useState<string | null>(null);
+  const [deleteCategoryCandidate, setDeleteCategoryCandidate] = useState<{ id: string; name: string } | null>(null);
 
   const { data: categoriesData, isLoading } = useCategories();
   const createCategory = useCreateCategory();
@@ -57,11 +59,11 @@ export default function AdminCategoriesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this category?")) return;
+  const handleDelete = async (candidate: { id: string; name: string }) => {
     try {
-      await deleteCategory.mutateAsync(id);
+      await deleteCategory.mutateAsync(candidate.id);
       toast.success("Category deleted successfully");
+      setDeleteCategoryCandidate(null);
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to delete category"));
     }
@@ -86,7 +88,7 @@ export default function AdminCategoriesPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-visible">
           {isLoading ? (
             <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B6B4A]" /></div>
           ) : (
@@ -105,9 +107,41 @@ export default function AdminCategoriesPage() {
                     <span className="text-sm font-bold text-[#2B1A10]">{category.name}</span>
                     <span className="text-sm text-[#2B1A10]/70 text-center">{category._count?.books || 0}</span>
                     <span className="text-sm text-[#2B1A10]/70 text-center">{category._count?.digital_books || 0}</span>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => openEdit(category)} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-[#2B1A10] hover:bg-[#F3EFE6]"><Pencil size={15} /></button>
-                      <button onClick={() => handleDelete(category.id)} disabled={deletingCategoryId === category.id} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-red-500 hover:bg-red-50 disabled:opacity-40"><Trash2 size={15} /></button>
+                    <div className="relative flex justify-end" onClick={(event) => event.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => setOpenMenuCategoryId((current) => (current === category.id ? null : category.id))}
+                        className="h-9 w-9 rounded-full border border-[#E1D2BD] bg-[#FFFDF9] text-[#8B6B4A] flex items-center justify-center"
+                        aria-label={`Open actions for ${category.name}`}
+                      >
+                        <MoreHorizontal size={16} />
+                      </button>
+
+                      {openMenuCategoryId === category.id ? (
+                        <div className="absolute right-0 top-11 z-2147483646 min-w-56 overflow-hidden rounded-xl border border-[#E6D7C4] bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenMenuCategoryId(null);
+                              openEdit(category);
+                            }}
+                            className="flex w-full items-center px-3 py-2.5 text-left text-sm font-semibold text-[#2B1A10] hover:bg-[#F8F2E9]"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenMenuCategoryId(null);
+                              setDeleteCategoryCandidate({ id: category.id, name: category.name });
+                            }}
+                            disabled={deletingCategoryId === category.id}
+                            className="flex w-full items-center px-3 py-2.5 text-left text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-40"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ))
@@ -134,7 +168,7 @@ export default function AdminCategoriesPage() {
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
             <div className="flex items-center justify-between px-8 pt-7 pb-4 border-b border-[#E1D2BD]/50">
               <h3 className="text-xl font-serif font-extrabold text-[#2B1A10]">{editingId ? "Edit Category" : "Add Category"}</h3>
-              <button onClick={() => setShowModal(false)} className="w-8 h-8 flex items-center justify-center text-[#AE9E85] hover:text-[#2B1A10] rounded-lg"><X size={18} /></button>
+              <button onClick={() => setShowModal(false)} title="Close" aria-label="Close" className="w-8 h-8 flex items-center justify-center text-[#AE9E85] hover:text-[#2B1A10] rounded-lg"><X size={18} /></button>
             </div>
             <form onSubmit={handleSave} className="px-8 py-6 space-y-4">
               <div><label className="block text-sm font-bold text-[#2B1A10] mb-1.5">Category Name</label><input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]" placeholder="Enter category name" /></div>
@@ -142,6 +176,43 @@ export default function AdminCategoriesPage() {
                 {createCategory.isPending || updateCategory.isPending ? "Saving..." : editingId ? "Update Category" : "Create Category"}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {deleteCategoryCandidate && (
+        <div
+          className="fixed inset-0 z-10000 bg-[#2B1A10]/35 flex items-center justify-center p-4"
+          onClick={() => !deleteCategory.isPending && setDeleteCategoryCandidate(null)}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="w-full max-w-md rounded-[28px] border border-[#E1D2BD] bg-[#FFF9F1] p-6 shadow-2xl"
+          >
+            <div className="space-y-2">
+              <h3 className="text-2xl font-serif font-black text-[#2B1A10]">Delete Category?</h3>
+              <p className="text-sm text-[#7B6853] leading-6">
+                This will remove <span className="font-bold text-[#2B1A10]">{deleteCategoryCandidate.name}</span> if no linked books depend on it.
+              </p>
+            </div>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteCategoryCandidate(null)}
+                disabled={deleteCategory.isPending}
+                className="px-4 py-2.5 rounded-xl border border-[#D9C8B3] text-sm font-bold text-[#6C5236] disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(deleteCategoryCandidate)}
+                disabled={deleteCategory.isPending}
+                className="px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-red-700 disabled:opacity-40"
+              >
+                {deleteCategory.isPending ? "Deleting..." : "Delete Category"}
+              </button>
+            </div>
           </div>
         </div>
       )}

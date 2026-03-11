@@ -182,7 +182,8 @@ async function main() {
           status,
           reserved_at: reservedAt,
           notified_at: status === "NOTIFIED" || status === "FULFILLED" ? new Date(reservedAt.getTime() + DAY_MS) : null,
-          expires_at: status === "NOTIFIED" || status === "EXPIRED" ? new Date(reservedAt.getTime() + 2 * DAY_MS) : null,
+          expires_at:
+            status === "NOTIFIED" || status === "EXPIRED" ? new Date(reservedAt.getTime() + 2 * DAY_MS) : null,
           fulfilled_at: status === "FULFILLED" ? new Date(reservedAt.getTime() + 2 * DAY_MS) : null,
           cancelled_at: status === "CANCELLED" ? new Date(reservedAt.getTime() + DAY_MS) : null,
         },

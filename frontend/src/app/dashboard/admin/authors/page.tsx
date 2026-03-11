@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
-import { Trash2, Search, Plus, ChevronLeft, ChevronRight, X, Upload, Pencil } from "lucide-react";
+import { Search, Plus, ChevronLeft, ChevronRight, X, Upload, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthors, useCreateAuthor, useUpdateAuthor, useDeleteAuthor, Author } from "@/lib/hooks/useQueries";
 
@@ -16,6 +16,8 @@ export default function AdminAuthorsPage() {
   const [form, setForm] = useState({ name: "", bio: "" });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [openMenuAuthorId, setOpenMenuAuthorId] = useState<string | null>(null);
+  const [deleteAuthorCandidate, setDeleteAuthorCandidate] = useState<{ id: string; name: string } | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const { data: authorsData, isLoading } = useAuthors();
@@ -86,11 +88,11 @@ export default function AdminAuthorsPage() {
     }
   };
 
-  const handleDeleteAuthor = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this author?")) return;
+  const handleDeleteAuthor = async (candidate: { id: string; name: string }) => {
     try {
-      await deleteAuthor.mutateAsync(id);
+      await deleteAuthor.mutateAsync(candidate.id);
       toast.success("Author deleted successfully");
+      setDeleteAuthorCandidate(null);
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to delete author"));
     }
@@ -115,7 +117,7 @@ export default function AdminAuthorsPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-visible">
           {isLoading ? (
             <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B6B4A]"></div></div>
           ) : (
@@ -153,9 +155,41 @@ export default function AdminAuthorsPage() {
                     <span className="text-sm text-[#2B1A10]/70 text-center">Mixed</span>
                     <span className="text-sm text-[#2B1A10]/70 text-center font-bold">{(author._count?.books || 0) + (author._count?.digital_books || 0)}</span>
                     <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-green-50 text-green-700 w-fit mx-auto">Active</span>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => openEditModal(author)} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-[#2B1A10] hover:bg-[#F3EFE6]"><Pencil size={15} /></button>
-                      <button onClick={() => handleDeleteAuthor(author.id)} disabled={deletingAuthorId === author.id} className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-red-500 hover:bg-red-50 disabled:opacity-40"><Trash2 size={15} /></button>
+                    <div className="relative flex justify-end" onClick={(event) => event.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => setOpenMenuAuthorId((current) => (current === author.id ? null : author.id))}
+                        className="h-9 w-9 rounded-full border border-[#E1D2BD] bg-[#FFFDF9] text-[#8B6B4A] flex items-center justify-center"
+                        aria-label={`Open actions for ${author.name}`}
+                      >
+                        <MoreHorizontal size={16} />
+                      </button>
+
+                      {openMenuAuthorId === author.id ? (
+                        <div className="absolute right-0 top-11 z-2147483646 min-w-56 overflow-hidden rounded-xl border border-[#E6D7C4] bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenMenuAuthorId(null);
+                              openEditModal(author);
+                            }}
+                            className="flex w-full items-center px-3 py-2.5 text-left text-sm font-semibold text-[#2B1A10] hover:bg-[#F8F2E9]"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenMenuAuthorId(null);
+                              setDeleteAuthorCandidate({ id: author.id, name: author.name });
+                            }}
+                            disabled={deletingAuthorId === author.id}
+                            className="flex w-full items-center px-3 py-2.5 text-left text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-40"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ))
@@ -182,14 +216,51 @@ export default function AdminAuthorsPage() {
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
             <div className="flex items-center justify-between px-8 pt-8 pb-4 border-b border-[#E1D2BD]/50">
               <h2 className="text-xl font-serif font-bold text-[#2B1A10]">{editingAuthorId ? "Update Author" : "Add New Author"}</h2>
-              <button onClick={resetModal} className="w-8 h-8 flex items-center justify-center text-[#AE9E85] hover:text-[#2B1A10] rounded-lg"><X size={18} /></button>
+              <button onClick={resetModal} title="Close" aria-label="Close" className="w-8 h-8 flex items-center justify-center text-[#AE9E85] hover:text-[#2B1A10] rounded-lg"><X size={18} /></button>
             </div>
             <form onSubmit={handleSubmitAuthor} className="px-8 py-6 space-y-4">
               <div><label className="block text-sm font-bold text-[#2B1A10] mb-1.5">Name</label><input type="text" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required placeholder="Author Name" className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]" /></div>
               <div><label className="block text-sm font-bold text-[#2B1A10] mb-1.5">Bio</label><textarea rows={4} value={form.bio} onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))} required placeholder="Author Biography" className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10] resize-none" /></div>
-              <div><label className="block text-sm font-bold text-[#2B1A10] mb-1.5">Image</label><div onClick={() => imageInputRef.current?.click()} className="w-full h-32 border-2 border-dashed border-[#E1D2BD] rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#8B6B4A] overflow-hidden relative">{imagePreview ? <Image src={imagePreview} alt="preview" fill sizes="100vw" className="object-cover" unoptimized /> : <><Upload size={24} className="text-[#AE9E85]" /><p className="text-xs text-[#AE9E85]">Click to upload author image</p></>}</div><input ref={imageInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" /></div>
+              <div><label className="block text-sm font-bold text-[#2B1A10] mb-1.5">Image</label><div onClick={() => imageInputRef.current?.click()} className="w-full h-32 border-2 border-dashed border-[#E1D2BD] rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#8B6B4A] overflow-hidden relative">{imagePreview ? <Image src={imagePreview} alt="preview" fill sizes="100vw" className="object-cover" unoptimized /> : <><Upload size={24} className="text-[#AE9E85]" /><p className="text-xs text-[#AE9E85]">Click to upload author image</p></>}</div><input ref={imageInputRef} title="Author image" type="file" accept="image/*" onChange={handleFileChange} className="hidden" /></div>
               <button type="submit" disabled={isSubmitting} className="w-full py-3 bg-[#2B1A10] text-white text-sm font-bold rounded-xl disabled:opacity-50 mt-2">{isSubmitting ? (editingAuthorId ? "Updating..." : "Adding...") : (editingAuthorId ? "Update Author" : "Add Author to Collection")}</button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {deleteAuthorCandidate && (
+        <div
+          className="fixed inset-0 z-10000 bg-[#2B1A10]/35 flex items-center justify-center p-4"
+          onClick={() => !deleteAuthor.isPending && setDeleteAuthorCandidate(null)}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="w-full max-w-md rounded-[28px] border border-[#E1D2BD] bg-[#FFF9F1] p-6 shadow-2xl"
+          >
+            <div className="space-y-2">
+              <h3 className="text-2xl font-serif font-black text-[#2B1A10]">Delete Author?</h3>
+              <p className="text-sm text-[#7B6853] leading-6">
+                This will remove <span className="font-bold text-[#2B1A10]">{deleteAuthorCandidate.name}</span>. This action cannot be undone.
+              </p>
+            </div>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteAuthorCandidate(null)}
+                disabled={deleteAuthor.isPending}
+                className="px-4 py-2.5 rounded-xl border border-[#D9C8B3] text-sm font-bold text-[#6C5236] disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteAuthor(deleteAuthorCandidate)}
+                disabled={deleteAuthor.isPending}
+                className="px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-red-700 disabled:opacity-40"
+              >
+                {deleteAuthor.isPending ? "Deleting..." : "Delete Author"}
+              </button>
+            </div>
           </div>
         </div>
       )}

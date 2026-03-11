@@ -71,9 +71,7 @@ const getTokenFromRequest = (req) => {
 };
 
 const deriveEffectiveRoles = (decodedRoles, currentUser) => {
-  const delegatedStudentRoles = Array.isArray(decodedRoles)
-    ? decodedRoles.filter((role) => role === "STUDENT")
-    : [];
+  const delegatedStudentRoles = Array.isArray(decodedRoles) ? decodedRoles.filter((role) => role === "STUDENT") : [];
 
   const roles = Array.from(new Set([currentUser.role, ...delegatedStudentRoles]));
 

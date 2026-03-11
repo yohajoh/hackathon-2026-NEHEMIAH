@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MoreHorizontal, Search, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -84,6 +84,14 @@ export default function AdminUsersPage() {
   const users: User[] = usersData?.data?.users || [];
   const isSuperAdminViewer = Boolean(currentUser?.is_super_admin);
 
+  useEffect(() => {
+    const closeMenu = () => setOpenMenuUserId(null);
+    window.addEventListener("click", closeMenu);
+    return () => {
+      window.removeEventListener("click", closeMenu);
+    };
+  }, []);
+
   const scopeFiltered = users.filter((u) => {
     if (!isSuperAdminViewer) {
       return u.role === "STUDENT";
@@ -151,7 +159,9 @@ export default function AdminUsersPage() {
     try {
       await convertAdmin.mutateAsync(user.id);
       toast.success("Admin converted to student successfully");
-      setSelectedUser((current) => (current?.id === user.id ? { ...current, role: "STUDENT", is_super_admin: false } : current));
+      setSelectedUser((current) =>
+        current?.id === user.id ? { ...current, role: "STUDENT", is_super_admin: false } : current,
+      );
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to convert admin to student"));
       throw error;
@@ -203,7 +213,9 @@ export default function AdminUsersPage() {
       onClick: () => void;
     }> = [];
 
-    const canManageUser = isSuperAdminViewer ? !user.is_super_admin && user.id !== currentUser?.id : user.role === "STUDENT";
+    const canManageUser = isSuperAdminViewer
+      ? !user.is_super_admin && user.id !== currentUser?.id
+      : user.role === "STUDENT";
 
     if (!canManageUser) {
       return actions;
@@ -298,9 +310,7 @@ export default function AdminUsersPage() {
         <div className="space-y-1">
           <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#2B1A10]">Manage Users</h1>
           <p className="text-[#AE9E85] font-medium">
-            {isSuperAdminViewer
-              ? "Super Admin can manage both admins and students"
-              : "Admin can manage students only"}
+            {isSuperAdminViewer ? "Super Admin can manage both admins and students" : "Admin can manage students only"}
           </p>
           {isSuperAdminViewer ? (
             <div className="mt-4 inline-flex rounded-xl border border-[#E1D2BD] bg-white p-1">
@@ -346,7 +356,7 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-visible">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B6B4A]"></div>
@@ -396,19 +406,19 @@ export default function AdminUsersPage() {
                           <MoreHorizontal size={16} />
                         </button>
                         {openMenuUserId === user.id && actions.length > 0 ? (
-                          <div className="absolute right-0 top-11 z-20 min-w-56 rounded-2xl border border-[#E1D2BD] bg-white p-2 shadow-lg">
+                          <div className="absolute right-0 top-11 z-2147483646 min-w-56 overflow-hidden rounded-xl border border-[#E6D7C4] bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
                             {actions.map((action) => (
                               <button
                                 key={action.key}
                                 type="button"
                                 onClick={action.onClick}
                                 disabled={action.disabled}
-                                className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-xs font-bold transition-colors disabled:opacity-40 ${
+                                className={`flex w-full items-center px-3 py-2.5 text-left text-sm font-semibold transition-colors disabled:opacity-40 ${
                                   action.tone === "danger"
-                                    ? "bg-red-50 text-red-700 hover:bg-red-100"
+                                    ? "text-red-700 hover:bg-red-50"
                                     : action.tone === "amber"
-                                      ? "bg-amber-50 text-amber-700 hover:bg-amber-100"
-                                      : "bg-[#F5EFE6] text-[#2B1A10] hover:bg-[#EADFCF]"
+                                      ? "text-amber-700 hover:bg-amber-50"
+                                      : "text-[#2B1A10] hover:bg-[#F8F2E9]"
                                 }`}
                               >
                                 {action.label}
@@ -530,7 +540,10 @@ export default function AdminUsersPage() {
       )}
 
       {confirmDialog ? (
-        <div className="fixed inset-0 z-60 bg-[#2B1A10]/35 flex items-center justify-center p-4" onClick={() => !isConfirming && setConfirmDialog(null)}>
+        <div
+          className="fixed inset-0 z-10000 bg-[#2B1A10]/35 flex items-center justify-center p-4"
+          onClick={() => !isConfirming && setConfirmDialog(null)}
+        >
           <div
             onClick={(event) => event.stopPropagation()}
             className="w-full max-w-md rounded-[28px] border border-[#E1D2BD] bg-[#FFF9F1] p-6 shadow-2xl"
