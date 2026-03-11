@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2, Search, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { MoreHorizontal, Search, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   useUsers,
@@ -10,6 +10,7 @@ import {
   useBlockUser,
   useUnblockUser,
   usePromoteStudentToAdmin,
+  useConvertAdminToStudent,
   useTransferSuperAdmin,
 } from "@/lib/hooks/useQueries";
 import { usePersona } from "@/components/providers/PersonaProvider";
@@ -51,6 +52,14 @@ interface UserInsights {
   }>;
 }
 
+type ConfirmDialogState = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  tone: "danger" | "primary" | "amber";
+  action: () => Promise<void>;
+} | null;
+
 const ITEMS_PER_PAGE = 8;
 
 export default function AdminUsersPage() {
@@ -58,6 +67,9 @@ export default function AdminUsersPage() {
   const [activeTab, setActiveTab] = useState<"STUDENTS" | "ADMINS">("STUDENTS");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [openMenuUserId, setOpenMenuUserId] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
   const { user: currentUser } = usePersona();
 
   const { data: usersData, isLoading } = useUsers();
@@ -66,6 +78,7 @@ export default function AdminUsersPage() {
   const blockUser = useBlockUser();
   const unblockUser = useUnblockUser();
   const promoteUser = usePromoteStudentToAdmin();
+  const convertAdmin = useConvertAdminToStudent();
   const transferSuperAdmin = useTransferSuperAdmin();
 
   const users: User[] = usersData?.data?.users || [];
@@ -93,13 +106,19 @@ export default function AdminUsersPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
+  const openConfirmDialog = (nextDialog: NonNullable<ConfirmDialogState>) => {
+    setOpenMenuUserId(null);
+    setConfirmDialog(nextDialog);
+  };
+
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
     try {
       await deleteUser.mutateAsync(id);
       toast.success("User deleted successfully");
+      setSelectedUser((current) => (current?.id === id ? null : current));
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to delete user"));
+      throw error;
     }
   };
 
@@ -114,28 +133,163 @@ export default function AdminUsersPage() {
       }
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to update user status"));
+      throw error;
     }
   };
 
   const handlePromote = async (user: User) => {
-    if (!confirm(`Promote ${user.name} to Admin?`)) return;
     try {
       await promoteUser.mutateAsync(user.id);
       toast.success("Student promoted to admin successfully");
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to promote user"));
+      throw error;
+    }
+  };
+
+  const handleConvertToStudent = async (user: User) => {
+    try {
+      await convertAdmin.mutateAsync(user.id);
+      toast.success("Admin converted to student successfully");
+      setSelectedUser((current) => (current?.id === user.id ? { ...current, role: "STUDENT", is_super_admin: false } : current));
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to convert admin to student"));
+      throw error;
     }
   };
 
   const handleTransferSuperAdmin = async (user: User) => {
-    if (!confirm(`Transfer Super Admin role to ${user.name}?`)) return;
     try {
       await transferSuperAdmin.mutateAsync(user.id);
       toast.success("Super admin role transferred successfully");
       window.location.reload();
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to transfer super admin role"));
+      throw error;
     }
+  };
+
+  const submitConfirmDialog = async () => {
+    if (!confirmDialog) return;
+    setIsConfirming(true);
+    try {
+      await confirmDialog.action();
+      setConfirmDialog(null);
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  const getRoleLabel = (user: User) => {
+    if (user.is_blocked) return "Blocked";
+    if (user.is_super_admin || user.role === "SUPER_ADMIN") return "Super Admin";
+    if (user.role === "ADMIN") return "Admin";
+    return "Student";
+  };
+
+  const getRoleBadgeClassName = (user: User) => {
+    if (user.is_blocked) return "bg-red-50 text-red-700";
+    if (user.is_super_admin || user.role === "SUPER_ADMIN") return "bg-amber-50 text-amber-700";
+    if (user.role === "ADMIN") return "bg-[#F3EFE6] text-[#6C5236]";
+    return "bg-green-50 text-green-700";
+  };
+
+  const getUserActions = (user: User) => {
+    const actions: Array<{
+      key: string;
+      label: string;
+      tone: "default" | "danger" | "amber";
+      disabled?: boolean;
+      onClick: () => void;
+    }> = [];
+
+    const canManageUser = isSuperAdminViewer ? !user.is_super_admin && user.id !== currentUser?.id : user.role === "STUDENT";
+
+    if (!canManageUser) {
+      return actions;
+    }
+
+    actions.push({
+      key: user.is_blocked ? "unblock" : "block",
+      label: user.is_blocked ? "Unblock" : "Block",
+      tone: "default",
+      onClick: () =>
+        openConfirmDialog({
+          title: `${user.is_blocked ? "Unblock" : "Block"} ${user.name}?`,
+          description: user.is_blocked
+            ? "This will restore account access immediately."
+            : "This user will not be able to access the system until you unblock them.",
+          confirmLabel: user.is_blocked ? "Unblock User" : "Block User",
+          tone: "amber",
+          action: () => handleToggleBlock(user),
+        }),
+    });
+
+    actions.push({
+      key: "delete",
+      label: "Delete",
+      tone: "danger",
+      onClick: () =>
+        openConfirmDialog({
+          title: `Delete ${user.name}?`,
+          description: "This removes the user account permanently if no protected related records exist.",
+          confirmLabel: "Delete User",
+          tone: "danger",
+          action: () => handleDelete(user.id),
+        }),
+    });
+
+    if (isSuperAdminViewer && user.role === "STUDENT") {
+      actions.unshift({
+        key: "promote",
+        label: "Promote",
+        tone: "default",
+        disabled: Boolean(user.is_blocked),
+        onClick: () =>
+          openConfirmDialog({
+            title: `Promote ${user.name} to admin?`,
+            description: "The user will gain admin permissions and keep student persona access.",
+            confirmLabel: "Promote to Admin",
+            tone: "primary",
+            action: () => handlePromote(user),
+          }),
+      });
+    }
+
+    if (isSuperAdminViewer && user.role === "ADMIN") {
+      actions.unshift({
+        key: "to-student",
+        label: "Make Student",
+        tone: "default",
+        disabled: Boolean(user.is_blocked),
+        onClick: () =>
+          openConfirmDialog({
+            title: `Convert ${user.name} to student?`,
+            description: "This removes admin privileges and keeps the account as a student user.",
+            confirmLabel: "Convert to Student",
+            tone: "primary",
+            action: () => handleConvertToStudent(user),
+          }),
+      });
+
+      actions.unshift({
+        key: "transfer-super-admin",
+        label: "Make Super Admin",
+        tone: "amber",
+        disabled: Boolean(user.is_blocked),
+        onClick: () =>
+          openConfirmDialog({
+            title: `Transfer super admin to ${user.name}?`,
+            description:
+              "This admin will become the only super admin. Your account will automatically become a normal admin.",
+            confirmLabel: "Transfer Role",
+            tone: "amber",
+            action: () => handleTransferSuperAdmin(user),
+          }),
+      });
+    }
+
+    return actions;
   };
 
   return (
@@ -214,16 +368,7 @@ export default function AdminUsersPage() {
               </div>
             ) : (
               paginated.map((user) => {
-                const isDeleting = deleteUser.isPending && deleteUser.variables === user.id;
-                const isToggling =
-                  (blockUser.isPending && blockUser.variables === user.id) ||
-                  (unblockUser.isPending && unblockUser.variables === user.id);
-                const isPromoting = promoteUser.isPending && promoteUser.variables === user.id;
-                const isTransferring = transferSuperAdmin.isPending && transferSuperAdmin.variables === user.id;
-
-                const canManageUser = isSuperAdminViewer
-                  ? !user.is_super_admin && user.id !== currentUser?.id
-                  : user.role === "STUDENT";
+                const actions = getUserActions(user);
 
                 return (
                   <div
@@ -236,57 +381,42 @@ export default function AdminUsersPage() {
                     <span className="text-sm text-[#2B1A10]/70">{user.student_id || "—"}</span>
                     <span className="text-sm text-[#2B1A10]/70">{user.year || "—"}</span>
                     <span className="text-sm text-[#2B1A10]/70">{user.phone || "—"}</span>
-                    <span
-                      className={`text-xs font-bold px-2.5 py-1 rounded-lg w-fit ${user.is_blocked ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}
-                    >
-                      {user.is_super_admin ? "Super Admin" : user.is_blocked ? "Blocked" : "Active"}
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-lg w-fit ${getRoleBadgeClassName(user)}`}>
+                      {getRoleLabel(user)}
                     </span>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(user.id);
-                        }}
-                        disabled={isDeleting || !canManageUser}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-red-500 hover:bg-red-50 disabled:opacity-40"
-                        title="Delete user"
-                      >
-                        <Trash2 size={16} strokeWidth={1.5} />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleBlock(user);
-                        }}
-                        disabled={isToggling || !canManageUser}
-                        className="w-24 px-3 py-1.5 text-xs font-bold text-[#2B1A10] border border-[#C2B199] rounded-lg hover:bg-[#C2B199]/20 disabled:opacity-40"
-                      >
-                        {isToggling ? "Updating..." : user.is_blocked ? "Unblock" : "Block"}
-                      </button>
-                      {isSuperAdminViewer && activeTab === "STUDENTS" ? (
+                    <div className="flex items-center justify-end">
+                      <div className="relative" onClick={(event) => event.stopPropagation()}>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePromote(user);
-                          }}
-                          disabled={isPromoting || user.is_blocked}
-                          className="w-24 px-3 py-1.5 text-xs font-bold text-[#2B1A10] border border-[#2B1A10] rounded-lg hover:bg-[#2B1A10] hover:text-white disabled:opacity-40"
+                          type="button"
+                          onClick={() => setOpenMenuUserId((current) => (current === user.id ? null : user.id))}
+                          disabled={actions.length === 0}
+                          className="h-9 w-9 rounded-full border border-[#E1D2BD] bg-[#FFFDF9] text-[#8B6B4A] flex items-center justify-center disabled:opacity-40"
+                          aria-label={`Open actions for ${user.name}`}
                         >
-                          {isPromoting ? "Promoting..." : "Promote"}
+                          <MoreHorizontal size={16} />
                         </button>
-                      ) : null}
-                      {isSuperAdminViewer && activeTab === "ADMINS" && !user.is_super_admin ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleTransferSuperAdmin(user);
-                          }}
-                          disabled={isTransferring || user.is_blocked}
-                          className="w-36 px-3 py-1.5 text-xs font-bold border border-amber-600 text-amber-700 rounded-lg hover:bg-amber-50 disabled:opacity-40"
-                        >
-                          {isTransferring ? "Transferring..." : "Make Super Admin"}
-                        </button>
-                      ) : null}
+                        {openMenuUserId === user.id && actions.length > 0 ? (
+                          <div className="absolute right-0 top-11 z-20 min-w-56 rounded-2xl border border-[#E1D2BD] bg-white p-2 shadow-lg">
+                            {actions.map((action) => (
+                              <button
+                                key={action.key}
+                                type="button"
+                                onClick={action.onClick}
+                                disabled={action.disabled}
+                                className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-xs font-bold transition-colors disabled:opacity-40 ${
+                                  action.tone === "danger"
+                                    ? "bg-red-50 text-red-700 hover:bg-red-100"
+                                    : action.tone === "amber"
+                                      ? "bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                      : "bg-[#F5EFE6] text-[#2B1A10] hover:bg-[#EADFCF]"
+                                }`}
+                              >
+                                {action.label}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 );
@@ -398,6 +528,44 @@ export default function AdminUsersPage() {
           </aside>
         </div>
       )}
+
+      {confirmDialog ? (
+        <div className="fixed inset-0 z-60 bg-[#2B1A10]/35 flex items-center justify-center p-4" onClick={() => !isConfirming && setConfirmDialog(null)}>
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="w-full max-w-md rounded-[28px] border border-[#E1D2BD] bg-[#FFF9F1] p-6 shadow-2xl"
+          >
+            <div className="space-y-2">
+              <h3 className="text-2xl font-serif font-black text-[#2B1A10]">{confirmDialog.title}</h3>
+              <p className="text-sm text-[#7B6853] leading-6">{confirmDialog.description}</p>
+            </div>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmDialog(null)}
+                disabled={isConfirming}
+                className="px-4 py-2.5 rounded-xl border border-[#D9C8B3] text-sm font-bold text-[#6C5236] disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitConfirmDialog}
+                disabled={isConfirming}
+                className={`px-4 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 ${
+                  confirmDialog.tone === "danger"
+                    ? "bg-red-700"
+                    : confirmDialog.tone === "amber"
+                      ? "bg-amber-700"
+                      : "bg-[#2B1A10]"
+                }`}
+              >
+                {isConfirming ? "Processing..." : confirmDialog.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

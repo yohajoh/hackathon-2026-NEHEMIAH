@@ -287,6 +287,30 @@ export const promoteStudentToAdmin = async (req, res, next) => {
   }
 };
 
+export const convertAdminToStudent = async (req, res, next) => {
+  try {
+    await authService.convertAdminToStudent(req.params.id, req.user.id);
+    invalidateAuthUserCache(req.params.id);
+    authService.invalidateSessionContextCache(req.params.id);
+
+    await logAdminActivity({
+      adminUserId: req.user.id,
+      action: "DEMOTE_TO_STUDENT",
+      entityType: "USER",
+      entityId: req.params.id,
+      description: `Converted admin ${req.params.id} to student`,
+      req,
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Admin converted to student successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const transferSuperAdmin = async (req, res, next) => {
   try {
     await authService.transferSuperAdminRole(req.params.id, req.user.id);
@@ -304,10 +328,8 @@ export const transferSuperAdmin = async (req, res, next) => {
       req,
     });
 
-    res.status(200).json({
-      status: "success",
-      message: "Super admin role transferred successfully",
-    });
+    const nextContext = await authService.resolveUserSessionContext(req.user.id);
+    sendTokenCookie(nextContext.user, 200, res, nextContext.sessionPayload);
   } catch (error) {
     next(error);
   }

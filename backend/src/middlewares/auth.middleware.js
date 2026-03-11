@@ -81,6 +81,10 @@ const deriveEffectiveRoles = (decodedRoles, currentUser) => {
     roles.push("ADMIN");
   }
 
+  if ((currentUser.role === "ADMIN" || currentUser.role === "SUPER_ADMIN") && !roles.includes("STUDENT")) {
+    roles.push("STUDENT");
+  }
+
   if (
     currentUser.role === "SUPER_ADMIN" ||
     ((currentUser.role === "ADMIN" || roles.includes("ADMIN")) && currentUser.is_super_admin)

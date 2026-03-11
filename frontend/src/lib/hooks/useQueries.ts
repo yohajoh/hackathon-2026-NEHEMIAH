@@ -734,6 +734,16 @@ export function usePromoteStudentToAdmin() {
   });
 }
 
+export function useConvertAdminToStudent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.patch<{ data: unknown }>(`/auth/users/${id}/convert-student`),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users });
+    },
+  });
+}
+
 export function useTransferSuperAdmin() {
   const queryClient = useQueryClient();
   return useMutation({

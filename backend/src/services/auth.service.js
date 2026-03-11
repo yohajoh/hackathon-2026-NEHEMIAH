@@ -44,6 +44,27 @@ const isDelegatedIdentitySchemaMissing = (error) => {
 
 const isAdminRole = (role) => role === "ADMIN" || role === "SUPER_ADMIN";
 
+const ensureRoleAssignment = async (tx, userId, role) => {
+  if (!hasPrismaModel("userRoleAssignment")) {
+    return;
+  }
+
+  await tx.userRoleAssignment.createMany({
+    data: [{ user_id: userId, role }],
+    skipDuplicates: true,
+  });
+};
+
+const removeRoleAssignment = async (tx, userId, role) => {
+  if (!hasPrismaModel("userRoleAssignment")) {
+    return;
+  }
+
+  await tx.userRoleAssignment.deleteMany({
+    where: { user_id: userId, role },
+  });
+};
+
 const getCurrentSuperAdminId = async () => {
   try {
     const roleBased = await prisma.user.findFirst({
@@ -267,6 +288,10 @@ export const resolveUserSessionContext = async (userId, preferredPersona) => {
 
   if (isAdminRole(user.role) && !dedupedRoles.includes("ADMIN")) {
     dedupedRoles.push("ADMIN");
+  }
+
+  if (isAdminRole(user.role) && !dedupedRoles.includes("STUDENT")) {
+    dedupedRoles.push("STUDENT");
   }
 
   if (isSuperAdmin) {
@@ -812,7 +837,7 @@ export const deleteUser = async (userId, currentAdminId) => {
   }
 
   if (isAdminRole(user.role)) {
-    const admins = await prisma.user.count({ where: { role: "ADMIN" } });
+    const admins = await prisma.user.count({ where: { role: { in: ["ADMIN", "SUPER_ADMIN"] } } });
     if (admins <= 1) {
       throw new AppError("Cannot delete the last admin account", 409);
     }
@@ -862,18 +887,50 @@ export const promoteStudentToAdmin = async (targetUserId, actorUserId) => {
       data: { role: "ADMIN" },
     });
 
-    if (hasPrismaModel("userRoleAssignment")) {
-      await tx.userRoleAssignment.createMany({
-        data: [
-          { user_id: targetUserId, role: "ADMIN" },
-          { user_id: targetUserId, role: "STUDENT" },
-        ],
-        skipDuplicates: true,
-      });
-    }
+    await ensureRoleAssignment(tx, targetUserId, "ADMIN");
+    await ensureRoleAssignment(tx, targetUserId, "STUDENT");
   });
 
   return { id: targetUserId, role: "ADMIN" };
+};
+
+export const convertAdminToStudent = async (targetUserId, actorUserId) => {
+  const [target, currentSuperAdminId] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, role: true, is_blocked: true },
+    }),
+    getCurrentSuperAdminId(),
+  ]);
+
+  if (currentSuperAdminId !== actorUserId) {
+    throw new AppError("Only super admin can convert admins to students", 403);
+  }
+
+  if (!target) {
+    throw new AppError("User not found", 404);
+  }
+
+  if (!isAdminRole(target.role) || target.role === "SUPER_ADMIN") {
+    throw new AppError("Only admin accounts can be converted to student", 400);
+  }
+
+  if (target.is_blocked) {
+    throw new AppError("Cannot convert a blocked admin", 409);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: targetUserId },
+      data: { role: "STUDENT", is_super_admin: false },
+    });
+
+    await removeRoleAssignment(tx, targetUserId, "ADMIN");
+    await removeRoleAssignment(tx, targetUserId, "SUPER_ADMIN");
+    await ensureRoleAssignment(tx, targetUserId, "STUDENT");
+  });
+
+  return { id: targetUserId, role: "STUDENT" };
 };
 
 export const transferSuperAdminRole = async (targetUserId, actorUserId) => {
@@ -893,34 +950,34 @@ export const transferSuperAdminRole = async (targetUserId, actorUserId) => {
     throw new AppError("User not found", 404);
   }
 
+  if (!isAdminRole(target.role) || target.role === "SUPER_ADMIN") {
+    throw new AppError("Super admin can only be transferred to an admin account", 400);
+  }
+
   if (target.is_blocked) {
     throw new AppError("Cannot assign super admin to a blocked user", 409);
   }
 
   await prisma.$transaction(async (tx) => {
-    if (!isAdminRole(target.role)) {
-      await tx.user.update({
-        where: { id: target.id },
-        data: { role: "ADMIN" },
-      });
-    }
+    await tx.user.update({
+      where: { id: actorUserId },
+      data: { role: "ADMIN", is_super_admin: false },
+    });
 
-    if (hasPrismaModel("userRoleAssignment")) {
-      await tx.userRoleAssignment.createMany({
-        data: [
-          { user_id: target.id, role: "ADMIN" },
-          { user_id: target.id, role: "STUDENT" },
-        ],
-        skipDuplicates: true,
-      });
-    }
+    await ensureRoleAssignment(tx, actorUserId, "ADMIN");
+    await ensureRoleAssignment(tx, actorUserId, "STUDENT");
+    await removeRoleAssignment(tx, actorUserId, "SUPER_ADMIN");
 
     await tx.user.updateMany({ data: { is_super_admin: false } });
     await tx.user.update({
       where: { id: target.id },
-      data: { is_super_admin: true },
+      data: { role: "SUPER_ADMIN", is_super_admin: true },
     });
+
+    await ensureRoleAssignment(tx, target.id, "ADMIN");
+    await ensureRoleAssignment(tx, target.id, "STUDENT");
+    await removeRoleAssignment(tx, target.id, "SUPER_ADMIN");
   });
 
-  return { id: target.id, is_super_admin: true };
+  return { id: target.id, role: "SUPER_ADMIN", is_super_admin: true };
 };
