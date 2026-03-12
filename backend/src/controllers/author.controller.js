@@ -1,3 +1,4 @@
+import { prisma } from '../prisma.js';
 /**
  * Author Controller
  */
@@ -45,13 +46,14 @@ export const updateAuthor = async (req, res) => {
 };
 
 export const deleteAuthor = async (req, res) => {
+  const author = await prisma.author.findUnique({ where: { id: req.params.id }, select: { name: true } });
   await authorService.deleteAuthor(req.params.id);
   await logAdminActivity({
     adminUserId: req.user.id,
     action: 'DELETE',
     entityType: 'AUTHOR',
     entityId: req.params.id,
-    description: `Deleted author ${req.params.id}`,
+    description: `Deleted author "${author?.name || req.params.id}"`,
     req,
   });
   res.json({ status: 'success', message: 'Author deleted successfully' });

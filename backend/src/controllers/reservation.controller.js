@@ -39,7 +39,7 @@ export const moveToTop = async (req, res) => {
     action: "REORDER",
     entityType: "RESERVATION",
     entityId: req.params.id,
-    description: `Moved reservation ${req.params.id} to top of queue.`,
+    description: `Moved reservation for "${reservation.user.name}" on "${reservation.book.title}" to top of queue.`,
     req,
   });
 
@@ -54,7 +54,7 @@ export const issueReservation = async (req, res) => {
     action: "FULFILL",
     entityType: "RESERVATION",
     entityId: req.params.id,
-    description: `Issued reserved book and converted reservation ${req.params.id} to rental ${result.rental.id}.`,
+    description: `Issued "${result.reservation.book.title}" to "${result.reservation.user.name}" (Reservation converted to Rental).`,
     metadata: { rental_id: result.rental.id, copy_id: result.rental.copy?.id || null },
     req,
   });
@@ -69,14 +69,20 @@ export const getHighDemand = async (req, res) => {
 
 export const expireReservations = async (req, res) => {
   const notifyUsers = req.body?.notifyUsers === true;
-  const result = await reservationService.expirePendingReservations(getIo(req), { notifyUsers });
+  const reservationIds = req.body?.reservationIds;
+  const result = await reservationService.expirePendingReservations(getIo(req), {
+    notifyUsers,
+    reservationIds,
+  });
 
   await logAdminActivity({
     adminUserId: req.user.id,
     action: "EXPIRE",
     entityType: "RESERVATION",
     entityId: null,
-    description: `Admin expired ${result.expiredCount} reservation(s)${notifyUsers ? " with notifications" : " silently"}.`,
+    description: reservationIds 
+      ? `Admin cancelled ${result.expiredCount} specific reservation(s): ${result.expiredReservations.map(r => `"${r.bookTitle}" for ${r.studentName}`).join(', ')}.`
+      : `Admin ran expiry sweep: cancelled ${result.expiredCount} expired reservation(s).`,
     metadata: result,
     req,
   });

@@ -712,9 +712,14 @@ export const getOverdueRanking = async (query) => {
  * Admin triggers overdue reminders for all overdue borrowers.
  * Returns count of notifications sent.
  */
-export const sendOverdueReminders = async (io) => {
+export const sendOverdueReminders = async (io, rentalIds = []) => {
+  const whereClause = { status: "BORROWED", due_date: { lt: new Date() } };
+  if (rentalIds && Array.isArray(rentalIds) && rentalIds.length > 0) {
+    whereClause.id = { in: rentalIds };
+  }
+
   const overdue = await prisma.rental.findMany({
-    where: /** @type {any} */ ({ status: "BORROWED", due_date: { lt: new Date() } }),
+    where: /** @type {any} */ (whereClause),
     select: {
       id: true,
       user_id: true,

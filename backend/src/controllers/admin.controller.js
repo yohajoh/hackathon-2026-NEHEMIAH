@@ -21,7 +21,7 @@ export const resolveInventoryAlert = async (req, res) => {
     action: 'RESOLVE',
     entityType: 'INVENTORY_ALERT',
     entityId: alert.id,
-    description: `Resolved inventory alert ${alert.id}`,
+    description: `Resolved inventory alert (${alert.type}) for ${alert.physical_book?.title || 'System'}. Severity: ${alert.severity}`,
     metadata: { type: alert.type, severity: alert.severity },
     req,
   });

@@ -839,7 +839,8 @@ export function useOverdueRanking(params?: string) {
 export function useSendReminders() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post<{ data: unknown }>("/rentals/admin/send-reminders"),
+    mutationFn: (payload?: { rentalIds?: string[] }) => 
+      api.post<{ data: unknown }>("/rentals/admin/send-reminders", payload || {}),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["rentals"] });
       const previousRentals = queryClient.getQueriesData<RentalsResponse>({ queryKey: ["rentals"] });
@@ -998,14 +999,26 @@ export function useCancelReservation() {
 export function useExpireReservations() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload?: { notifyUsers?: boolean }) =>
+    mutationFn: (payload?: { notifyUsers?: boolean; reservationIds?: string[] }) =>
       api.post<{ data: { expiredCount: number; notifyUsers: boolean } }>("/reservations/admin/expire", payload || {}),
-    onMutate: async () => {
+    onMutate: async (variables) => {
       await queryClient.cancelQueries({ queryKey: ["reservations"] });
       const previousQueries = queryClient.getQueriesData<ReservationsResponse>({ queryKey: ["reservations"] });
 
+      const reservationIds = variables?.reservationIds;
+
       queryClient.setQueriesData<ReservationsResponse>({ queryKey: ["reservations"] }, (old) => {
-        if (!old) return old;
+        if (!old || !Array.isArray(old.reservations)) return old;
+
+        if (reservationIds && Array.isArray(reservationIds)) {
+          // targeted cancellation
+          return {
+            ...old,
+            reservations: old.reservations.filter((r) => !reservationIds.includes(r.id)),
+          };
+        }
+
+        // fall back to global sweep logic
         return {
           ...old,
           reservations: old.reservations.filter((r) => !["QUEUED", "NOTIFIED", "PENDING"].includes(r.status)),

@@ -1,3 +1,4 @@
+import { prisma } from '../prisma.js';
 /**
  * Book Controller – Physical Books
  */
@@ -106,13 +107,14 @@ export const updateBook = async (req, res) => {
 };
 
 export const deleteBook = async (req, res) => {
+  const book = await prisma.book.findUnique({ where: { id: req.params.id }, select: { title: true } });
   await bookService.deleteBook(req.params.id);
   await logAdminActivity({
     adminUserId: req.user.id,
     action: 'DELETE',
     entityType: 'BOOK',
     entityId: req.params.id,
-    description: `Soft-deleted physical book ${req.params.id}`,
+    description: `Soft-deleted physical book "${book?.title || req.params.id}"`,
     req,
   });
   res.json({ status: 'success', message: 'Book soft-deleted successfully' });

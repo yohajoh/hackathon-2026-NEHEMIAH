@@ -1,3 +1,4 @@
+import { prisma } from "../prisma.js";
 import * as authService from "../services/auth.service.js";
 import { AppError } from "../middlewares/error.middleware.js";
 import { sendTokenCookie } from "../utils/token.utils.js";
@@ -199,6 +200,7 @@ export const getAllUsers = async (req, res, next) => {
 
 export const blockUser = async (req, res, next) => {
   try {
+    const targetUser = await prisma.user.findUnique({ where: { id: req.params.id }, select: { name: true } });
     await authService.blockUserByActor(req.params.id, req.user.id);
     invalidateAuthUserCache(req.params.id);
     authService.invalidateSessionContextCache(req.params.id);
@@ -207,7 +209,7 @@ export const blockUser = async (req, res, next) => {
       action: "BLOCK",
       entityType: "USER",
       entityId: req.params.id,
-      description: `Blocked user ${req.params.id}`,
+      description: `Blocked user "${targetUser?.name || req.params.id}"`,
       req,
     });
     res.status(200).json({
@@ -221,6 +223,7 @@ export const blockUser = async (req, res, next) => {
 
 export const unblockUser = async (req, res, next) => {
   try {
+    const targetUser = await prisma.user.findUnique({ where: { id: req.params.id }, select: { name: true } });
     await authService.unblockUserByActor(req.params.id, req.user.id);
     invalidateAuthUserCache(req.params.id);
     authService.invalidateSessionContextCache(req.params.id);
@@ -229,7 +232,7 @@ export const unblockUser = async (req, res, next) => {
       action: "UNBLOCK",
       entityType: "USER",
       entityId: req.params.id,
-      description: `Unblocked user ${req.params.id}`,
+      description: `Unblocked user "${targetUser?.name || req.params.id}"`,
       req,
     });
     res.status(200).json({
@@ -243,6 +246,7 @@ export const unblockUser = async (req, res, next) => {
 
 export const deleteUser = async (req, res, next) => {
   try {
+    const targetUser = await prisma.user.findUnique({ where: { id: req.params.id }, select: { name: true } });
     await authService.deleteUser(req.params.id, req.user.id);
     invalidateAuthUserCache(req.params.id);
     authService.invalidateSessionContextCache(req.params.id);
@@ -251,7 +255,7 @@ export const deleteUser = async (req, res, next) => {
       action: "DELETE",
       entityType: "USER",
       entityId: req.params.id,
-      description: `Deleted user ${req.params.id}`,
+      description: `Deleted user "${targetUser?.name || req.params.id}"`,
       req,
     });
     res.status(200).json({
@@ -265,6 +269,7 @@ export const deleteUser = async (req, res, next) => {
 
 export const promoteStudentToAdmin = async (req, res, next) => {
   try {
+    const targetUser = await prisma.user.findUnique({ where: { id: req.params.id }, select: { name: true } });
     await authService.promoteStudentToAdmin(req.params.id, req.user.id);
     invalidateAuthUserCache(req.params.id);
     authService.invalidateSessionContextCache(req.params.id);
@@ -274,7 +279,7 @@ export const promoteStudentToAdmin = async (req, res, next) => {
       action: "PROMOTE",
       entityType: "USER",
       entityId: req.params.id,
-      description: `Promoted student ${req.params.id} to admin`,
+      description: `Promoted student "${targetUser?.name || req.params.id}" to admin`,
       req,
     });
 
@@ -289,6 +294,7 @@ export const promoteStudentToAdmin = async (req, res, next) => {
 
 export const convertAdminToStudent = async (req, res, next) => {
   try {
+    const targetUser = await prisma.user.findUnique({ where: { id: req.params.id }, select: { name: true } });
     await authService.convertAdminToStudent(req.params.id, req.user.id);
     invalidateAuthUserCache(req.params.id);
     authService.invalidateSessionContextCache(req.params.id);
@@ -298,7 +304,7 @@ export const convertAdminToStudent = async (req, res, next) => {
       action: "DEMOTE_TO_STUDENT",
       entityType: "USER",
       entityId: req.params.id,
-      description: `Converted admin ${req.params.id} to student`,
+      description: `Converted admin "${targetUser?.name || req.params.id}" to student`,
       req,
     });
 
@@ -313,6 +319,7 @@ export const convertAdminToStudent = async (req, res, next) => {
 
 export const transferSuperAdmin = async (req, res, next) => {
   try {
+    const targetUser = await prisma.user.findUnique({ where: { id: req.params.id }, select: { name: true } });
     await authService.transferSuperAdminRole(req.params.id, req.user.id);
     invalidateAuthUserCache(req.params.id);
     invalidateAuthUserCache(req.user.id);
@@ -324,7 +331,7 @@ export const transferSuperAdmin = async (req, res, next) => {
       action: "TRANSFER_SUPER_ADMIN",
       entityType: "USER",
       entityId: req.params.id,
-      description: `Transferred super admin role to ${req.params.id}`,
+      description: `Transferred super admin role to "${targetUser?.name || req.params.id}"`,
       req,
     });
 

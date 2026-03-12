@@ -29,6 +29,7 @@ export default function AdminReservationsPage() {
   const [openMenuReservationId, setOpenMenuReservationId] = useState<string | null>(null);
   const [issueModalReservation, setIssueModalReservation] = useState<Reservation | null>(null);
   const [issueCopyCode, setIssueCopyCode] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { data: reservationsData, isLoading } = useReservations();
   const { data: highDemandData, isLoading: highDemandLoading } = useReservationHighDemand("limit=6&min_queue=3");
   const expireReservations = useExpireReservations();
@@ -38,21 +39,38 @@ export default function AdminReservationsPage() {
   const reservations: Reservation[] = (reservationsData?.reservations || []) as unknown as Reservation[];
   const highDemand = (highDemandData?.data?.books || []) as HighDemandReservationBook[];
 
-  const handleExpire = async (notifyUsers: boolean) => {
+  const handleCancelReservations = async () => {
     try {
-      const result = await expireReservations.mutateAsync({ notifyUsers });
-      const expiredCount = Number(result?.data?.expiredCount ?? 0);
-      if (expiredCount === 0) {
-        toast.info("No expired reservation windows found");
+      const result = await expireReservations.mutateAsync({
+        notifyUsers: false,
+        reservationIds: Array.from(selectedIds),
+      });
+      const count = Number(result?.data?.expiredCount ?? 0);
+      if (count === 0) {
+        toast.info("No reservations were cancelled");
         return;
       }
-      toast.success(
-        notifyUsers
-          ? `Expired ${expiredCount} reservation window(s) with notifications`
-          : `Expired ${expiredCount} reservation window(s) in silent mode`,
-      );
+      toast.success(`Successfully cancelled ${count} reservation(s)`);
+      setSelectedIds(new Set()); // Clear selection after success
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to expire reservations");
+      toast.error(error instanceof Error ? error.message : "Failed to cancel reservations");
+    }
+  };
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(reservations.map((r) => r.id)));
+    } else {
+      setSelectedIds(new Set());
     }
   };
 
@@ -104,13 +122,15 @@ export default function AdminReservationsPage() {
           >
             <RefreshCcw size={15} /> Refresh
           </button>
-          <button
-            onClick={() => void handleExpire(false)}
-            disabled={expireReservations.isPending}
-            className="px-4 py-2.5 bg-[#2B1A10] text-white text-sm font-bold rounded-xl disabled:opacity-50"
-          >
-            {expireReservations.isPending ? "Sweeping..." : "Run Expiry Sweep (Silent)"}
-          </button>
+          {selectedIds.size > 0 && (
+            <button
+              onClick={() => void handleCancelReservations()}
+              disabled={expireReservations.isPending}
+              className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-xl animate-in fade-in slide-in-from-right-2 duration-300"
+            >
+              {expireReservations.isPending ? "Cancelling..." : `Cancel Reservation (${selectedIds.size} Selected)`}
+            </button>
+          )}
         </div>
       </div>
 
@@ -141,7 +161,15 @@ export default function AdminReservationsPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-[2fr_2fr_0.7fr_0.9fr_1fr_1fr_1fr_1.6fr] gap-4 px-6 py-3 border-b border-[#E1D2BD]/50 bg-[#FDFAF6] text-[11px] font-bold text-[#AE9E85] uppercase">
+        <div className="grid grid-cols-[0.4fr_2fr_2fr_0.7fr_0.9fr_1fr_1fr_1fr_1.6fr] gap-4 px-6 py-3 border-b border-[#E1D2BD]/50 bg-[#FDFAF6] text-[11px] font-bold text-[#AE9E85] uppercase">
+          <span className="flex justify-center">
+            <input
+              type="checkbox"
+              checked={reservations.length > 0 && selectedIds.size === reservations.length}
+              onChange={(e) => handleSelectAll(e.target.checked)}
+              className="w-4 h-4 rounded border-[#E1D2BD] text-[#2B1A10] focus:ring-[#2B1A10]"
+            />
+          </span>
           <span>Student</span>
           <span>Book</span>
           <span>Queue</span>
@@ -160,8 +188,16 @@ export default function AdminReservationsPage() {
           reservations.map((item) => (
             <div
               key={item.id}
-              className="grid grid-cols-[2fr_2fr_0.7fr_0.9fr_1fr_1fr_1fr_1.6fr] gap-4 items-center px-6 py-4 border-b border-[#E1D2BD]/30 last:border-0"
+              className="grid grid-cols-[0.4fr_2fr_2fr_0.7fr_0.9fr_1fr_1fr_1fr_1.6fr] gap-4 items-center px-6 py-4 border-b border-[#E1D2BD]/30 last:border-0 hover:bg-[#F8F2E9] transition-colors"
             >
+              <div className="flex justify-center">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(item.id)}
+                  onChange={() => handleToggleSelect(item.id)}
+                  className="w-4 h-4 rounded border-[#E1D2BD] text-[#2B1A10] focus:ring-[#2B1A10]"
+                />
+              </div>
               <div>
                 <p className="text-sm font-bold text-[#2B1A10] truncate">{item.user.name}</p>
                 <p className="text-xs text-[#AE9E85] truncate">{item.user.email}</p>

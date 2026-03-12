@@ -41,7 +41,7 @@ export const returnBook = async (req, res) => {
     action: "RETURN",
     entityType: "RENTAL",
     entityId: req.params.id,
-    description: `Processed return for rental ${req.params.id}`,
+    description: `Processed return for "${result.user.name}" - Book: "${result.physical_book.title}"`,
     metadata: { status: result.newStatus, fine: result.fine ?? 0 },
     req,
   });
@@ -59,7 +59,7 @@ export const getOverdueRanking = async (req, res) => {
 };
 
 export const sendOverdueReminders = async (req, res) => {
-  const result = await rentalService.sendOverdueReminders(getIo(req));
+  const result = await rentalService.sendOverdueReminders(getIo(req), req.body?.rentalIds);
   await logAdminActivity({
     adminUserId: req.user.id,
     action: "REMIND",
@@ -78,7 +78,7 @@ export const extendRental = async (req, res) => {
     action: "EXTEND",
     entityType: "RENTAL",
     entityId: req.params.id,
-    description: `Extended rental ${req.params.id} by ${req.body?.extra_days || 0} day(s).`,
+    description: `Extended rental for "${result.user.name}" - Book: "${result.physical_book.title}" by ${req.body?.extra_days || 0} day(s).`,
     metadata: { due_date: result.due_date },
     req,
   });

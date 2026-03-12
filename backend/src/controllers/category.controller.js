@@ -1,3 +1,4 @@
+import { prisma } from '../prisma.js';
 /**
  * Category Controller
  */
@@ -42,13 +43,14 @@ export const updateCategory = async (req, res) => {
 };
 
 export const deleteCategory = async (req, res) => {
+  const category = await prisma.category.findUnique({ where: { id: req.params.id }, select: { name: true } });
   await categoryService.deleteCategory(req.params.id);
   await logAdminActivity({
     adminUserId: req.user.id,
     action: 'DELETE',
     entityType: 'CATEGORY',
     entityId: req.params.id,
-    description: `Deleted category ${req.params.id}`,
+    description: `Deleted category "${category?.name || req.params.id}"`,
     req,
   });
   res.json({ status: 'success', message: 'Category deleted successfully' });

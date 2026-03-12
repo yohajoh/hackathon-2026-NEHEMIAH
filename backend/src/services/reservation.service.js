@@ -466,14 +466,22 @@ export const getHighDemandReservations = async (query = {}) => {
 export const expirePendingReservations = async (io, options = {}) => {
   const notifyUsers = options.notifyUsers !== false;
   const now = new Date();
-  const expired = await prisma.reservation.findMany({
-    where: {
+  let where = {};
+
+  if (options.reservationIds && Array.isArray(options.reservationIds)) {
+    where = { id: { in: options.reservationIds } };
+  } else {
+    where = {
       status: "NOTIFIED",
       expires_at: { lt: now },
-    },
+    };
+  }
+
+  const expired = await prisma.reservation.findMany({
+    where,
     include: {
       book: { select: { id: true, title: true } },
-      user: { select: { id: true } },
+      user: { select: { id: true, name: true } },
     },
   });
 
@@ -482,7 +490,7 @@ export const expirePendingReservations = async (io, options = {}) => {
     await prisma.$transaction(async (tx) => {
       await tx.reservation.update({
         where: { id: item.id },
-        data: { status: "EXPIRED" },
+        data: { status: "CANCELLED", cancelled_at: new Date() },
       });
       await reindexQueuedReservations(tx, item.book.id);
     });
@@ -500,7 +508,13 @@ export const expirePendingReservations = async (io, options = {}) => {
     count += 1;
   }
 
-  return { expiredCount: count, notifyUsers };
+  const expiredDetails = expired.map((item) => ({
+    id: item.id,
+    studentName: item.user.name,
+    bookTitle: item.book.title,
+  }));
+
+  return { expiredCount: count, notifyUsers, expiredReservations: expiredDetails };
 };
 
 export const notifyNextInQueue = async (bookId, io, options = {}) => {
