@@ -74,12 +74,30 @@ export type Rental = {
 
 export type Reservation = {
   id: string;
-  book: Book;
+  book: Book & { id?: string; available?: number; copies?: number };
   user: User;
   reserved_at: string;
-  expires_at: string;
+  expires_at?: string | null;
+  notified_at?: string | null;
+  fulfilled_at?: string | null;
   status: string;
   queue_position?: number;
+  user_debt_total?: number;
+};
+
+export type HighDemandReservationBook = {
+  book: {
+    id: string;
+    title: string;
+    copies: number;
+    available: number;
+    cover_image_url?: string;
+    author?: { name: string };
+    category?: { name: string };
+  };
+  queueCount: number;
+  pressureRatio: number;
+  needsInventoryAction: boolean;
 };
 
 export type WishlistItem = {
@@ -169,6 +187,7 @@ type AuthorsResponse = { authors: Author[]; meta?: unknown };
 type UsersResponse = { data: { users: User[] } };
 type RentalsResponse = { rentals: Rental[] };
 type ReservationsResponse = { reservations: Reservation[] };
+type HighDemandReservationsResponse = { data: { books: HighDemandReservationBook[] } };
 type WishlistResponse = { wishlist: WishlistItem[]; meta: { totalPages: number } };
 type AlertsResponse = { alerts: unknown[]; meta?: unknown };
 type PaymentsResponse = { payments: Payment[] };
@@ -262,6 +281,7 @@ export const queryKeys = {
   overdueRentals: (params?: string) => ["rentals", "overdue", params] as const,
   overdueRanking: (params?: string) => ["rentals", "overdue-ranking", params] as const,
   reservations: (params?: string) => ["reservations", params] as const,
+  reservationHighDemand: (params?: string) => ["reservations", "high-demand", params] as const,
   myReservations: (params?: string) => ["reservations", "mine", params] as const,
   wishlist: (params?: string) => ["wishlist", params] as const,
   studentOverview: ["student", "overview"] as const,
@@ -901,6 +921,38 @@ export function useMyReservations(params?: string) {
   });
 }
 
+export function useReservationHighDemand(params?: string) {
+  return useQuery<HighDemandReservationsResponse>({
+    queryKey: queryKeys.reservationHighDemand(params),
+    queryFn: () => api.get<HighDemandReservationsResponse>(`/reservations/admin/high-demand?${params || "limit=8"}`),
+    ...defaultOptions,
+  });
+}
+
+export function useMoveReservationToTop() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.patch<{ data: { reservation: Reservation } }>(`/reservations/actions/${id}/move-top`),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["reservations"] });
+    },
+  });
+}
+
+export function useIssueReservation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, copy_code }: { id: string; copy_code: string }) =>
+      api.post<{ data: unknown }>(`/reservations/actions/${id}/issue`, { copy_code }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["reservations"] });
+      queryClient.invalidateQueries({ queryKey: ["rentals"] });
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+    },
+  });
+}
+
 export function useCancelReservation() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -946,7 +998,8 @@ export function useCancelReservation() {
 export function useExpireReservations() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post<{ data: unknown }>("/reservations/admin/expire"),
+    mutationFn: (payload?: { notifyUsers?: boolean }) =>
+      api.post<{ data: { expiredCount: number; notifyUsers: boolean } }>("/reservations/admin/expire", payload || {}),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["reservations"] });
       const previousQueries = queryClient.getQueriesData<ReservationsResponse>({ queryKey: ["reservations"] });

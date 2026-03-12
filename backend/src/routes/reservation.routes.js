@@ -12,6 +12,9 @@ router.patch("/:id/cancel", restrictTo("STUDENT"), reservationController.cancelR
 
 router.use(restrictTo("ADMIN"));
 router.get("/", reservationController.getAllReservations);
+router.get("/admin/high-demand", reservationController.getHighDemand);
 router.post("/admin/expire", reservationController.expireReservations);
+router.patch("/actions/:id/move-top", reservationController.moveToTop);
+router.post("/actions/:id/issue", reservationController.issueReservation);
 
 export default router;
