@@ -87,7 +87,7 @@ export default function CreateAccountPage() {
           <div className="space-y-1.5">
             <label
               htmlFor="fullName"
-              className="text-xs font-medium text-[#3B2718]"
+              className="text-xs font-medium text-[#111111]"
             >
               {t("auth.signup.full_name_label")}
             </label>
@@ -95,13 +95,13 @@ export default function CreateAccountPage() {
               id="fullName"
               name="fullName"
               required
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] placeholder:text-[#B09776] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] placeholder:text-[#142B6F] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
               placeholder={t("auth.signup.full_name_placeholder")}
             />
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="year" className="text-xs font-medium text-[#3B2718]">
+            <label htmlFor="year" className="text-xs font-medium text-[#111111]">
               {t("auth.signup.year_label")}
             </label>
             <input
@@ -109,13 +109,13 @@ export default function CreateAccountPage() {
               name="year"
               type="text"
               required
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] placeholder:text-[#B09776] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] placeholder:text-[#142B6F] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
               placeholder={t("auth.signup.year_placeholder")}
             />
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="department" className="text-xs font-medium text-[#3B2718]">
+            <label htmlFor="department" className="text-xs font-medium text-[#111111]">
               {t("auth.signup.department_label")}
             </label>
             <input
@@ -123,7 +123,7 @@ export default function CreateAccountPage() {
               name="department"
               type="text"
               required
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] placeholder:text-[#B09776] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] placeholder:text-[#142B6F] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
               placeholder={t("auth.signup.department_placeholder")}
             />
           </div>
@@ -131,7 +131,7 @@ export default function CreateAccountPage() {
           <div className="space-y-1.5">
             <label
               htmlFor="studentId"
-              className="text-xs font-medium text-[#3B2718]"
+              className="text-xs font-medium text-[#111111]"
             >
               {t("auth.signup.id_label")}
             </label>
@@ -140,13 +140,13 @@ export default function CreateAccountPage() {
               name="studentId"
               type="text"
               required
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] placeholder:text-[#B09776] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] placeholder:text-[#142B6F] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
               placeholder={t("auth.signup.id_placeholder")}
             />
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="phone" className="text-xs font-medium text-[#3B2718]">
+            <label htmlFor="phone" className="text-xs font-medium text-[#111111]">
               {t("auth.signup.phone_label")}
             </label>
             <input
@@ -154,13 +154,13 @@ export default function CreateAccountPage() {
               name="phone"
               type="tel"
               required
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] placeholder:text-[#B09776] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] placeholder:text-[#142B6F] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
               placeholder={t("auth.signup.phone_placeholder")}
             />
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="email" className="text-xs font-medium text-[#3B2718]">
+            <label htmlFor="email" className="text-xs font-medium text-[#111111]">
               {t("auth.signup.email_label")}
             </label>
             <input
@@ -168,7 +168,7 @@ export default function CreateAccountPage() {
               name="email"
               type="email"
               required
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] placeholder:text-[#B09776] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] placeholder:text-[#142B6F] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
               placeholder={t("auth.signup.email_placeholder")}
             />
           </div>
@@ -176,7 +176,7 @@ export default function CreateAccountPage() {
           <div className="space-y-1.5">
             <label
               htmlFor="password"
-              className="text-xs font-medium text-[#3B2718]"
+              className="text-xs font-medium text-[#111111]"
             >
               {t("auth.signup.password_label")}
             </label>
@@ -185,7 +185,7 @@ export default function CreateAccountPage() {
               name="password"
               type="password"
               required
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] placeholder:text-[#B09776] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] placeholder:text-[#142B6F] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
               placeholder={t("auth.signup.password_placeholder")}
             />
           </div>
@@ -193,7 +193,7 @@ export default function CreateAccountPage() {
           <div className="space-y-1.5">
             <label
               htmlFor="confirmPassword"
-              className="text-xs font-medium text-[#3B2718]"
+              className="text-xs font-medium text-[#111111]"
             >
               {t("auth.signup.confirm_password_label")}
             </label>
@@ -202,7 +202,7 @@ export default function CreateAccountPage() {
               name="confirmPassword"
               type="password"
               required
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] placeholder:text-[#B09776] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] placeholder:text-[#142B6F] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
               placeholder={t("auth.signup.confirm_password_placeholder")}
             />
           </div>
@@ -213,15 +213,15 @@ export default function CreateAccountPage() {
               name="terms"
               type="checkbox"
               required
-              className="h-3.5 w-3.5 rounded border-[#C4AF90] bg-transparent accent-[#4A2B0B] focus:ring-0"
+              className="h-3.5 w-3.5 rounded border-[#E1DEE5] bg-transparent accent-[#142B6F] focus:ring-0"
             />
             <label
               htmlFor="terms"
-              className="text-xs text-[#8B6B4A] leading-snug cursor-pointer"
+              className="text-xs text-[#142B6F] leading-snug cursor-pointer"
             >
               {t("auth.signup.terms_agree", {
-                terms: `<span class="text-[#4A2B0B] hover:text-[#754019]">${t("auth.signup.terms_label")}</span>`,
-                privacy: `<span class="text-[#4A2B0B] hover:text-[#754019]">${t("auth.signup.privacy_label")}</span>`,
+                terms: `<span class="text-[#142B6F] hover:text-[#142B6F]">${t("auth.signup.terms_label")}</span>`,
+                privacy: `<span class="text-[#142B6F] hover:text-[#142B6F]">${t("auth.signup.privacy_label")}</span>`,
               })}
             </label>
           </div>
@@ -229,17 +229,17 @@ export default function CreateAccountPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-[#4A2B0B] px-4 py-2.5 text-sm font-medium text-white shadow-[0_14px_40px_rgba(74,43,11,0.35)] hover:bg-[#5B3410] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C79E6C] focus-visible:ring-offset-2 focus-visible:ring-offset-white transition disabled:opacity-70 disabled:cursor-not-allowed"
+            className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-[#142B6F] px-4 py-2.5 text-sm font-medium text-white shadow-[0_14px_40px_rgba(74,43,11,0.35)] hover:bg-[#142B6F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD602] focus-visible:ring-offset-2 focus-visible:ring-offset-white transition disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isLoading ? t("auth.signup.submitting") : t("auth.signup.submit")}
           </button>
         </form>
 
-        <p className="pt-4 text-center text-xs text-[#8B6B4A]">
+        <p className="pt-4 text-center text-xs text-[#142B6F]">
           {t("auth.signup.already_registered")}{" "}
           <Link
             href="/auth/login"
-            className="font-medium text-[#4A2B0B] hover:text-[#754019] transition-colors"
+            className="font-medium text-[#142B6F] hover:text-[#142B6F] transition-colors"
           >
             {t("auth.signup.signin_link")}
           </Link>

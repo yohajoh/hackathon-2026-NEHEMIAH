@@ -49,13 +49,13 @@ function ProgressRow({ label, item }: { label: string; item: GoalProgress }) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-xs">
-        <span className="font-bold text-[#2B1A10]">{label}</span>
-        <span className="text-[#8B6B4A]">
+        <span className="font-bold text-[#111111]">{label}</span>
+        <span className="text-[#142B6F]">
           {item.actual} / {item.target}
         </span>
       </div>
-      <div className="w-full h-2 rounded-full bg-[#F1E7DA] overflow-hidden">
-        <div className="h-full bg-[#8B6B4A]" style={{ width: `${Math.min(100, item.progress)}%` }} />
+      <div className="w-full h-2 rounded-full bg-[#E1DEE5] overflow-hidden">
+        <div className="h-full bg-[#142B6F]" style={{ width: `${Math.min(100, item.progress)}%` }} />
       </div>
     </div>
   );
@@ -78,20 +78,20 @@ function LineChart({ points }: { points: WeeklyPoint[] }) {
   const d = mapped.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 p-4">
-      <h3 className="text-sm font-bold text-[#2B1A10] mb-3">{t("dashboard.rentals_per_week")}</h3>
+    <div className="bg-white rounded-2xl border border-[#E1DEE5]/50 p-4">
+      <h3 className="text-sm font-bold text-[#111111] mb-3">{t("dashboard.rentals_per_week")}</h3>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-52">
-        <rect x="0" y="0" width={width} height={height} fill="#fff" />
+        <rect x="0" y="0" width={width} height={height} fill="#FFFFFF" />
         {Array.from({ length: 5 }).map((_, i) => {
           const y = pad + (i * (height - pad * 2)) / 4;
-          return <line key={i} x1={pad} y1={y} x2={width - pad} y2={y} stroke="#F3EFE6" strokeWidth="1" />;
+          return <line key={i} x1={pad} y1={y} x2={width - pad} y2={y} stroke="#E1DEE5" strokeWidth="1" />;
         })}
-        <path d={d} fill="none" stroke="#8B6B4A" strokeWidth="3" />
+        <path d={d} fill="none" stroke="#142B6F" strokeWidth="3" />
         {mapped.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r="4" fill="#2B1A10" />
+          <circle key={i} cx={p.x} cy={p.y} r="4" fill="#111111" />
         ))}
       </svg>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px] text-[#8B6B4A] mt-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px] text-[#142B6F] mt-2">
         {mapped.map((p, i) => (
           <div key={i} className="truncate">{p.label || t("sidebar.history").split(" ")[0]}: {p.value}</div>
         ))}
@@ -172,19 +172,19 @@ export default function DashboardPage() {
   return (
     <div className="p-6 lg:p-12 space-y-8">
       <div>
-        <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#2B1A10]">{t("dashboard.analytics_title")}</h1>
-        <p className="text-[#AE9E85] font-medium">{t("dashboard.analytics_subtitle")}</p>
+        <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#111111]">{t("dashboard.analytics_title")}</h1>
+        <p className="text-[#142B6F] font-medium">{t("dashboard.analytics_subtitle")}</p>
       </div>
 
       {loading ? (
-        <div className="py-16 text-center text-[#AE9E85]">{t("dashboard.loading")}</div>
+        <div className="py-16 text-center text-[#142B6F]">{t("dashboard.loading")}</div>
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
             {summary.map((item) => (
-              <div key={item.label} className="bg-white border border-[#E1D2BD]/50 rounded-xl p-3">
-                <p className="text-[11px] uppercase tracking-wider text-[#AE9E85] font-bold">{item.label}</p>
-                <p className="text-2xl font-black text-[#2B1A10] mt-1">{item.value}</p>
+              <div key={item.label} className="bg-white border border-[#E1DEE5]/50 rounded-xl p-3">
+                <p className="text-[11px] uppercase tracking-wider text-[#142B6F] font-bold">{item.label}</p>
+                <p className="text-2xl font-black text-[#111111] mt-1">{item.value}</p>
               </div>
             ))}
           </div>
@@ -193,8 +193,8 @@ export default function DashboardPage() {
             <div className="xl:col-span-2">
               <LineChart points={overview.trends?.rentalsPerWeek || []} />
             </div>
-            <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 p-4 space-y-3">
-              <h3 className="text-sm font-bold text-[#2B1A10]">{t("dashboard.goal_progress")}</h3>
+            <div className="bg-white rounded-2xl border border-[#E1DEE5]/50 p-4 space-y-3">
+              <h3 className="text-sm font-bold text-[#111111]">{t("dashboard.goal_progress")}</h3>
               <ProgressRow label={t("dashboard.targets.rentals")} item={overview.monthlyTargets.progress.rentals} />
               <ProgressRow label={t("dashboard.targets.active_readers")} item={overview.monthlyTargets.progress.activeReaders} />
               <ProgressRow label={t("dashboard.targets.on_time_returns")} item={overview.monthlyTargets.progress.onTimeReturns} />
@@ -202,15 +202,15 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <form onSubmit={saveTargets} className="bg-white rounded-2xl border border-[#E1D2BD]/50 p-5 space-y-4">
-            <h3 className="text-sm font-bold text-[#2B1A10]">{t("dashboard.targets.title")}</h3>
+          <form onSubmit={saveTargets} className="bg-white rounded-2xl border border-[#E1DEE5]/50 p-5 space-y-4">
+            <h3 className="text-sm font-bold text-[#111111]">{t("dashboard.targets.title")}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
               <Field label={t("dashboard.targets.rentals")} value={form.target_rentals} onChange={(v) => setForm((p) => ({ ...p, target_rentals: v }))} />
               <Field label={t("dashboard.targets.active_readers")} value={form.target_active_readers} onChange={(v) => setForm((p) => ({ ...p, target_active_readers: v }))} />
               <Field label={t("dashboard.targets.on_time_returns")} item={null} value={form.target_on_time_returns} onChange={(v) => setForm((p) => ({ ...p, target_on_time_returns: v }))} />
               <Field label={t("dashboard.targets.new_books")} value={form.target_new_books} onChange={(v) => setForm((p) => ({ ...p, target_new_books: v }))} />
             </div>
-            <button type="submit" disabled={updateTargets.isPending} className="px-4 py-2.5 rounded-xl bg-[#2B1A10] text-white text-sm font-bold disabled:opacity-50">
+            <button type="submit" disabled={updateTargets.isPending} className="px-4 py-2.5 rounded-xl bg-[#142B6F] text-white text-sm font-bold disabled:opacity-50">
               {updateTargets.isPending ? t("dashboard.targets.saving") : t("dashboard.targets.save")}
             </button>
           </form>
@@ -223,13 +223,13 @@ export default function DashboardPage() {
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
     <label className="space-y-1 block">
-      <span className="text-xs font-bold text-[#2B1A10]">{label}</span>
+      <span className="text-xs font-bold text-[#111111]">{label}</span>
       <input
         type="number"
         min={0}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 rounded-lg border border-[#E1D2BD] text-sm"
+        className="w-full px-3 py-2 rounded-lg border border-[#E1DEE5] text-sm"
       />
     </label>
   );

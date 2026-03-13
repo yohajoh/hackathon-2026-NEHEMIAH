@@ -66,46 +66,50 @@ function BorrowingsContent() {
     <div className="p-6 lg:p-12 space-y-8">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="space-y-1">
-          <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#2B1A10]">{t("admin_borrowings.title")}</h1>
-          <p className="text-[#AE9E85] font-medium">{t("admin_borrowings.subtitle")}</p>
+          <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#111111]">{t("admin_borrowings.title")}</h1>
+          <p className="text-[#142B6F] font-medium">{t("admin_borrowings.subtitle")}</p>
         </div>
         <div className="flex items-center gap-3 mt-2">
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AE9E85]" />
-            <input type="text" placeholder={t("admin_borrowings.search_placeholder")} value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }} className="pl-9 pr-4 py-2.5 text-sm bg-white border border-[#E1D2BD] rounded-xl text-[#2B1A10] placeholder:text-[#C4B49E] w-56" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#142B6F]" />
+            <input type="text" placeholder={t("admin_borrowings.search_placeholder")} value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }} className="pl-9 pr-4 py-2.5 text-sm bg-white border border-[#E1DEE5] rounded-xl text-[#111111] placeholder:text-[#E1DEE5] w-56" />
           </div>
-          <button onClick={() => refetch()} className="flex items-center gap-2 px-4 py-2.5 bg-[#2B1A10] text-white text-sm font-bold rounded-xl">
+          <button onClick={() => refetch()} className="flex items-center gap-2 px-4 py-2.5 bg-[#142B6F] text-white text-sm font-bold rounded-xl">
             <RefreshCcw size={15} />{t("common.refresh") || "Refresh"}
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[#E1DEE5]/50 overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B6B4A]"></div></div>
+          <div className="py-8 px-6 space-y-3">
+            <div className="h-10 rounded-xl bg-[#E1DEE5] animate-pulse" />
+            <div className="h-10 rounded-xl bg-[#E1DEE5] animate-pulse" />
+            <div className="h-10 rounded-xl bg-[#E1DEE5] animate-pulse" />
+          </div>
         ) : (
           <>
-            <div className="grid grid-cols-[1.6fr_2fr_1fr_1fr_1fr_0.8fr_1fr] gap-4 px-6 py-3 border-b border-[#E1D2BD]/50 bg-[#FDFAF6]">
-              <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_borrowings.table.student")}</span>
-              <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_borrowings.table.book")}</span>
-              <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_borrowings.table.loan_date")}</span>
-              <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_borrowings.table.due_date")}</span>
-              <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_borrowings.table.status")}</span>
-              <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_borrowings.table.fine")}</span>
-              <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_borrowings.table.action")}</span>
+            <div className="grid grid-cols-[1.6fr_2fr_1fr_1fr_1fr_0.8fr_1fr] gap-4 px-6 py-3 border-b border-[#E1DEE5]/50 bg-[#FFFFFF]">
+              <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_borrowings.table.student")}</span>
+              <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_borrowings.table.book")}</span>
+              <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_borrowings.table.loan_date")}</span>
+              <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_borrowings.table.due_date")}</span>
+              <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_borrowings.table.status")}</span>
+              <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_borrowings.table.fine")}</span>
+              <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_borrowings.table.action")}</span>
             </div>
             {paginated.length === 0 ? (
-              <div className="py-16 text-center text-sm text-[#AE9E85]">{t("admin_borrowings.table.no_borrowings")}</div>
+              <div className="py-16 text-center text-sm text-[#142B6F]">{t("admin_borrowings.table.no_borrowings")}</div>
             ) : (
               paginated.map((rental) => (
-                <div key={rental.id} className="grid grid-cols-[1.6fr_2fr_1fr_1fr_1fr_0.8fr_1fr] gap-4 items-center px-6 py-4 border-b border-[#E1D2BD]/30 hover:bg-[#FDFAF6]">
-                  <div className="min-w-0"><p className="text-sm font-bold text-[#2B1A10] truncate">{rental.user?.name}</p><p className="text-xs text-[#AE9E85] truncate">{rental.user?.email}</p></div>
-                  <span className="text-sm text-[#2B1A10] truncate">{rental.physical_book?.title}</span>
-                  <span className="text-sm text-[#2B1A10]/70">{new Date(rental.loan_date).toLocaleDateString()}</span>
-                  <span className="text-sm text-[#2B1A10]/70">{new Date(rental.due_date).toLocaleDateString()}</span>
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-[#F3EFE6] text-[#2B1A10] w-fit">{rental.status}</span>
-                  <span className="text-sm text-[#2B1A10]/70">{Number(rental.fine || 0).toFixed(2)}</span>
-                  <button onClick={() => handleProcessReturn(rental.id)} disabled={processingReturnId === rental.id || rental.status === "RETURNED" || rental.status === "COMPLETED"} className="px-3 py-1.5 text-xs font-bold text-[#2B1A10] border border-[#C2B199] rounded-lg hover:bg-[#C2B199]/20 disabled:opacity-40">
+                <div key={rental.id} className="grid grid-cols-[1.6fr_2fr_1fr_1fr_1fr_0.8fr_1fr] gap-4 items-center px-6 py-4 border-b border-[#E1DEE5]/30 hover:bg-[#FFFFFF]">
+                  <div className="min-w-0"><p className="text-sm font-bold text-[#111111] truncate">{rental.user?.name}</p><p className="text-xs text-[#142B6F] truncate">{rental.user?.email}</p></div>
+                  <span className="text-sm text-[#111111] truncate">{rental.physical_book?.title}</span>
+                  <span className="text-sm text-[#111111]/70">{new Date(rental.loan_date).toLocaleDateString()}</span>
+                  <span className="text-sm text-[#111111]/70">{new Date(rental.due_date).toLocaleDateString()}</span>
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-[#E1DEE5] text-[#111111] w-fit">{rental.status}</span>
+                  <span className="text-sm text-[#111111]/70">{Number(rental.fine || 0).toFixed(2)}</span>
+                  <button onClick={() => handleProcessReturn(rental.id)} disabled={processingReturnId === rental.id || rental.status === "RETURNED" || rental.status === "COMPLETED"} className="px-3 py-1.5 text-xs font-bold text-[#111111] border border-[#E1DEE5] rounded-lg hover:bg-[#E1DEE5]/20 disabled:opacity-40">
                     {processingReturnId === rental.id ? t("admin_borrowings.actions.processing") : t("admin_borrowings.actions.return")}
                   </button>
                 </div>
@@ -117,13 +121,13 @@ function BorrowingsContent() {
 
       {!isLoading && totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#2B1A10]/60 disabled:opacity-30"><ChevronLeft size={16} />{t("common.previous")}</button>
+          <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#111111]/60 disabled:opacity-30"><ChevronLeft size={16} />{t("common.previous")}</button>
           <div className="flex items-center gap-1.5">
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button key={page} onClick={() => setCurrentPage(page)} className={`w-8 h-8 rounded-lg text-sm font-bold ${page === currentPage ? "bg-[#2B1A10] text-white" : "text-[#2B1A10]/60 hover:bg-[#F3EFE6]"}`}>{page}</button>
+              <button key={page} onClick={() => setCurrentPage(page)} className={`w-8 h-8 rounded-lg text-sm font-bold ${page === currentPage ? "bg-[#142B6F] text-white" : "text-[#111111]/60 hover:bg-[#E1DEE5]"}`}>{page}</button>
             ))}
           </div>
-          <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#2B1A10]/60 disabled:opacity-30">{t("common.next")}<ChevronRight size={16} /></button>
+          <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#111111]/60 disabled:opacity-30">{t("common.next")}<ChevronRight size={16} /></button>
         </div>
       )}
     </div>
@@ -135,12 +139,16 @@ function BorrowingsLoading() {
     <div className="p-6 lg:p-12 space-y-8">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="space-y-1">
-          <div className="h-12 w-64 bg-[#E1D2BD]/30 rounded-lg animate-pulse" />
-          <div className="h-5 w-96 bg-[#E1D2BD]/30 rounded-lg animate-pulse" />
+          <div className="h-12 w-64 bg-[#E1DEE5]/30 rounded-lg animate-pulse" />
+          <div className="h-5 w-96 bg-[#E1DEE5]/30 rounded-lg animate-pulse" />
         </div>
       </div>
-      <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-hidden">
-        <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B6B4A]"></div></div>
+      <div className="bg-white rounded-2xl border border-[#E1DEE5]/50 overflow-hidden">
+        <div className="py-8 px-6 space-y-3">
+          <div className="h-10 rounded-xl bg-[#E1DEE5] animate-pulse" />
+          <div className="h-10 rounded-xl bg-[#E1DEE5] animate-pulse" />
+          <div className="h-10 rounded-xl bg-[#E1DEE5] animate-pulse" />
+        </div>
       </div>
     </div>
   );

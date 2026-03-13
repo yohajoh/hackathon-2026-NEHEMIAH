@@ -151,22 +151,16 @@ export const DashboardSidebar = ({ variant = "default" }: DashboardSidebarProps)
 
   const navItems = isAdmin ? adminNavItems : studentNavItems;
 
-  const activeClass = isAdminVariant
-    ? "bg-[#C2B199] text-[#2B1A10] font-bold shadow-sm"
-    : "bg-primary text-background font-bold shadow-lg";
+  const activeClass = "bg-white/18 text-white font-bold border border-[#FFD602]/45 shadow-[0_10px_26px_rgba(0,0,0,0.22)]";
 
-  const inactiveClass = isAdminVariant
-    ? "text-[#2B1A10]/60 hover:bg-[#F3EFE6] hover:text-[#2B1A10]"
-    : "text-secondary hover:bg-muted/50 hover:text-primary";
+  const inactiveClass = "text-white/75 hover:bg-white/10 hover:text-white";
 
-  const iconActiveClass = isAdminVariant ? "text-[#2B1A10]" : "text-background";
-  const iconInactiveClass = isAdminVariant
-    ? "text-[#2B1A10]/50 group-hover:text-[#2B1A10]"
-    : "text-secondary/60 group-hover:text-primary";
+  const iconActiveClass = "text-white";
+  const iconInactiveClass = "text-white/70 group-hover:text-white";
 
-  const bgClass = isAdminVariant ? "bg-[#FDF8F0] border-[#E1D2BD]/50" : "bg-muted/30 border-border/50";
-  const textClass = isAdminVariant ? "text-[#3B2718]" : "text-primary";
-  const secondaryTextClass = isAdminVariant ? "text-[#AE9E85]" : "text-secondary/60";
+  const bgClass = "bg-[rgb(8_16_46/0.88)] border-white/10 backdrop-blur-xl";
+  const textClass = "text-white";
+  const secondaryTextClass = "text-white/70";
 
   const handleLogout = async () => {
     try {
@@ -198,9 +192,21 @@ export const DashboardSidebar = ({ variant = "default" }: DashboardSidebarProps)
 
   return (
     <aside
-      className={`fixed left-0 top-0 h-screen w-full lg:w-72 flex flex-col ${bgClass} border-r ${isAdminVariant ? "border-[#E1D2BD]/50" : "border-border/50"} px-6 py-10 z-40`}
+      className={`fixed left-0 top-0 h-screen w-full lg:w-64 flex flex-col ${bgClass} border-r px-5 py-8 z-40`}
     >
-      <nav className="grow space-y-2 overflow-y-auto">
+      <div className="border-b border-white/15 pb-5">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm bg-white/20 text-white">
+            {user?.name ? getInitials(user.name) : loading ? ".." : "?"}
+          </div>
+          <div className="min-w-0 space-y-0.5">
+            <p className={`text-sm font-bold truncate ${textClass}`}>{user?.name || "User"}</p>
+            <p className={`text-[11px] truncate ${secondaryTextClass}`}>{user?.email || ""}</p>
+          </div>
+        </div>
+      </div>
+
+      <nav className="mt-5 flex-1 space-y-2 overflow-y-auto pr-1">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -218,24 +224,12 @@ export const DashboardSidebar = ({ variant = "default" }: DashboardSidebarProps)
         })}
       </nav>
 
-      <div className={`mt-auto pt-8 border-t ${isAdminVariant ? "border-[#E1D2BD]/50" : "border-border/50"} space-y-6`}>
-        <div className="flex items-center gap-3">
-          <div
-            className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm ${isAdminVariant ? "bg-[#E1D2BD] text-[#3B2718]" : "bg-secondary/20 text-primary"}`}
-          >
-            {user?.name ? getInitials(user.name) : loading ? ".." : "?"}
-          </div>
-          <div className="space-y-0.5">
-            <p className={`text-sm font-bold truncate ${textClass}`}>{user?.name || "User"}</p>
-            <p className={`text-[11px] truncate ${secondaryTextClass}`}>{user?.email || ""}</p>
-          </div>
-        </div>
-
+      <div className="mt-4 border-t border-white/15 pt-4">
         <button
           onClick={handleLogout}
-          className={`flex w-full cursor-pointer items-center gap-4 rounded-xl px-4 py-3 transition-all group ${isAdminVariant ? "text-[#2B1A10]/60 hover:text-red-500 hover:bg-red-50" : "text-secondary hover:text-red-500 hover:bg-red-50"}`}
+          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3.5 py-2.5 transition-all group text-white/80 hover:text-white hover:bg-white/10"
         >
-          <LogOut size={20} className="group-hover:text-red-500" />
+          <LogOut size={18} className="group-hover:text-white" />
           <span className="text-sm font-medium">{t("sidebar.logout")}</span>
         </button>
       </div>

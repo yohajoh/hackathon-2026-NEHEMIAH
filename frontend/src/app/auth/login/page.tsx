@@ -78,7 +78,7 @@ function LoginContent() {
           )}
 
           <div className="space-y-1.5">
-            <label htmlFor="email" className="text-xs font-medium text-[#3B2718]">
+            <label htmlFor="email" className="text-xs font-medium text-[#111111]">
               {t("auth.login.identity_label")}
             </label>
             <input
@@ -86,19 +86,19 @@ function LoginContent() {
               name="email"
               type="email"
               required
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] placeholder:text-[#B09776] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] placeholder:text-[#142B6F] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
               placeholder={t("auth.login.identity_placeholder")}
             />
           </div>
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
-              <label htmlFor="password" className="font-medium text-[#3B2718]">
+              <label htmlFor="password" className="font-medium text-[#111111]">
                 {t("auth.login.password_label")}
               </label>
               <Link
                 href="/auth/forgot-password"
-                className="text-[#4A2B0B] hover:text-[#754019] transition-colors"
+                className="text-[#142B6F] hover:text-[#142B6F] transition-colors"
               >
                 {t("auth.login.forgot_password")}
               </Link>
@@ -108,7 +108,7 @@ function LoginContent() {
               name="password"
               type="password"
               required
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] placeholder:text-[#B09776] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] placeholder:text-[#142B6F] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
               placeholder={t("auth.login.password_placeholder")}
             />
           </div>
@@ -118,11 +118,11 @@ function LoginContent() {
               id="remember"
               name="remember"
               type="checkbox"
-              className="h-3.5 w-3.5 rounded border-[#C4AF90] bg-transparent accent-[#4A2B0B] focus:ring-0"
+              className="h-3.5 w-3.5 rounded border-[#E1DEE5] bg-transparent accent-[#142B6F] focus:ring-0"
             />
             <label
               htmlFor="remember"
-              className="text-xs text-[#8B6B4A] leading-snug cursor-pointer"
+              className="text-xs text-[#142B6F] leading-snug cursor-pointer"
             >
               {t("auth.login.remember_me")}
             </label>
@@ -131,21 +131,21 @@ function LoginContent() {
           <button
             type="submit"
             disabled={isLoading}
-            className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-[#4A2B0B] px-4 py-2.5 text-sm font-medium text-white shadow-[0_14px_40px_rgba(74,43,11,0.35)] hover:bg-[#5B3410] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C79E6C] focus-visible:ring-offset-2 focus-visible:ring-offset-white transition disabled:opacity-70 disabled:cursor-not-allowed"
+            className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-[#142B6F] px-4 py-2.5 text-sm font-medium text-white shadow-[0_14px_40px_rgba(74,43,11,0.35)] hover:bg-[#142B6F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD602] focus-visible:ring-offset-2 focus-visible:ring-offset-white transition disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isLoading ? t("auth.login.submitting") : t("auth.login.submit")}
           </button>
 
-          <div className="flex items-center gap-3 pt-3 text-[11px] text-[#8B6B4A]">
-            <span className="h-px flex-1 bg-[#E1D2BD]" />
+          <div className="flex items-center gap-3 pt-3 text-[11px] text-[#142B6F]">
+            <span className="h-px flex-1 bg-[#E1DEE5]" />
             <span>{t("auth.login.or_continue_with")}</span>
-            <span className="h-px flex-1 bg-[#E1D2BD]" />
+            <span className="h-px flex-1 bg-[#E1DEE5]" />
           </div>
 
           <button
             type="button"
             onClick={handleGoogleLogin}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#D2BFA3] bg-white px-4 py-2.5 text-sm font-medium text-[#3B2718] hover:bg-[#FFF7EA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E1C6A1] focus-visible:ring-offset-2 focus-visible:ring-offset-white transition"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#E1DEE5] bg-white px-4 py-2.5 text-sm font-medium text-[#111111] hover:bg-[#FFFFFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD602] focus-visible:ring-offset-2 focus-visible:ring-offset-white transition"
           >
             <span className="h-4 w-4 rounded-full bg-[#DB4437]" />
             <span>{t("auth.login.google_login")}</span>
@@ -158,7 +158,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#FFF2D9]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#FFFFFF]" />}>
       <LoginContent />
     </Suspense>
   );

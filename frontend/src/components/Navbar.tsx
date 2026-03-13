@@ -18,6 +18,7 @@ export const Navbar = () => {
   const [isLangOpen, setIsLangOpen] = useState(false);
   const isStudentDashboard = pathname.startsWith("/dashboard/student");
   const isAdminDashboard = pathname.startsWith("/dashboard/admin");
+  const isDashboard = pathname.startsWith("/dashboard/");
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -32,56 +33,61 @@ export const Navbar = () => {
     { code: "or", name: "Oromiffa" },
   ];
 
+  const headerClass = isDashboard
+    ? "fixed top-0 left-0 right-0 lg:left-64 z-[70] w-auto border-b border-border/40 bg-background/78 backdrop-blur-xl"
+    : "sticky top-0 z-50 w-full border-b border-border/40 bg-background/70 backdrop-blur-xl pt-4 pb-2";
+
+  const containerClass = isDashboard
+    ? "mx-auto flex w-full items-center justify-between px-4 lg:px-6 py-2"
+    : "mx-auto flex max-w-7xl items-center justify-between px-6";
+
+  const shellClass = isDashboard
+    ? "flex w-full items-center justify-between rounded-2xl border border-border/70 bg-card/70 px-4 py-2 shadow-[0_8px_22px_rgba(20,43,111,0.10)]"
+    : "flex w-full items-center justify-between rounded-full border border-border/70 bg-card/70 px-6 py-2.5 shadow-[0_10px_32px_rgba(20,43,111,0.10)]";
+
   return (
-    <header className="sticky top-0 z-50 w-full pt-4 pb-2 bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6">
-        <div className="flex w-full items-center justify-between rounded-full border border-border bg-card/50 px-6 py-2.5 shadow-sm">
+    <header className={headerClass}>
+      <div className={containerClass}>
+        <div className={shellClass}>
           <Link href="/" className="flex items-center gap-2">
-            <Image
-              src="/icons/book.svg"
-              alt="Book icon"
-              width={24}
-              height={24}
-            />
-            <span className="text-lg font-serif font-bold tracking-tight text-primary">
-              ብራና
-            </span>
+            <Image src="/icons/book.svg" alt="Book icon" width={24} height={24} />
+            <span className="text-lg font-serif font-bold tracking-tight text-primary">ብራና</span>
           </Link>
 
-          <nav className="hidden items-center gap-10 text-sm font-medium text-secondary md:flex">
-            <Link
-              href="/"
-              className={`relative transition-colors ${
-                isActive("/") &&
-                !pathname.startsWith("/books") &&
-                !pathname.startsWith("/about")
-                  ? "text-primary font-bold after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-full after:bg-primary after:rounded-full"
-                  : "hover:text-primary"
-              }`}
-            >
-              {t("navbar.home")}
-            </Link>
-            <Link
-              href="/books"
-              className={`relative transition-colors ${
-                isActive("/books")
-                  ? "text-primary font-bold after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-full after:bg-primary after:rounded-full"
-                  : "hover:text-primary"
-              }`}
-            >
-              {t("navbar.books")}
-            </Link>
-            <Link
-              href="/about"
-              className={`relative transition-colors ${
-                isActive("/about")
-                  ? "text-primary font-bold after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-full after:bg-primary after:rounded-full"
-                  : "hover:text-primary"
-              }`}
-            >
-              {t("navbar.about")}
-            </Link>
-          </nav>
+          {!isDashboard && (
+            <nav className="hidden items-center gap-10 text-sm font-medium text-secondary md:flex">
+              <Link
+                href="/"
+                className={`relative transition-colors ${
+                  isActive("/") && !pathname.startsWith("/books") && !pathname.startsWith("/about")
+                    ? "text-primary font-bold after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-full after:bg-primary after:rounded-full"
+                    : "hover:text-primary"
+                }`}
+              >
+                {t("navbar.home")}
+              </Link>
+              <Link
+                href="/books"
+                className={`relative transition-colors ${
+                  isActive("/books")
+                    ? "text-primary font-bold after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-full after:bg-primary after:rounded-full"
+                    : "hover:text-primary"
+                }`}
+              >
+                {t("navbar.books")}
+              </Link>
+              <Link
+                href="/about"
+                className={`relative transition-colors ${
+                  isActive("/about")
+                    ? "text-primary font-bold after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-full after:bg-primary after:rounded-full"
+                    : "hover:text-primary"
+                }`}
+              >
+                {t("navbar.about")}
+              </Link>
+            </nav>
+          )}
 
           <div className="flex items-center gap-3">
             {/* Language Switcher */}
@@ -104,9 +110,7 @@ export const Navbar = () => {
                         setIsLangOpen(false);
                       }}
                       className={`w-full rounded-xl px-3 py-2 text-left text-xs font-medium transition-colors ${
-                        language === lang.code
-                          ? "bg-primary/10 text-primary"
-                          : "text-secondary hover:bg-muted"
+                        language === lang.code ? "bg-primary/10 text-primary" : "text-secondary hover:bg-muted"
                       }`}
                     >
                       {lang.name}

@@ -67,13 +67,13 @@ export default function AdminSettingsPage() {
   return (
     <div className="p-6 lg:p-12 space-y-8 max-w-3xl">
       <div>
-        <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#2B1A10]">System Settings</h1>
-        <p className="text-[#AE9E85] font-medium">Configure global rental and inventory rules.</p>
+        <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#111111]">System Settings</h1>
+        <p className="text-[#142B6F] font-medium">Configure global rental and inventory rules.</p>
       </div>
 
-      <form onSubmit={saveSettings} className="bg-white rounded-2xl border border-[#E1D2BD]/50 p-6 space-y-5">
+      <form onSubmit={saveSettings} className="bg-white rounded-2xl border border-[#E1DEE5]/50 p-6 space-y-5">
         {isLoading ? (
-          <p className="text-sm text-[#AE9E85]">Loading...</p>
+          <p className="text-sm text-[#142B6F]">Loading...</p>
         ) : (
           <>
             <Field label="Max Loan Days" value={form.max_loan_days} onChange={(value) => setForm((p) => ({ ...p, max_loan_days: value }))} />
@@ -83,7 +83,7 @@ export default function AdminSettingsPage() {
             <Field label="Low Stock Threshold" value={form.low_stock_threshold} onChange={(value) => setForm((p) => ({ ...p, low_stock_threshold: value }))} />
             <Field label="Never Returned Alert (Days)" value={form.never_returned_days} onChange={(value) => setForm((p) => ({ ...p, never_returned_days: value }))} />
 
-            <label className="flex items-center gap-3 text-sm font-medium text-[#2B1A10]">
+            <label className="flex items-center gap-3 text-sm font-medium text-[#111111]">
               <input
                 type="checkbox"
                 checked={form.enable_notifications}
@@ -92,7 +92,7 @@ export default function AdminSettingsPage() {
               Enable Notifications
             </label>
 
-            <button type="submit" disabled={updateConfig.isPending} className="px-4 py-2.5 bg-[#2B1A10] text-white rounded-xl text-sm font-bold disabled:opacity-50">
+            <button type="submit" disabled={updateConfig.isPending} className="px-4 py-2.5 bg-[#142B6F] text-white rounded-xl text-sm font-bold disabled:opacity-50">
               {updateConfig.isPending ? "Saving..." : "Save Settings"}
             </button>
           </>
@@ -105,12 +105,12 @@ export default function AdminSettingsPage() {
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
     <label className="block space-y-1">
-      <span className="text-sm font-bold text-[#2B1A10]">{label}</span>
+      <span className="text-sm font-bold text-[#111111]">{label}</span>
       <input
         type="number"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2.5 rounded-xl border border-[#E1D2BD] text-sm text-[#2B1A10] focus:outline-none"
+        className="w-full px-3 py-2.5 rounded-xl border border-[#E1DEE5] text-sm text-[#111111] focus:outline-none"
       />
     </label>
   );

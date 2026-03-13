@@ -247,12 +247,12 @@ export default function AdminBooksPage() {
       <div className="p-6 lg:p-12 space-y-8">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="space-y-1">
-            <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#2B1A10]">{t("admin_books.title")}</h1>
-            <p className="text-[#AE9E85] font-medium">{t("admin_books.subtitle")}</p>
+            <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#111111]">{t("admin_books.title")}</h1>
+            <p className="text-[#142B6F] font-medium">{t("admin_books.subtitle")}</p>
           </div>
           <div className="flex items-center gap-3 mt-2">
             <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AE9E85]" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#142B6F]" />
               <input
                 type="text"
                 placeholder={t("admin_books.search_placeholder")}
@@ -262,12 +262,12 @@ export default function AdminBooksPage() {
                   setCurrentPage(1);
                 }}
                 disabled={activeTab === "categories"}
-                className="pl-9 pr-4 py-2.5 text-sm bg-white border border-[#E1D2BD] rounded-xl text-[#2B1A10] placeholder:text-[#C4B49E] w-52 disabled:opacity-40"
+                className="pl-9 pr-4 py-2.5 text-sm bg-white border border-[#E1DEE5] rounded-xl text-[#111111] placeholder:text-[#E1DEE5] w-52 disabled:opacity-40"
               />
             </div>
             <button
               onClick={() => (activeTab === "categories" ? setShowCategoryModal(true) : openCreateBookModal())}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#2B1A10] text-white text-sm font-bold rounded-xl"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#142B6F] text-white text-sm font-bold rounded-xl"
             >
               <Plus size={16} />
               {activeTab === "categories" ? t("admin_categories.add_new") : t("admin_books.add_new")}
@@ -275,22 +275,31 @@ export default function AdminBooksPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-6 border-b border-[#E1D2BD]/50">
+        <div className="flex items-center gap-6 border-b border-[#E1DEE5]/50">
           {TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => handleTabChange(tab.key)}
-              className={`pb-3 text-sm font-bold border-b-2 ${activeTab === tab.key ? "text-[#2B1A10] border-[#2B1A10]" : "text-[#AE9E85] border-transparent"}`}
+              className={`pb-3 text-sm font-bold border-b-2 ${activeTab === tab.key ? "text-[#111111] border-[#111111]" : "text-[#142B6F] border-transparent"}`}
             >
               {tab.label}
             </button>
           ))}
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-visible">
+        <div className="bg-white rounded-2xl border border-[#E1DEE5]/50 overflow-visible">
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B6B4A]"></div>
+            <div className="p-6 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="grid grid-cols-[2.5fr_2fr_1.5fr_1fr_1fr_auto] gap-4 items-center py-2">
+                  <div className="h-4 rounded-lg bg-[#E1DEE5]/70 animate-pulse" />
+                  <div className="h-4 rounded-lg bg-[#E1DEE5]/70 animate-pulse" />
+                  <div className="h-4 rounded-lg bg-[#E1DEE5]/70 animate-pulse" />
+                  <div className="h-4 w-16 rounded-lg bg-[#E1DEE5]/70 animate-pulse" />
+                  <div className="h-4 w-20 rounded-lg bg-[#E1DEE5]/70 animate-pulse" />
+                  <div className="h-8 w-8 ml-auto rounded-full bg-[#E1DEE5]/70 animate-pulse" />
+                </div>
+              ))}
             </div>
           ) : activeTab === "categories" ? (
             <CategoryTable
@@ -319,7 +328,7 @@ export default function AdminBooksPage() {
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#2B1A10]/60 disabled:opacity-30"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#111111]/60 disabled:opacity-30"
             >
             <ChevronLeft size={16} />
             {t("common.previous")}
@@ -329,7 +338,7 @@ export default function AdminBooksPage() {
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
-                  className={`w-8 h-8 rounded-lg text-sm font-bold ${page === currentPage ? "bg-[#2B1A10] text-white" : "text-[#2B1A10]/60 hover:bg-[#F3EFE6]"}`}
+                  className={`w-8 h-8 rounded-lg text-sm font-bold ${page === currentPage ? "bg-[#142B6F] text-white" : "text-[#111111]/60 hover:bg-[#E1DEE5]"}`}
                 >
                   {page}
                 </button>
@@ -338,7 +347,7 @@ export default function AdminBooksPage() {
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#2B1A10]/60 disabled:opacity-30"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#111111]/60 disabled:opacity-30"
             >
               {t("common.next")}
               <ChevronRight size={16} />
@@ -384,13 +393,13 @@ export default function AdminBooksPage() {
           }}
         >
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-8 pt-7 pb-4 border-b border-[#E1D2BD]/50">
-              <h3 className="text-xl font-serif font-extrabold text-[#2B1A10]">
+            <div className="flex items-center justify-between px-8 pt-7 pb-4 border-b border-[#E1DEE5]/50">
+              <h3 className="text-xl font-serif font-extrabold text-[#111111]">
                 {editingCategoryId ? t("admin_categories.modal.edit_title") : t("admin_categories.modal.add_title")}
               </h3>
               <button
                 onClick={() => setShowCategoryModal(false)}
-                className="w-8 h-8 flex items-center justify-center text-[#AE9E85] hover:text-[#2B1A10] rounded-lg"
+                className="w-8 h-8 flex items-center justify-center text-[#142B6F] hover:text-[#111111] rounded-lg"
               >
                 <X size={18} />
               </button>
@@ -403,19 +412,19 @@ export default function AdminBooksPage() {
               className="px-8 py-6 space-y-4"
             >
               <div>
-                <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{t("admin_categories.modal.label_name")}</label>
+                <label className="block text-sm font-bold text-[#111111] mb-1.5">{t("admin_categories.modal.label_name")}</label>
                 <input
                   type="text"
                   required
                   value={categoryName}
                   onChange={(e) => setCategoryName(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
+                  className="w-full px-3 py-2.5 text-sm border border-[#E1DEE5] rounded-xl text-[#111111]"
                 />
               </div>
               <button
                 type="submit"
                 disabled={createCategoryFn.isPending || updateCategoryFn.isPending}
-                className="w-full py-3 bg-[#2B1A10] text-white text-sm font-bold rounded-xl disabled:opacity-50"
+                className="w-full py-3 bg-[#142B6F] text-white text-sm font-bold rounded-xl disabled:opacity-50"
               >
                 {createCategoryFn.isPending || updateCategoryFn.isPending
                   ? t("admin_categories.modal.submitting")
@@ -443,16 +452,16 @@ export default function AdminBooksPage() {
 
       {deleteBookCandidate && (
         <div
-          className="fixed inset-0 z-10000 bg-[#2B1A10]/35 flex items-center justify-center p-4"
+          className="fixed inset-0 z-10000 bg-[#142B6F]/35 flex items-center justify-center p-4"
           onClick={() => !deleteBook.isPending && setDeleteBookCandidate(null)}
         >
           <div
             onClick={(event) => event.stopPropagation()}
-            className="w-full max-w-md rounded-[28px] border border-[#E1D2BD] bg-[#FFF9F1] p-6 shadow-2xl"
+            className="w-full max-w-md rounded-[28px] border border-[#E1DEE5] bg-[#FFFFFF] p-6 shadow-2xl"
           >
             <div className="space-y-2">
-              <h3 className="text-2xl font-serif font-black text-[#2B1A10]">{t("admin_categories.confirm.delete_title")}</h3>
-              <p className="text-sm text-[#7B6853] leading-6">
+              <h3 className="text-2xl font-serif font-black text-[#111111]">{t("admin_categories.confirm.delete_title")}</h3>
+              <p className="text-sm text-[#142B6F] leading-6">
                 {t("admin_categories.confirm.delete_desc", { name: deleteBookCandidate.title })}
               </p>
             </div>
@@ -461,7 +470,7 @@ export default function AdminBooksPage() {
                 type="button"
                 onClick={() => setDeleteBookCandidate(null)}
                 disabled={deleteBook.isPending}
-                className="px-4 py-2.5 rounded-xl border border-[#D9C8B3] text-sm font-bold text-[#6C5236] disabled:opacity-40"
+                className="px-4 py-2.5 rounded-xl border border-[#E1DEE5] text-sm font-bold text-[#142B6F] disabled:opacity-40"
               >
                 {t("common.cancel")}
               </button>
@@ -505,30 +514,30 @@ function BookTable({
     };
   }, []);
 
-  if (books.length === 0) return <div className="py-16 text-center text-sm text-[#AE9E85]">{t("admin_books.table.no_books")}</div>;
+  if (books.length === 0) return <div className="py-16 text-center text-sm text-[#142B6F]">{t("admin_books.table.no_books")}</div>;
   return (
     <>
-      <div className="grid grid-cols-[2.5fr_2fr_1.5fr_1fr_1fr_auto] gap-4 px-6 py-3 border-b border-[#E1D2BD]/50 bg-[#FDFAF6]">
-        <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_books.table.title")}</span>
-        <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_books.table.author")}</span>
-        <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_books.table.category")}</span>
-        <span className="text-[11px] font-bold text-[#AE9E85] uppercase text-center">{t("admin_books.table.copies")}</span>
-        <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_books.table.status")}</span>
+      <div className="grid grid-cols-[2.5fr_2fr_1.5fr_1fr_1fr_auto] gap-4 px-6 py-3 border-b border-[#E1DEE5]/50 bg-[#FFFFFF]">
+        <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_books.table.title")}</span>
+        <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_books.table.author")}</span>
+        <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_books.table.category")}</span>
+        <span className="text-[11px] font-bold text-[#142B6F] uppercase text-center">{t("admin_books.table.copies")}</span>
+        <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_books.table.status")}</span>
         <span className="w-16"></span>
       </div>
       {books.map((book) => (
         <div
           key={book.id}
-          className="grid grid-cols-[2.5fr_2fr_1.5fr_1fr_1fr_auto] gap-4 items-center px-6 py-4 border-b border-[#E1D2BD]/30 hover:bg-[#FDFAF6]"
+          className="grid grid-cols-[2.5fr_2fr_1.5fr_1fr_1fr_auto] gap-4 items-center px-6 py-4 border-b border-[#E1DEE5]/30 hover:bg-[#FFFFFF]"
         >
-          <span className="text-sm font-bold text-[#2B1A10] truncate">{book.title}</span>
-          <span className="text-sm text-[#8B6B4A] truncate">{book.author?.name || "—"}</span>
-          <span className="text-sm text-[#2B1A10]/70">{book.category?.name || "—"}</span>
-          <span className="text-sm text-[#2B1A10]/70 text-center">
+          <span className="text-sm font-bold text-[#111111] truncate">{book.title}</span>
+          <span className="text-sm text-[#142B6F] truncate">{book.author?.name || "—"}</span>
+          <span className="text-sm text-[#111111]/70">{book.category?.name || "—"}</span>
+          <span className="text-sm text-[#111111]/70 text-center">
             {book.type === "digital" ? t("admin_books.status.digital") : (book.total ?? "—")}
           </span>
           <span
-            className={`text-xs font-bold px-2.5 py-1 rounded-lg w-fit ${book.type === "digital" ? "bg-[#F3EFE6] text-[#2B1A10]" : book.available === 0 || book.status === "BORROWED" ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}
+            className={`text-xs font-bold px-2.5 py-1 rounded-lg w-fit ${book.type === "digital" ? "bg-[#E1DEE5] text-[#111111]" : book.available === 0 || book.status === "BORROWED" ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}
           >
             {book.type === "digital"
               ? book.pdf_access === "RESTRICTED"
@@ -540,21 +549,21 @@ function BookTable({
             <button
               type="button"
               onClick={() => setOpenMenuBookId((current) => (current === book.id ? null : book.id))}
-              className="h-9 w-9 rounded-full border border-[#E1D2BD] bg-[#FFFDF9] text-[#8B6B4A] flex items-center justify-center"
+              className="h-9 w-9 rounded-full border border-[#E1DEE5] bg-[#FFFFFF] text-[#142B6F] flex items-center justify-center"
               aria-label={`Open actions for ${book.title}`}
             >
               <MoreHorizontal size={16} />
             </button>
 
             {openMenuBookId === book.id ? (
-              <div className="absolute right-0 top-11 z-2147483646 min-w-56 overflow-hidden rounded-xl border border-[#E6D7C4] bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
+              <div className="absolute right-0 top-11 z-2147483646 min-w-56 overflow-hidden rounded-xl border border-[#E1DEE5] bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
                 <button
                   type="button"
                   onClick={() => {
                     setOpenMenuBookId(null);
                     onEdit(book);
                   }}
-                  className="flex w-full items-center px-3 py-2.5 text-left text-sm font-semibold text-[#2B1A10] hover:bg-[#F8F2E9]"
+                  className="flex w-full items-center px-3 py-2.5 text-left text-sm font-semibold text-[#111111] hover:bg-[#FFFFFF]"
                 >
                   {t("admin_books.actions.edit")}
                 </button>
@@ -565,7 +574,7 @@ function BookTable({
                       setOpenMenuBookId(null);
                       onCondition(book.id, book.title);
                     }}
-                    className="flex w-full items-center px-3 py-2.5 text-left text-sm font-semibold text-[#2B1A10] hover:bg-[#F8F2E9]"
+                    className="flex w-full items-center px-3 py-2.5 text-left text-sm font-semibold text-[#111111] hover:bg-[#FFFFFF]"
                   >
                     {t("admin_books.actions.condition")}
                   </button>
@@ -603,34 +612,34 @@ function CategoryTable({
 }) {
   const { t } = useLanguage();
   if (categories.length === 0)
-    return <div className="py-16 text-center text-sm text-[#AE9E85]">{t("admin_categories.table.no_categories")}</div>;
+    return <div className="py-16 text-center text-sm text-[#142B6F]">{t("admin_categories.table.no_categories")}</div>;
   return (
     <>
-      <div className="grid grid-cols-[3fr_1fr_auto] gap-4 px-6 py-3 border-b border-[#E1D2BD]/50 bg-[#FDFAF6]">
-        <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_categories.table.category")}</span>
-        <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_categories.table.physical")} / {t("admin_categories.table.digital")}</span>
+      <div className="grid grid-cols-[3fr_1fr_auto] gap-4 px-6 py-3 border-b border-[#E1DEE5]/50 bg-[#FFFFFF]">
+        <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_categories.table.category")}</span>
+        <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_categories.table.physical")} / {t("admin_categories.table.digital")}</span>
         <span className="w-16"></span>
       </div>
       {categories.map((cat) => (
         <div
           key={cat.id}
-          className="grid grid-cols-[3fr_1fr_auto] gap-4 items-center px-6 py-4 border-b border-[#E1D2BD]/30 hover:bg-[#FDFAF6]"
+          className="grid grid-cols-[3fr_1fr_auto] gap-4 items-center px-6 py-4 border-b border-[#E1DEE5]/30 hover:bg-[#FFFFFF]"
         >
-          <span className="text-sm font-bold text-[#2B1A10]">{cat.name}</span>
-          <span className="text-sm text-[#2B1A10]/70">
+          <span className="text-sm font-bold text-[#111111]">{cat.name}</span>
+          <span className="text-sm text-[#111111]/70">
             {(cat._count?.books || 0) + (cat._count?.digital_books || 0)}
           </span>
           <div className="flex items-center gap-2">
             <button
               onClick={() => onEdit(cat)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-[#2B1A10] hover:bg-[#F3EFE6]"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-[#142B6F] hover:text-[#111111] hover:bg-[#E1DEE5]"
             >
               <Pencil size={15} />
             </button>
             <button
               onClick={() => onDelete(cat.id)}
               disabled={deletingId === cat.id}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-[#AE9E85] hover:text-red-500 hover:bg-red-50 disabled:opacity-40"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-[#142B6F] hover:text-red-500 hover:bg-red-50 disabled:opacity-40"
             >
               <Trash2 size={15} />
             </button>
@@ -682,7 +691,7 @@ function SearchableDropdown({
 
   return (
     <div ref={containerRef} className="relative">
-      <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{label} *</label>
+      <label className="block text-sm font-bold text-[#111111] mb-1.5">{label} *</label>
       <button
         type="button"
         title={`Select ${label.toLowerCase()}`}
@@ -695,17 +704,17 @@ function SearchableDropdown({
             setSearchText("");
           }
         }}
-        className="flex w-full items-center justify-between border border-[#E1D2BD] bg-white px-3 py-2.5 text-sm text-[#2B1A10]"
+        className="flex w-full items-center justify-between border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111]"
       >
-        <span className={selectedOption ? "text-[#2B1A10]" : "text-[#AE9E85]"}>
+        <span className={selectedOption ? "text-[#111111]" : "text-[#142B6F]"}>
           {selectedOption?.name || placeholder}
         </span>
-        <ChevronDown size={16} className={`text-[#8B6B4A] transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown size={16} className={`text-[#142B6F] transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
       {isOpen ? (
-        <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden border border-[#E1D2BD] bg-white shadow-[0_12px_24px_rgba(0,0,0,0.12)]">
-          <div className="border-b border-[#F1E7DA] p-3">
+        <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden border border-[#E1DEE5] bg-white shadow-[0_12px_24px_rgba(0,0,0,0.12)]">
+          <div className="border-b border-[#E1DEE5] p-3">
             <input
               type="text"
               title={`Search ${label.toLowerCase()}`}
@@ -713,13 +722,13 @@ function SearchableDropdown({
               value={searchText}
               onChange={(event) => setSearchText(event.target.value)}
               placeholder={`Search ${label.toLowerCase()}`}
-              className="w-full border border-[#E1D2BD] px-3 py-2.5 text-sm text-[#2B1A10] outline-none focus:border-[#8B6B4A]"
+              className="w-full border border-[#E1DEE5] px-3 py-2.5 text-sm text-[#111111] outline-none focus:border-[#142B6F]"
             />
           </div>
 
           <div className="max-h-56 overflow-y-auto p-2">
             {filteredOptions.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-[#AE9E85]">No matching {label.toLowerCase()} found.</div>
+              <div className="px-3 py-2 text-sm text-[#142B6F]">No matching {label.toLowerCase()} found.</div>
             ) : (
               filteredOptions.map((option) => (
                 <div
@@ -729,7 +738,7 @@ function SearchableDropdown({
                     setSearchText("");
                     setIsOpen(false);
                   }}
-                  className={`cursor-pointer px-3 py-2.5 text-left text-sm ${selectedId === option.id ? "bg-[#F5EBDD] font-bold text-[#2B1A10]" : "text-[#2B1A10] hover:bg-[#FBF3E7]"}`}
+                  className={`cursor-pointer px-3 py-2.5 text-left text-sm ${selectedId === option.id ? "bg-[#FFFFFF] font-bold text-[#111111]" : "text-[#111111] hover:bg-[#FFFFFF]"}`}
                 >
                   {option.name}
                 </div>
@@ -737,7 +746,7 @@ function SearchableDropdown({
             )}
           </div>
 
-          <div className="border-t border-[#F1E7DA] p-2">
+          <div className="border-t border-[#E1DEE5] p-2">
             <button
               type="button"
               title={createLabel}
@@ -747,7 +756,7 @@ function SearchableDropdown({
                 setIsOpen(false);
               }}
               disabled={isCreating || !showCreateAction}
-              className="w-full rounded-xl border border-[#2B1A10] bg-[#2B1A10] px-3 py-2.5 text-center text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-45"
+              className="w-full rounded-xl border border-[#111111] bg-[#142B6F] px-3 py-2.5 text-center text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-45"
             >
               {isCreating ? `Adding ${label.toLowerCase()}...` : createLabel}
             </button>
@@ -1004,30 +1013,30 @@ function AddBookModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-2147483647 flex items-center justify-center p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden">
-        <div className="flex items-center justify-center gap-8 pt-8 pb-4 border-b border-[#E1D2BD]/50 relative">
+        <div className="flex items-center justify-center gap-8 pt-8 pb-4 border-b border-[#E1DEE5]/50 relative">
           <button
             onClick={() => setModalTab("physical")}
             disabled={!!editingBook}
-            className={`text-sm font-bold pb-2 border-b-2 ${modalTab === "physical" ? "text-[#2B1A10] border-[#2B1A10]" : "text-[#AE9E85] border-transparent"} disabled:opacity-50`}
+            className={`text-sm font-bold pb-2 border-b-2 ${modalTab === "physical" ? "text-[#111111] border-[#111111]" : "text-[#142B6F] border-transparent"} disabled:opacity-50`}
           >
             {t("admin_books.tabs.physical")}
           </button>
           <button
             onClick={() => setModalTab("digital")}
             disabled={!!editingBook}
-            className={`text-sm font-bold pb-2 border-b-2 ${modalTab === "digital" ? "text-[#2B1A10] border-[#2B1A10]" : "text-[#AE9E85] border-transparent"} disabled:opacity-50`}
+            className={`text-sm font-bold pb-2 border-b-2 ${modalTab === "digital" ? "text-[#111111] border-[#111111]" : "text-[#142B6F] border-transparent"} disabled:opacity-50`}
           >
             {t("admin_books.tabs.digital")}
           </button>
           <button
             onClick={onClose}
-            className="absolute right-5 top-6 w-8 h-8 flex items-center justify-center text-[#AE9E85] hover:text-[#2B1A10] rounded-lg"
+            className="absolute right-5 top-6 w-8 h-8 flex items-center justify-center text-[#142B6F] hover:text-[#111111] rounded-lg"
           >
             <X size={18} />
           </button>
@@ -1035,13 +1044,13 @@ function AddBookModal({
         <form onSubmit={handleSubmit} className="px-8 py-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{t("admin_books.modal.labels.title")} *</label>
+              <label className="block text-sm font-bold text-[#111111] mb-1.5">{t("admin_books.modal.labels.title")} *</label>
               <input
                 type="text"
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                 required
-                className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
+                className="w-full px-3 py-2.5 text-sm border border-[#E1DEE5] rounded-xl text-[#111111]"
               />
             </div>
             <SearchableDropdown
@@ -1075,18 +1084,18 @@ function AddBookModal({
             />
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{t("admin_books.modal.labels.rental_price")} *</label>
+                <label className="block text-sm font-bold text-[#111111] mb-1.5">{t("admin_books.modal.labels.rental_price")} *</label>
                 <input
                   type="number"
                   min="0.01"
                   step="0.01"
                   value={form.rental_price}
                   onChange={(e) => setForm((f) => ({ ...f, rental_price: e.target.value }))}
-                  className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
+                  className="w-full px-3 py-2.5 text-sm border border-[#E1DEE5] rounded-xl text-[#111111]"
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{t("admin_books.modal.labels.loan_duration")}</label>
+                <label className="block text-sm font-bold text-[#111111] mb-1.5">{t("admin_books.modal.labels.loan_duration")}</label>
                 <input
                   type="number"
                   min="1"
@@ -1094,7 +1103,7 @@ function AddBookModal({
                   value={form.loan_duration_days}
                   onChange={(e) => setForm((f) => ({ ...f, loan_duration_days: e.target.value }))}
                   placeholder="System default"
-                  className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
+                  className="w-full px-3 py-2.5 text-sm border border-[#E1DEE5] rounded-xl text-[#111111]"
                 />
               </div>
             </div>
@@ -1102,29 +1111,29 @@ function AddBookModal({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {modalTab === "physical" ? (
               <div>
-                <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{t("admin_books.modal.labels.copies")} *</label>
+                <label className="block text-sm font-bold text-[#111111] mb-1.5">{t("admin_books.modal.labels.copies")} *</label>
                 <input
                   type="number"
                   min="1"
                   value={form.copies}
                   onChange={(e) => setForm((f) => ({ ...f, copies: e.target.value }))}
                   required
-                  className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
+                  className="w-full px-3 py-2.5 text-sm border border-[#E1DEE5] rounded-xl text-[#111111]"
                 />
               </div>
             ) : (
               <div>
-                <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">
+                <label className="block text-sm font-bold text-[#111111] mb-1.5">
                   {editingBook ? t("admin_books.modal.labels.pdf_file_edit") : t("admin_books.modal.labels.pdf_file")}
                 </label>
                 <div
                   onClick={() => pdfInputRef.current?.click()}
-                  className="w-full h-10 border-2 border-dashed border-[#E1D2BD] rounded-xl flex items-center justify-center cursor-pointer hover:border-[#8B6B4A]"
+                  className="w-full h-10 border-2 border-dashed border-[#E1DEE5] rounded-xl flex items-center justify-center cursor-pointer hover:border-[#142B6F]"
                 >
                   {pdfFile ? (
-                    <p className="text-xs text-[#2B1A10] truncate px-2">{pdfFile.name}</p>
+                    <p className="text-xs text-[#111111] truncate px-2">{pdfFile.name}</p>
                   ) : (
-                    <p className="text-xs text-[#AE9E85]">{editingBook ? t("admin_books.modal.drop_pdf_edit") : t("admin_books.modal.drop_pdf")}</p>
+                    <p className="text-xs text-[#142B6F]">{editingBook ? t("admin_books.modal.drop_pdf_edit") : t("admin_books.modal.drop_pdf")}</p>
                   )}
                 </div>
                 <input
@@ -1137,67 +1146,67 @@ function AddBookModal({
               </div>
             )}
             <div>
-              <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{t("admin_books.modal.labels.publication_year")}</label>
+              <label className="block text-sm font-bold text-[#111111] mb-1.5">{t("admin_books.modal.labels.publication_year")}</label>
               <input
                 type="text"
                 value={form.publication_year}
                 onChange={(e) => setForm((f) => ({ ...f, publication_year: e.target.value }))}
                 placeholder="e.g. 2024"
-                className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
+                className="w-full px-3 py-2.5 text-sm border border-[#E1DEE5] rounded-xl text-[#111111]"
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{t("admin_books.modal.labels.pages")}</label>
+              <label className="block text-sm font-bold text-[#111111] mb-1.5">{t("admin_books.modal.labels.pages")}</label>
               <input
                 type="number"
                 min="1"
                 value={form.pages}
                 onChange={(e) => setForm((f) => ({ ...f, pages: e.target.value }))}
                 placeholder="e.g. 300"
-                className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
+                className="w-full px-3 py-2.5 text-sm border border-[#E1DEE5] rounded-xl text-[#111111]"
               />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{t("admin_books.modal.labels.tags")}</label>
+              <label className="block text-sm font-bold text-[#111111] mb-1.5">{t("admin_books.modal.labels.tags")}</label>
               <input
                 type="text"
                 value={form.tags}
                 onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
                 placeholder="comma separated"
-                className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
+                className="w-full px-3 py-2.5 text-sm border border-[#E1DEE5] rounded-xl text-[#111111]"
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{t("admin_books.modal.labels.topics")}</label>
+              <label className="block text-sm font-bold text-[#111111] mb-1.5">{t("admin_books.modal.labels.topics")}</label>
               <input
                 type="text"
                 value={form.topics}
                 onChange={(e) => setForm((f) => ({ ...f, topics: e.target.value }))}
                 placeholder="comma separated"
-                className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
+                className="w-full px-3 py-2.5 text-sm border border-[#E1DEE5] rounded-xl text-[#111111]"
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{t("admin_books.modal.labels.description")}</label>
+            <label className="block text-sm font-bold text-[#111111] mb-1.5">{t("admin_books.modal.labels.description")}</label>
             <textarea
               rows={3}
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10] resize-none"
+              className="w-full px-3 py-2.5 text-sm border border-[#E1DEE5] rounded-xl text-[#111111] resize-none"
             />
           </div>
           {modalTab === "digital" && (
             <div>
-              <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{t("admin_books.modal.labels.pdf_access")}</label>
+              <label className="block text-sm font-bold text-[#111111] mb-1.5">{t("admin_books.modal.labels.pdf_access")}</label>
               <select
                 value={form.pdf_access}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, pdf_access: e.target.value as "FREE" | "PAID" | "RESTRICTED" }))
                 }
-                className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
+                className="w-full px-3 py-2.5 text-sm border border-[#E1DEE5] rounded-xl text-[#111111]"
               >
                 <option value="RESTRICTED">{t("admin_books.status.read_only")}</option>
                 <option value="FREE">{t("admin_books.status.free_download")}</option>
@@ -1206,17 +1215,17 @@ function AddBookModal({
             </div>
           )}
           <div>
-            <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{t("admin_books.modal.labels.cover_image")}</label>
+            <label className="block text-sm font-bold text-[#111111] mb-1.5">{t("admin_books.modal.labels.cover_image")}</label>
             <div
               onClick={() => imageInputRef.current?.click()}
-              className="w-full h-24 border-2 border-dashed border-[#E1D2BD] rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-[#8B6B4A]"
+              className="w-full h-24 border-2 border-dashed border-[#E1DEE5] rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-[#142B6F]"
             >
               {imageFile ? (
-                <p className="text-xs text-[#AE9E85]">{imageFile.name}</p>
+                <p className="text-xs text-[#142B6F]">{imageFile.name}</p>
               ) : (
                 <>
-                  <Upload size={20} className="text-[#AE9E85]" />
-                  <p className="text-xs text-[#AE9E85]">{t("admin_books.modal.drop_image")}</p>
+                  <Upload size={20} className="text-[#142B6F]" />
+                  <p className="text-xs text-[#142B6F]">{t("admin_books.modal.drop_image")}</p>
                 </>
               )}
             </div>
@@ -1229,12 +1238,12 @@ function AddBookModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{t("admin_books.modal.labels.book_gallery")}</label>
+            <label className="block text-sm font-bold text-[#111111] mb-1.5">{t("admin_books.modal.labels.book_gallery")}</label>
             <div
               onClick={() => galleryInputRef.current?.click()}
-              className="w-full h-20 border-2 border-dashed border-[#E1D2BD] rounded-2xl flex items-center justify-center cursor-pointer hover:border-[#8B6B4A]"
+              className="w-full h-20 border-2 border-dashed border-[#E1DEE5] rounded-2xl flex items-center justify-center cursor-pointer hover:border-[#142B6F]"
             >
-              <p className="text-xs text-[#AE9E85]">
+              <p className="text-xs text-[#142B6F]">
                 {galleryFiles.length > 0
                   ? t("admin_books.modal.gallery_selected", { count: galleryFiles.length })
                   : t("admin_books.modal.drop_gallery")}
@@ -1252,7 +1261,7 @@ function AddBookModal({
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-3 bg-[#2B1A10] text-white text-sm font-bold rounded-xl disabled:opacity-50 mt-2"
+            className="w-full py-3 bg-[#142B6F] text-white text-sm font-bold rounded-xl disabled:opacity-50 mt-2"
           >
             {submitting
               ? t("admin_books.modal.submitting")
@@ -1326,14 +1335,14 @@ function ConditionModal({
       }}
     >
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden">
-        <div className="flex items-center justify-between px-8 pt-7 pb-4 border-b border-[#E1D2BD]/50">
+        <div className="flex items-center justify-between px-8 pt-7 pb-4 border-b border-[#E1DEE5]/50">
           <div>
-            <h3 className="text-xl font-serif font-extrabold text-[#2B1A10]">Book Condition Management</h3>
-            <p className="text-sm text-[#AE9E85]">{title}</p>
+            <h3 className="text-xl font-serif font-extrabold text-[#111111]">Book Condition Management</h3>
+            <p className="text-sm text-[#142B6F]">{title}</p>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center text-[#AE9E85] hover:text-[#2B1A10] rounded-lg"
+            className="w-8 h-8 flex items-center justify-center text-[#142B6F] hover:text-[#111111] rounded-lg"
           >
             <X size={18} />
           </button>
@@ -1341,16 +1350,18 @@ function ConditionModal({
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 min-h-[500px]">
           {/* Left: Copies List */}
-          <div className="border-r border-[#E1D2BD]/50 p-6 bg-[#FDFAF6]">
-            <h4 className="text-sm font-bold text-[#2B1A10] mb-4">All Copies ({copies.length})</h4>
+          <div className="border-r border-[#E1DEE5]/50 p-6 bg-[#FFFFFF]">
+            <h4 className="text-sm font-bold text-[#111111] mb-4">All Copies ({copies.length})</h4>
             {copiesLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8B6B4A]"></div>
+              <div className="space-y-3 py-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-14 rounded-2xl bg-[#E1DEE5]/70 animate-pulse" />
+                ))}
               </div>
             ) : (
               <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
                 {copies.length === 0 ? (
-                  <div className="text-sm text-[#AE9E85] text-center py-4">No copies found</div>
+                  <div className="text-sm text-[#142B6F] text-center py-4">No copies found</div>
                 ) : (
                   copies.map((copy) => (
                     <button
@@ -1360,10 +1371,10 @@ function ConditionModal({
                         setSelectedCopyId(copy.id);
                         setConditionForm({ condition: copy.condition, notes: copy.notes || "" });
                       }}
-                      className={`w-full text-left rounded-2xl border-2 px-4 py-3 transition-all ${copy.id === selectedCopyId ? "border-[#2B1A10] bg-white shadow-md" : "border-[#E1D2BD] hover:bg-white hover:border-[#C2B199]"}`}
+                      className={`w-full text-left rounded-2xl border-2 px-4 py-3 transition-all ${copy.id === selectedCopyId ? "border-[#111111] bg-white shadow-md" : "border-[#E1DEE5] hover:bg-white hover:border-[#E1DEE5]"}`}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-bold text-[#2B1A10]">{copy.copy_code}</span>
+                        <span className="text-sm font-bold text-[#111111]">{copy.copy_code}</span>
                         <span
                           className={`text-[10px] font-bold px-2 py-1 rounded-full ${getConditionColor(copy.condition)}`}
                         >
@@ -1371,10 +1382,10 @@ function ConditionModal({
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-[#AE9E85]">
+                        <span className="text-xs text-[#142B6F]">
                           {copy.is_available ? "Available" : "Checked Out"}
                         </span>
-                        <span className="text-xs text-[#AE9E85]">
+                        <span className="text-xs text-[#142B6F]">
                           {new Date(copy.last_condition_update).toLocaleDateString()}
                         </span>
                       </div>
@@ -1386,16 +1397,16 @@ function ConditionModal({
           </div>
 
           {/* Middle: Update Condition */}
-          <div className="border-r border-[#E1D2BD]/50 p-6">
-            <h4 className="text-sm font-bold text-[#2B1A10] mb-4">Update Condition</h4>
+          <div className="border-r border-[#E1DEE5]/50 p-6">
+            <h4 className="text-sm font-bold text-[#111111] mb-4">Update Condition</h4>
             {!selectedCopyId ? (
-              <div className="text-sm text-[#AE9E85] text-center py-8">Select a copy to update its condition</div>
+              <div className="text-sm text-[#142B6F] text-center py-8">Select a copy to update its condition</div>
             ) : (
               <div className="space-y-4">
-                <div className="bg-[#FDFAF6] rounded-2xl p-4 border border-[#E1D2BD]/50">
-                  <div className="text-xs text-[#AE9E85] mb-1">Selected Copy</div>
-                  <div className="text-sm font-bold text-[#2B1A10]">{selectedCopy?.copy_code}</div>
-                  <div className="text-xs text-[#AE9E85] mt-1">
+                <div className="bg-[#FFFFFF] rounded-2xl p-4 border border-[#E1DEE5]/50">
+                  <div className="text-xs text-[#142B6F] mb-1">Selected Copy</div>
+                  <div className="text-sm font-bold text-[#111111]">{selectedCopy?.copy_code}</div>
+                  <div className="text-xs text-[#142B6F] mt-1">
                     Current:{" "}
                     <span className={`font-bold ${getConditionColor(selectedCopy?.condition || "")}`}>
                       {selectedCopy?.condition}
@@ -1404,14 +1415,14 @@ function ConditionModal({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-[#2B1A10] mb-2">New Condition *</label>
+                  <label className="block text-sm font-bold text-[#111111] mb-2">New Condition *</label>
                   <div className="grid grid-cols-3 gap-2">
                     {["NEW", "GOOD", "WORN", "DAMAGED", "LOST"].map((cond) => (
                       <button
                         key={cond}
                         type="button"
                         onClick={() => setConditionForm((p) => ({ ...p, condition: cond }))}
-                        className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all ${conditionForm.condition === cond ? "border-[#2B1A10] bg-[#2B1A10] text-white" : `border ${getConditionColor(cond)} hover:opacity-80`}`}
+                        className={`py-2 px-3 rounded-xl text-xs font-bold border-2 transition-all ${conditionForm.condition === cond ? "border-[#111111] bg-[#142B6F] text-white" : `border ${getConditionColor(cond)} hover:opacity-80`}`}
                       >
                         {cond}
                       </button>
@@ -1420,13 +1431,13 @@ function ConditionModal({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-[#2B1A10] mb-2">Notes (Optional)</label>
+                  <label className="block text-sm font-bold text-[#111111] mb-2">Notes (Optional)</label>
                   <textarea
                     rows={3}
                     value={conditionForm.notes}
                     onChange={(e) => setConditionForm((p) => ({ ...p, notes: e.target.value }))}
                     placeholder="Add notes about the book's condition..."
-                    className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10] resize-none"
+                    className="w-full px-3 py-2.5 text-sm border border-[#E1DEE5] rounded-xl text-[#111111] resize-none"
                   />
                 </div>
 
@@ -1436,13 +1447,13 @@ function ConditionModal({
                   disabled={
                     !selectedCopyId || updateCondition.isPending || conditionForm.condition === selectedCopy?.condition
                   }
-                  className="w-full py-3 bg-[#2B1A10] text-white text-sm font-bold rounded-xl disabled:opacity-50 hover:bg-[#3d2413] transition-colors"
+                  className="w-full py-3 bg-[#142B6F] text-white text-sm font-bold rounded-xl disabled:opacity-50 hover:bg-[#142B6F] transition-colors"
                 >
                   {updateCondition.isPending ? "Saving..." : "Update Condition"}
                 </button>
 
                 {conditionForm.condition !== selectedCopy?.condition && (
-                  <div className="text-xs text-center text-[#8B6B4A]">
+                  <div className="text-xs text-center text-[#142B6F]">
                     Change: <span className="line-through">{selectedCopy?.condition}</span> →{" "}
                     <span className="font-bold">{conditionForm.condition}</span>
                   </div>
@@ -1452,23 +1463,25 @@ function ConditionModal({
           </div>
 
           {/* Right: History */}
-          <div className="p-6 bg-[#FAFAFA]">
-            <h4 className="text-sm font-bold text-[#2B1A10] mb-4">Condition History</h4>
+          <div className="p-6 bg-[#FFFFFF]">
+            <h4 className="text-sm font-bold text-[#111111] mb-4">Condition History</h4>
             {historyLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8B6B4A]"></div>
+              <div className="space-y-3 py-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-16 rounded-2xl bg-[#E1DEE5]/70 animate-pulse" />
+                ))}
               </div>
             ) : (
               <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
                 {history.length === 0 ? (
-                  <div className="text-sm text-[#AE9E85] text-center py-8">
+                  <div className="text-sm text-[#142B6F] text-center py-8">
                     No history yet.
                     <br />
                     Update a copy to see history.
                   </div>
                 ) : (
                   history.map((entry) => (
-                    <div key={entry.id} className="rounded-2xl border border-[#E1D2BD] px-4 py-3 bg-white">
+                    <div key={entry.id} className="rounded-2xl border border-[#E1DEE5] px-4 py-3 bg-white">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <span
@@ -1476,7 +1489,7 @@ function ConditionModal({
                           >
                             {entry.old_condition}
                           </span>
-                          <span className="text-[#AE9E85]">→</span>
+                          <span className="text-[#142B6F]">→</span>
                           <span
                             className={`text-xs font-bold px-2 py-0.5 rounded ${getConditionColor(entry.new_condition)}`}
                           >
@@ -1484,9 +1497,9 @@ function ConditionModal({
                           </span>
                         </div>
                       </div>
-                      <div className="text-xs text-[#AE9E85]">{new Date(entry.created_at).toLocaleString()}</div>
+                      <div className="text-xs text-[#142B6F]">{new Date(entry.created_at).toLocaleString()}</div>
                       {entry.notes && (
-                        <div className="text-xs text-[#2B1A10]/70 mt-2 pt-2 border-t border-[#E1D2BD]/50">
+                        <div className="text-xs text-[#111111]/70 mt-2 pt-2 border-t border-[#E1DEE5]/50">
                           {entry.notes}
                         </div>
                       )}

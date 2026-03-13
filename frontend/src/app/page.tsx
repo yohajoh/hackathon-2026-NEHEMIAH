@@ -12,7 +12,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-primary/10">
       <Navbar />
-      <main>
+      <main className="space-y-4 lg:space-y-8">
         <Hero />
         <MostBorrowed />
         <HowItWorks />

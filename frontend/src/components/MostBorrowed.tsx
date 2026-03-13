@@ -3,7 +3,6 @@
 import Image from "next/image";
 import { SectionHeader } from "./SectionHeader";
 import { useTrendingBooks } from "@/lib/hooks/useQueries";
-
 export const MostBorrowed = () => {
   const { data: trendingData, isLoading } = useTrendingBooks();
 
@@ -12,6 +11,7 @@ export const MostBorrowed = () => {
       trendingData?.data as unknown as {
         trending?: Array<{
           book: {
+            id: string;
             title: string;
             cover_image_url?: string;
             author?: { name?: string };
@@ -25,10 +25,7 @@ export const MostBorrowed = () => {
     return (
       <section className="w-full py-20 bg-card/30">
         <div className="mx-auto max-w-7xl px-6">
-          <SectionHeader
-            title="Most Borrowed This Month"
-            viewAllHref="/books"
-          />
+          <SectionHeader title="Most Borrowed This Month" viewAllHref="/books" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
             {[1, 2, 3].map((i) => (
               <div key={i} className="animate-pulse">
@@ -50,10 +47,7 @@ export const MostBorrowed = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
           {books.map((book, idx) => (
-            <div
-              key={idx}
-              className="group relative flex flex-col items-center"
-            >
+            <div key={idx} className="group relative flex flex-col items-center">
               <div className="absolute top-5 left-1 text-[180px] font-serif text-border/40 select-none z-0">
                 {idx === 0 ? "፩" : idx === 1 ? "፪" : "፫"}
               </div>
@@ -73,9 +67,7 @@ export const MostBorrowed = () => {
                     <h3 className="text-xl font-serif font-bold text-primary group-hover:text-secondary transition-colors line-clamp-1 mb-1">
                       {book.book.title}
                     </h3>
-                    <p className="text-sm font-medium text-secondary/70">
-                      by: {book.book.author.name}
-                    </p>
+                    <p className="text-sm font-medium text-secondary/70">by: {book.book.author.name}</p>
                   </div>
                   <div>Borrowed: {book.rentalCount} times</div>
                 </div>

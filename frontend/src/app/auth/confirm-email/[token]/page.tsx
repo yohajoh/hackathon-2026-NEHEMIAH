@@ -42,7 +42,10 @@ export default function ConfirmEmailPage({ params }: { params: Promise<{ token: 
     >
       <div className="flex flex-col items-center justify-center space-y-6 py-8">
         {status === "loading" && (
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#4A2B0B] border-t-transparent" />
+          <div className="w-full max-w-xs space-y-2">
+            <div className="h-3 w-3/4 mx-auto rounded-full bg-[#E1DEE5] animate-pulse" />
+            <div className="h-3 w-1/2 mx-auto rounded-full bg-[#E1DEE5] animate-pulse" />
+          </div>
         )}
         
         {status === "success" && (
@@ -54,7 +57,7 @@ export default function ConfirmEmailPage({ params }: { params: Promise<{ token: 
             </div>
             <button
               onClick={() => router.push("/auth/login")}
-              className="rounded-xl bg-[#4A2B0B] px-8 py-2.5 text-sm font-medium text-white shadow-lg hover:bg-[#5B3410] transition"
+              className="rounded-xl bg-[#142B6F] px-8 py-2.5 text-sm font-medium text-white shadow-lg hover:bg-[#142B6F] transition"
             >
               Sign in now
             </button>
@@ -70,7 +73,7 @@ export default function ConfirmEmailPage({ params }: { params: Promise<{ token: 
             </div>
             <button
               onClick={() => router.push("/auth/login")}
-              className="rounded-xl border border-[#4A2B0B] px-8 py-2.5 text-sm font-medium text-[#4A2B0B] hover:bg-[#4A2B0B] hover:text-white transition"
+              className="rounded-xl border border-[#142B6F] px-8 py-2.5 text-sm font-medium text-[#142B6F] hover:bg-[#142B6F] hover:text-white transition"
             >
               Back to login
             </button>

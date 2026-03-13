@@ -106,18 +106,18 @@ function PaymentsContent() {
 
       {debtSummary?.hasDebt ? (
         <section className="rounded-2xl border border-amber-300 bg-amber-50 p-4 space-y-2">
-          <h2 className="text-lg font-serif font-bold text-[#7A4B00]">{t("student_payments.outstanding_title")}</h2>
-          <p className="text-sm text-[#7A4B00]">
+          <h2 className="text-lg font-serif font-bold text-[#142B6F]">{t("student_payments.outstanding_title")}</h2>
+          <p className="text-sm text-[#142B6F]">
             {t("student_payments.outstanding_desc", { amount: Number(debtSummary.totalDebt || 0).toFixed(2) })}
           </p>
           <div className="space-y-1">
             {debtSummary.overdueFines.slice(0, 4).map((entry) => (
-              <p key={entry.rental_id} className="text-xs text-[#7A4B00]">
+              <p key={entry.rental_id} className="text-xs text-[#142B6F]">
                 • {entry.book_title}: {Number(entry.amount || 0).toFixed(2)} ETB
               </p>
             ))}
             {debtSummary.overdueFines.length > 4 ? (
-              <p className="text-xs text-[#7A4B00]">{t("student_payments.more_overdue", { count: debtSummary.overdueFines.length - 4 })}</p>
+              <p className="text-xs text-[#142B6F]">{t("student_payments.more_overdue", { count: debtSummary.overdueFines.length - 4 })}</p>
             ) : null}
           </div>
         </section>
@@ -186,7 +186,7 @@ function PaymentsContent() {
       <section className="space-y-4">
         <h2 className="text-xl font-serif font-bold text-primary">{t("student_payments.history")}</h2>
         <div className="bg-white rounded-2xl border border-border/60 overflow-hidden">
-          <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-3 border-b border-border/50 bg-[#FDFAF6]">
+          <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-3 border-b border-border/50 bg-[#FFFFFF]">
             <span className="text-[11px] font-bold text-secondary uppercase">{t("admin_reservations.table.book")}</span>
             <span className="text-[11px] font-bold text-secondary uppercase">{t("dashboard.stats.revenue")}</span>
             <span className="text-[11px] font-bold text-secondary uppercase">{t("admin_reservations.table.method") || "Method"}</span>
@@ -222,8 +222,8 @@ function PaymentsLoading() {
   return (
     <div className="p-6 lg:p-12 space-y-8">
       <div className="space-y-2">
-        <div className="h-12 w-64 bg-[#E1D2BD]/30 rounded-lg animate-pulse" />
-        <div className="h-5 w-96 bg-[#E1D2BD]/30 rounded-lg animate-pulse" />
+        <div className="h-12 w-64 bg-[#E1DEE5]/30 rounded-lg animate-pulse" />
+        <div className="h-5 w-96 bg-[#E1DEE5]/30 rounded-lg animate-pulse" />
       </div>
       <div className="py-16 text-center text-secondary text-sm">{t("student_payments.loading_payments")}</div>
     </div>

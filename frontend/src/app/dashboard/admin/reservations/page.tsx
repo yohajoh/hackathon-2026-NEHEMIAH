@@ -114,13 +114,13 @@ export default function AdminReservationsPage() {
     <div className="p-6 lg:p-12 space-y-8">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#2B1A10]">{t("admin_reservations.title")}</h1>
-          <p className="text-[#AE9E85] font-medium">{t("admin_reservations.subtitle")}</p>
+          <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#111111]">{t("admin_reservations.title")}</h1>
+          <p className="text-[#142B6F] font-medium">{t("admin_reservations.subtitle")}</p>
         </div>
         <div className="flex gap-3">
           <button
             onClick={handleRefresh}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-[#E1D2BD] rounded-xl text-sm font-bold text-[#2B1A10]"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-[#E1DEE5] rounded-xl text-sm font-bold text-[#111111]"
           >
             <RefreshCcw size={15} /> {t("admin_reservations.refresh")}
           </button>
@@ -136,22 +136,22 @@ export default function AdminReservationsPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-visible">
-        <div className="px-6 py-4 border-b border-[#E1D2BD]/50 bg-[#FFFAF3]">
-          <h2 className="text-sm font-bold text-[#2B1A10] uppercase tracking-wide">{t("admin_reservations.high_demand.title")}</h2>
+      <div className="bg-white rounded-2xl border border-[#E1DEE5]/50 overflow-visible">
+        <div className="px-6 py-4 border-b border-[#E1DEE5]/50 bg-[#FFFFFF]">
+          <h2 className="text-sm font-bold text-[#111111] uppercase tracking-wide">{t("admin_reservations.high_demand.title")}</h2>
           {highDemandLoading ? (
-            <p className="text-xs text-[#AE9E85] mt-2">{t("admin_reservations.high_demand.loading")}</p>
+            <p className="text-xs text-[#142B6F] mt-2">{t("admin_reservations.high_demand.loading")}</p>
           ) : highDemand.length === 0 ? (
-            <p className="text-xs text-[#AE9E85] mt-2">{t("admin_reservations.high_demand.no_demand")}</p>
+            <p className="text-xs text-[#142B6F] mt-2">{t("admin_reservations.high_demand.no_demand")}</p>
           ) : (
             <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {highDemand.map((item) => (
-                <div key={item.book.id} className="rounded-xl border border-[#EADCC8] bg-white p-3">
-                  <p className="text-sm font-bold text-[#2B1A10] truncate">{item.book.title}</p>
-                  <p className="text-xs text-[#AE9E85] mt-1">
+                <div key={item.book.id} className="rounded-xl border border-[#E1DEE5] bg-white p-3">
+                  <p className="text-sm font-bold text-[#111111] truncate">{item.book.title}</p>
+                  <p className="text-xs text-[#142B6F] mt-1">
                     {t("admin_reservations.high_demand.queue")}: {item.queueCount} • {t("admin_reservations.high_demand.copies")}: {item.book.copies} • {t("admin_reservations.high_demand.available")}: {item.book.available}
                   </p>
-                  <p className="text-xs text-[#8B6B4A] mt-1">{t("admin_reservations.high_demand.pressure")}: {item.pressureRatio}</p>
+                  <p className="text-xs text-[#142B6F] mt-1">{t("admin_reservations.high_demand.pressure")}: {item.pressureRatio}</p>
                   {item.needsInventoryAction ? (
                     <p className="text-[11px] font-bold text-red-700 mt-1">
                       {t("admin_reservations.high_demand.recommendation")}
@@ -163,13 +163,13 @@ export default function AdminReservationsPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-[0.4fr_2fr_2fr_0.7fr_0.9fr_1fr_1fr_1fr_1.6fr] gap-4 px-6 py-3 border-b border-[#E1D2BD]/50 bg-[#FDFAF6] text-[11px] font-bold text-[#AE9E85] uppercase">
+        <div className="grid grid-cols-[0.4fr_2fr_2fr_0.7fr_0.9fr_1fr_1fr_1fr_1.6fr] gap-4 px-6 py-3 border-b border-[#E1DEE5]/50 bg-[#FFFFFF] text-[11px] font-bold text-[#142B6F] uppercase">
           <span className="flex justify-center">
             <input
               type="checkbox"
               checked={reservations.length > 0 && selectedIds.size === reservations.length}
               onChange={(e) => handleSelectAll(e.target.checked)}
-              className="w-4 h-4 rounded border-[#E1D2BD] text-[#2B1A10] focus:ring-[#2B1A10]"
+              className="w-4 h-4 rounded border-[#E1DEE5] text-[#111111] focus:ring-[#111111]"
             />
           </span>
           <span>{t("admin_reservations.table.student")}</span>
@@ -183,41 +183,41 @@ export default function AdminReservationsPage() {
         </div>
 
         {isLoading ? (
-          <div className="py-16 text-center text-[#AE9E85] text-sm">Loading...</div>
+          <div className="py-16 text-center text-[#142B6F] text-sm">Loading...</div>
         ) : reservations.length === 0 ? (
-          <div className="py-16 text-center text-[#AE9E85] text-sm">No reservations found</div>
+          <div className="py-16 text-center text-[#142B6F] text-sm">No reservations found</div>
         ) : (
           reservations.map((item) => (
             <div
               key={item.id}
-              className="grid grid-cols-[0.4fr_2fr_2fr_0.7fr_0.9fr_1fr_1fr_1fr_1.6fr] gap-4 items-center px-6 py-4 border-b border-[#E1D2BD]/30 last:border-0 hover:bg-[#F8F2E9] transition-colors"
+              className="grid grid-cols-[0.4fr_2fr_2fr_0.7fr_0.9fr_1fr_1fr_1fr_1.6fr] gap-4 items-center px-6 py-4 border-b border-[#E1DEE5]/30 last:border-0 hover:bg-[#FFFFFF] transition-colors"
             >
               <div className="flex justify-center">
                 <input
                   type="checkbox"
                   checked={selectedIds.has(item.id)}
                   onChange={() => handleToggleSelect(item.id)}
-                  className="w-4 h-4 rounded border-[#E1D2BD] text-[#2B1A10] focus:ring-[#2B1A10]"
+                  className="w-4 h-4 rounded border-[#E1DEE5] text-[#111111] focus:ring-[#111111]"
                 />
               </div>
               <div>
-                <p className="text-sm font-bold text-[#2B1A10] truncate">{item.user.name}</p>
-                <p className="text-xs text-[#AE9E85] truncate">{item.user.email}</p>
+                <p className="text-sm font-bold text-[#111111] truncate">{item.user.name}</p>
+                <p className="text-xs text-[#142B6F] truncate">{item.user.email}</p>
               </div>
               <div>
-                <p className="text-sm text-[#2B1A10] truncate">{item.book.title}</p>
+                <p className="text-sm text-[#111111] truncate">{item.book.title}</p>
               </div>
-              <span className="text-sm text-[#2B1A10]/70">#{item.queue_position}</span>
-              <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-[#F3EFE6] text-[#2B1A10] w-fit">
+              <span className="text-sm text-[#111111]/70">#{item.queue_position}</span>
+              <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-[#E1DEE5] text-[#111111] w-fit">
                 {item.status}
               </span>
               <span
-                className={`text-sm ${Number(item.user_debt_total || 0) > 0 ? "text-red-700 font-bold" : "text-[#2B1A10]/70"}`}
+                className={`text-sm ${Number(item.user_debt_total || 0) > 0 ? "text-red-700 font-bold" : "text-[#111111]/70"}`}
               >
                 {Number(item.user_debt_total || 0) > 0 ? `${Number(item.user_debt_total).toFixed(2)} ETB` : t("admin_reservations.table.clear")}
               </span>
-              <span className="text-sm text-[#2B1A10]/70">{new Date(item.reserved_at).toLocaleDateString()}</span>
-              <span className="text-sm text-[#2B1A10]/70">
+              <span className="text-sm text-[#111111]/70">{new Date(item.reserved_at).toLocaleDateString()}</span>
+              <span className="text-sm text-[#111111]/70">
                 {item.expires_at ? new Date(item.expires_at).toLocaleString() : "-"}
               </span>
               <div className="relative flex justify-end" onClick={(event) => event.stopPropagation()}>
@@ -225,13 +225,13 @@ export default function AdminReservationsPage() {
                   type="button"
                   aria-label={`Open actions for reservation ${item.id}`}
                   onClick={() => setOpenMenuReservationId((current) => (current === item.id ? null : item.id))}
-                  className="h-9 w-9 rounded-full border border-[#E1D2BD] bg-[#FFFDF9] text-[#8B6B4A] flex items-center justify-center"
+                  className="h-9 w-9 rounded-full border border-[#E1DEE5] bg-[#FFFFFF] text-[#142B6F] flex items-center justify-center"
                 >
                   <MoreHorizontal size={16} />
                 </button>
 
                 {openMenuReservationId === item.id ? (
-                  <div className="absolute right-10 top-0 z-2147483647 min-w-52 overflow-hidden rounded-xl border border-[#E6D7C4] bg-white shadow-[0_18px_40px_rgba(0,0,0,0.24)]">
+                  <div className="absolute right-10 top-0 z-2147483647 min-w-52 overflow-hidden rounded-xl border border-[#E1DEE5] bg-white shadow-[0_18px_40px_rgba(0,0,0,0.24)]">
                     <button
                       type="button"
                       disabled={item.status !== "QUEUED" || moveToTop.isPending}
@@ -239,7 +239,7 @@ export default function AdminReservationsPage() {
                         setOpenMenuReservationId(null);
                         void handleMoveToTop(item.id);
                       }}
-                      className="flex w-full items-center px-3 py-2.5 text-left text-sm font-semibold text-[#2B1A10] hover:bg-[#F8F2E9] disabled:opacity-40"
+                      className="flex w-full items-center px-3 py-2.5 text-left text-sm font-semibold text-[#111111] hover:bg-[#FFFFFF] disabled:opacity-40"
                     >
                       {t("admin_reservations.actions.move_to_top")}
                     </button>
@@ -255,7 +255,7 @@ export default function AdminReservationsPage() {
                         setOpenMenuReservationId(null);
                         handleOpenIssueModal(item);
                       }}
-                      className="flex w-full items-center px-3 py-2.5 text-left text-sm font-semibold text-[#2B1A10] hover:bg-[#F8F2E9] disabled:opacity-40"
+                      className="flex w-full items-center px-3 py-2.5 text-left text-sm font-semibold text-[#111111] hover:bg-[#FFFFFF] disabled:opacity-40"
                     >
                       {t("admin_reservations.actions.issue_book")}
                     </button>
@@ -278,20 +278,20 @@ export default function AdminReservationsPage() {
           }}
         >
           <div
-            className="w-full max-w-md rounded-2xl border border-[#E1D2BD] bg-white p-6 shadow-2xl"
+            className="w-full max-w-md rounded-2xl border border-[#E1DEE5] bg-white p-6 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
-            <h3 className="text-xl font-serif font-extrabold text-[#2B1A10]">{t("admin_reservations.modal.title")}</h3>
-            <p className="mt-1 text-sm text-[#AE9E85]">{issueModalReservation.book.title}</p>
+            <h3 className="text-xl font-serif font-extrabold text-[#111111]">{t("admin_reservations.modal.title")}</h3>
+            <p className="mt-1 text-sm text-[#142B6F]">{issueModalReservation.book.title}</p>
 
             <div className="mt-4">
-              <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">{t("admin_reservations.modal.copy_code")}</label>
+              <label className="block text-sm font-bold text-[#111111] mb-1.5">{t("admin_reservations.modal.copy_code")}</label>
               <input
                 type="text"
                 value={issueCopyCode}
                 onChange={(e) => setIssueCopyCode(e.target.value)}
                 placeholder="BC-XXXXXXXX-0001"
-                className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
+                className="w-full px-3 py-2.5 text-sm border border-[#E1DEE5] rounded-xl text-[#111111]"
               />
             </div>
 
@@ -303,7 +303,7 @@ export default function AdminReservationsPage() {
                   setIssueModalReservation(null);
                   setIssueCopyCode("");
                 }}
-                className="px-4 py-2.5 rounded-xl border border-[#D9C8B3] text-sm font-bold text-[#6C5236] disabled:opacity-40"
+                className="px-4 py-2.5 rounded-xl border border-[#E1DEE5] text-sm font-bold text-[#142B6F] disabled:opacity-40"
               >
                 {t("admin_reservations.modal.cancel")}
               </button>
@@ -311,7 +311,7 @@ export default function AdminReservationsPage() {
                 type="button"
                 disabled={issueReservation.isPending || !issueCopyCode.trim()}
                 onClick={() => void handleConfirmIssue()}
-                className="px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-[#2B1A10] disabled:opacity-40"
+                className="px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-[#142B6F] disabled:opacity-40"
               >
                 {issueReservation.isPending ? t("admin_reservations.modal.issuing") : t("admin_reservations.actions.issue_book")}
               </button>

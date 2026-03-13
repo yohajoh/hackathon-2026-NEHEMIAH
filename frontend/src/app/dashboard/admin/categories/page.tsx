@@ -82,12 +82,12 @@ export default function AdminCategoriesPage() {
       <div className="p-6 lg:p-12 space-y-8">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="space-y-1">
-            <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#2B1A10]">Manage Categories</h1>
-            <p className="text-[#AE9E85] font-medium">Create, edit and remove categories used by books.</p>
+            <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#111111]">Manage Categories</h1>
+            <p className="text-[#142B6F] font-medium">Create, edit and remove categories used by books.</p>
           </div>
           <div className="flex items-center gap-3 mt-2">
             <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AE9E85]" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#142B6F]" />
               <input
                 type="text"
                 placeholder="Search category"
@@ -96,12 +96,12 @@ export default function AdminCategoriesPage() {
                   setSearch(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="pl-9 pr-4 py-2.5 text-sm bg-white border border-[#E1D2BD] rounded-xl text-[#2B1A10] placeholder:text-[#C4B49E] w-52"
+                className="pl-9 pr-4 py-2.5 text-sm bg-white border border-[#E1DEE5] rounded-xl text-[#111111] placeholder:text-[#E1DEE5] w-52"
               />
             </div>
             <button
               onClick={openCreate}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#2B1A10] text-white text-sm font-bold rounded-xl"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#142B6F] text-white text-sm font-bold rounded-xl"
             >
               <Plus size={16} />
               Add new category
@@ -109,51 +109,53 @@ export default function AdminCategoriesPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-visible">
+        <div className="bg-white rounded-2xl border border-[#E1DEE5]/50 overflow-visible">
           {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B6B4A]" />
+            <div className="py-8 px-6 space-y-3">
+              <div className="h-10 rounded-xl bg-[#E1DEE5] animate-pulse" />
+              <div className="h-10 rounded-xl bg-[#E1DEE5] animate-pulse" />
+              <div className="h-10 rounded-xl bg-[#E1DEE5] animate-pulse" />
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-[3fr_1fr_1fr_auto] gap-4 px-6 py-3 border-b border-[#E1D2BD]/50 bg-[#FDFAF6]">
-                <span className="text-[11px] font-bold text-[#AE9E85] uppercase">Category</span>
-                <span className="text-[11px] font-bold text-[#AE9E85] uppercase text-center">Physical</span>
-                <span className="text-[11px] font-bold text-[#AE9E85] uppercase text-center">Digital</span>
+              <div className="grid grid-cols-[3fr_1fr_1fr_auto] gap-4 px-6 py-3 border-b border-[#E1DEE5]/50 bg-[#FFFFFF]">
+                <span className="text-[11px] font-bold text-[#142B6F] uppercase">Category</span>
+                <span className="text-[11px] font-bold text-[#142B6F] uppercase text-center">Physical</span>
+                <span className="text-[11px] font-bold text-[#142B6F] uppercase text-center">Digital</span>
                 <span className="w-16" />
               </div>
               {paginated.length === 0 ? (
-                <div className="py-16 text-center text-sm text-[#AE9E85]">No categories found</div>
+                <div className="py-16 text-center text-sm text-[#142B6F]">No categories found</div>
               ) : (
                 paginated.map((category) => (
                   <div
                     key={category.id}
-                    className="grid grid-cols-[3fr_1fr_1fr_auto] gap-4 items-center px-6 py-4 border-b border-[#E1D2BD]/30 hover:bg-[#FDFAF6]"
+                    className="grid grid-cols-[3fr_1fr_1fr_auto] gap-4 items-center px-6 py-4 border-b border-[#E1DEE5]/30 hover:bg-[#FFFFFF]"
                   >
-                    <span className="text-sm font-bold text-[#2B1A10]">{category.name}</span>
-                    <span className="text-sm text-[#2B1A10]/70 text-center">{category._count?.books || 0}</span>
-                    <span className="text-sm text-[#2B1A10]/70 text-center">{category._count?.digital_books || 0}</span>
+                    <span className="text-sm font-bold text-[#111111]">{category.name}</span>
+                    <span className="text-sm text-[#111111]/70 text-center">{category._count?.books || 0}</span>
+                    <span className="text-sm text-[#111111]/70 text-center">{category._count?.digital_books || 0}</span>
                     <div className="relative flex justify-end" onClick={(event) => event.stopPropagation()}>
                       <button
                         type="button"
                         onClick={() =>
                           setOpenMenuCategoryId((current) => (current === category.id ? null : category.id))
                         }
-                        className="h-9 w-9 rounded-full border border-[#E1D2BD] bg-[#FFFDF9] text-[#8B6B4A] flex items-center justify-center"
+                        className="h-9 w-9 rounded-full border border-[#E1DEE5] bg-[#FFFFFF] text-[#142B6F] flex items-center justify-center"
                         aria-label={`Open actions for ${category.name}`}
                       >
                         <MoreHorizontal size={16} />
                       </button>
 
                       {openMenuCategoryId === category.id ? (
-                        <div className="absolute right-0 top-11 z-2147483646 min-w-56 overflow-hidden rounded-xl border border-[#E6D7C4] bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
+                        <div className="absolute right-0 top-11 z-2147483646 min-w-56 overflow-hidden rounded-xl border border-[#E1DEE5] bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
                           <button
                             type="button"
                             onClick={() => {
                               setOpenMenuCategoryId(null);
                               openEdit(category);
                             }}
-                            className="flex w-full items-center px-3 py-2.5 text-left text-sm font-semibold text-[#2B1A10] hover:bg-[#F8F2E9]"
+                            className="flex w-full items-center px-3 py-2.5 text-left text-sm font-semibold text-[#111111] hover:bg-[#FFFFFF]"
                           >
                             Edit
                           </button>
@@ -183,7 +185,7 @@ export default function AdminCategoriesPage() {
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#2B1A10]/60 disabled:opacity-30"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#111111]/60 disabled:opacity-30"
             >
               <ChevronLeft size={16} />
               Previous
@@ -193,7 +195,7 @@ export default function AdminCategoriesPage() {
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
-                  className={`w-8 h-8 rounded-lg text-sm font-bold ${page === currentPage ? "bg-[#2B1A10] text-white" : "text-[#2B1A10]/60 hover:bg-[#F3EFE6]"}`}
+                  className={`w-8 h-8 rounded-lg text-sm font-bold ${page === currentPage ? "bg-[#142B6F] text-white" : "text-[#111111]/60 hover:bg-[#E1DEE5]"}`}
                 >
                   {page}
                 </button>
@@ -202,7 +204,7 @@ export default function AdminCategoriesPage() {
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#2B1A10]/60 disabled:opacity-30"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#111111]/60 disabled:opacity-30"
             >
               Next
               <ChevronRight size={16} />
@@ -219,35 +221,35 @@ export default function AdminCategoriesPage() {
           }}
         >
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-8 pt-7 pb-4 border-b border-[#E1D2BD]/50">
-              <h3 className="text-xl font-serif font-extrabold text-[#2B1A10]">
+            <div className="flex items-center justify-between px-8 pt-7 pb-4 border-b border-[#E1DEE5]/50">
+              <h3 className="text-xl font-serif font-extrabold text-[#111111]">
                 {editingId ? "Edit Category" : "Add Category"}
               </h3>
               <button
                 onClick={() => setShowModal(false)}
                 title="Close"
                 aria-label="Close"
-                className="w-8 h-8 flex items-center justify-center text-[#AE9E85] hover:text-[#2B1A10] rounded-lg"
+                className="w-8 h-8 flex items-center justify-center text-[#142B6F] hover:text-[#111111] rounded-lg"
               >
                 <X size={18} />
               </button>
             </div>
             <form onSubmit={handleSave} className="px-8 py-6 space-y-4">
               <div>
-                <label className="block text-sm font-bold text-[#2B1A10] mb-1.5">Category Name</label>
+                <label className="block text-sm font-bold text-[#111111] mb-1.5">Category Name</label>
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm border border-[#E1D2BD] rounded-xl text-[#2B1A10]"
+                  className="w-full px-3 py-2.5 text-sm border border-[#E1DEE5] rounded-xl text-[#111111]"
                   placeholder="Enter category name"
                 />
               </div>
               <button
                 type="submit"
                 disabled={createCategory.isPending || updateCategory.isPending}
-                className="w-full py-3 bg-[#2B1A10] text-white text-sm font-bold rounded-xl disabled:opacity-50"
+                className="w-full py-3 bg-[#142B6F] text-white text-sm font-bold rounded-xl disabled:opacity-50"
               >
                 {createCategory.isPending || updateCategory.isPending
                   ? "Saving..."
@@ -262,17 +264,17 @@ export default function AdminCategoriesPage() {
 
       {deleteCategoryCandidate && (
         <div
-          className="fixed inset-0 z-10000 bg-[#2B1A10]/35 flex items-center justify-center p-4"
+          className="fixed inset-0 z-10000 bg-[#142B6F]/35 flex items-center justify-center p-4"
           onClick={() => !deleteCategory.isPending && setDeleteCategoryCandidate(null)}
         >
           <div
             onClick={(event) => event.stopPropagation()}
-            className="w-full max-w-md rounded-[28px] border border-[#E1D2BD] bg-[#FFF9F1] p-6 shadow-2xl"
+            className="w-full max-w-md rounded-[28px] border border-[#E1DEE5] bg-[#FFFFFF] p-6 shadow-2xl"
           >
             <div className="space-y-2">
-              <h3 className="text-2xl font-serif font-black text-[#2B1A10]">Delete Category?</h3>
-              <p className="text-sm text-[#7B6853] leading-6">
-                This will remove <span className="font-bold text-[#2B1A10]">{deleteCategoryCandidate.name}</span> if no
+              <h3 className="text-2xl font-serif font-black text-[#111111]">Delete Category?</h3>
+              <p className="text-sm text-[#142B6F] leading-6">
+                This will remove <span className="font-bold text-[#111111]">{deleteCategoryCandidate.name}</span> if no
                 linked books depend on it.
               </p>
             </div>
@@ -281,7 +283,7 @@ export default function AdminCategoriesPage() {
                 type="button"
                 onClick={() => setDeleteCategoryCandidate(null)}
                 disabled={deleteCategory.isPending}
-                className="px-4 py-2.5 rounded-xl border border-[#D9C8B3] text-sm font-bold text-[#6C5236] disabled:opacity-40"
+                className="px-4 py-2.5 rounded-xl border border-[#E1DEE5] text-sm font-bold text-[#142B6F] disabled:opacity-40"
               >
                 Cancel
               </button>

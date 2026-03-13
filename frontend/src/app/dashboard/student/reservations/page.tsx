@@ -37,7 +37,7 @@ export default function StudentReservationsPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-border/60 overflow-hidden">
-        <div className="grid grid-cols-[2.5fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-3 border-b border-border/50 bg-[#FDFAF6]">
+        <div className="grid grid-cols-[2.5fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-3 border-b border-border/50 bg-[#FFFFFF]">
           <span className="text-[11px] font-bold text-secondary uppercase">{t("admin_reservations.table.book")}</span>
           <span className="text-[11px] font-bold text-secondary uppercase">{t("admin_reservations.table.queue")}</span>
           <span className="text-[11px] font-bold text-secondary uppercase">{t("admin_reservations.table.status")}</span>

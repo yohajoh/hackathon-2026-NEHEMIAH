@@ -50,7 +50,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
       className={`relative min-h-screen transition-colors ${
         isDark
           ? "dark bg-slate-950 text-slate-100"
-          : "bg-[#FFF2D9] text-[#3B2718]"
+          : "bg-[#FFFFFF] text-[#111111]"
       }`}
     >
       {/* Mobile background illustration */}
@@ -72,15 +72,15 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
               priority
               className="object-cover"
             />
-            <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-[#FFF2D9]/80 via-[#FFF2D9]/80 to-transparent dark:from-slate-950/80 dark:via-slate-950/80 dark:to-transparent" />
-            <div className="pointer-events-none absolute bottom-10 left-10 max-w-sm space-y-2 text-[#3B2718]">
+            <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-[#FFFFFF]/80 via-[#FFFFFF]/80 to-transparent dark:from-slate-950/80 dark:via-slate-950/80 dark:to-transparent" />
+            <div className="pointer-events-none absolute bottom-10 left-10 max-w-sm space-y-2 text-[#111111]">
               <p className="text-xs uppercase tracking-[0.25em] text-amber-700/80">
                 Brana Library
               </p>
               <h2 className="text-2xl font-semibold leading-snug drop-shadow-md">
                 {imageTitle}
               </h2>
-              <p className="text-sm text-[#5F422A] drop-shadow-sm">
+              <p className="text-sm text-[#142B6F] drop-shadow-sm">
                 {imageTagline}
               </p>
             </div>
@@ -114,7 +114,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
                   {title}
                 </h1>
                 {subtitle ? (
-                  <p className="text-sm leading-relaxed text-[#8B6B4A] dark:text-slate-300">
+                  <p className="text-sm leading-relaxed text-[#142B6F] dark:text-slate-300">
                     {subtitle}
                   </p>
                 ) : null}
@@ -123,11 +123,11 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
               <div className="space-y-6">{children}</div>
 
               {showBackLink && (
-                <div className="mt-6 pt-5 border-t border-[#E7D7C3] dark:border-slate-800">
-                  <p className="text-center text-xs text-[#8B6B4A] dark:text-slate-400">
+                <div className="mt-6 pt-5 border-t border-[#E1DEE5] dark:border-slate-800">
+                  <p className="text-center text-xs text-[#142B6F] dark:text-slate-400">
                     <Link
                       href={backHref}
-                      className="font-medium text-[#4A2B0B] hover:text-[#754019] dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
+                      className="font-medium text-[#142B6F] hover:text-[#142B6F] dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
                     >
                       {backLabel}
                     </Link>

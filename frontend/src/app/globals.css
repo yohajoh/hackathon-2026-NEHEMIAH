@@ -1,28 +1,68 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #fdf6e9;
-  --color-foreground: #2b1a10;
-  --color-primary: #2b1a10;
-  --color-secondary: #8b6b4a;
-  --color-accent: #3b2718;
-  --color-muted: #f0e6d2;
-  --color-card: #fff7ea;
-  --color-border: #e1d2bd;
+  --color-background: #ffffff;
+  --color-foreground: #111111;
+  --color-primary: #142b6f;
+  --color-secondary: #111111;
+  --color-accent: #ffd602;
+  --color-muted: #e1dee5;
+  --color-card: #ffffff;
+  --color-border: #e1dee5;
 
-  --font-serif: "Lora", serif;
-  --font-sans: "Inter", sans-serif;
+  --font-serif: "Playfair Display", serif;
+  --font-sans: "Plus Jakarta Sans", sans-serif;
 }
 
 :root {
-  --background: #fdf6e9;
-  --foreground: #2b1a10;
+  --brand-bg: #ffffff;
+  --brand-surface: #e1dee5;
+  --brand-ink: #111111;
+  --brand-primary: #142b6f;
+  --brand-secondary: #ffd602;
+  --brand-secondary-soft: rgb(255 214 2 / 0.22);
+  --brand-accent: #ffd602;
+  --background: #ffffff;
+  --foreground: #111111;
+}
+
+::selection {
+  background: var(--brand-secondary);
+  color: var(--brand-ink);
+}
+
+/* Thin custom scrollbar with brand styling. */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgb(225 222 229 / 0.35);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgb(20 43 111 / 0.85), rgb(8 16 46 / 0.9));
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgb(20 43 111 / 1), rgb(8 16 46 / 1));
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(1200px 500px at 100% -10%, rgb(20 43 111 / 0.12), transparent 65%),
+    radial-gradient(900px 360px at 0% 100%, rgb(255 214 2 / 0.12), transparent 65%), var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  min-height: 100vh;
+}
+
+main {
+  position: relative;
+  isolation: isolate;
 }
 
 a,
@@ -43,4 +83,216 @@ h4,
 h5,
 h6 {
   font-family: var(--font-serif);
+}
+
+@keyframes premium-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes premium-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes premium-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(20 43 111 / 0);
+  }
+
+  50% {
+    box-shadow: 0 0 0 10px rgb(20 43 111 / 0.08);
+  }
+}
+
+@keyframes premium-sheen {
+  from {
+    transform: translateX(-140%);
+  }
+
+  to {
+    transform: translateX(180%);
+  }
+}
+
+main > * {
+  animation: premium-enter 500ms ease-out;
+}
+
+main > *:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+main > *:nth-child(3) {
+  animation-delay: 120ms;
+}
+
+main > *:nth-child(4) {
+  animation-delay: 170ms;
+}
+
+button,
+a,
+input,
+textarea,
+select,
+[role="button"] {
+  transition:
+    color 220ms ease,
+    background-color 220ms ease,
+    border-color 220ms ease,
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    opacity 220ms ease;
+}
+
+button:hover,
+a:hover,
+[role="button"]:hover {
+  transform: translateY(-1px) scale(1.01);
+}
+
+/* Secondary color behavior for key action buttons. */
+button.bg-primary:hover,
+a.bg-primary:hover,
+button[class*="bg-\[#142B6F\]"]:hover,
+a[class*="bg-\[#142B6F\]"]:hover {
+  background-color: var(--brand-secondary) !important;
+  border-color: var(--brand-secondary) !important;
+  color: var(--brand-ink) !important;
+  box-shadow: 0 10px 24px rgb(255 214 2 / 0.34) !important;
+}
+
+/* Apply secondary yellow on outline-style blue actions too. */
+button[class*="border"][class*="text-\[#142B6F\]"]:hover,
+a[class*="border"][class*="text-\[#142B6F\]"]:hover {
+  background-color: var(--brand-secondary) !important;
+  border-color: var(--brand-secondary) !important;
+  color: var(--brand-ink) !important;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+
+[class*="rounded-2xl"],
+[class*="rounded-3xl"],
+[class*="rounded-["],
+[class*="shadow"] {
+  transition:
+    transform 260ms ease,
+    box-shadow 260ms ease,
+    border-color 260ms ease;
+}
+
+[class*="rounded-2xl"]:hover,
+[class*="rounded-3xl"]:hover,
+[class*="rounded-["]:hover {
+  transform: translateY(-2px) scale(1.002);
+}
+
+/* Keep table/list separators static and clean. */
+[class*="grid-cols-"][class*="border-b"],
+[class*="divide-y"] > * {
+  transition: none !important;
+  animation: none !important;
+}
+
+[class*="grid-cols-"][class*="border-b"]:hover {
+  background-color: inherit !important;
+}
+
+[class*="animate-pulse"] {
+  background-image: linear-gradient(
+    90deg,
+    rgb(225 222 229 / 0.7) 0%,
+    rgb(255 255 255 / 0.92) 50%,
+    rgb(225 222 229 / 0.7) 100%
+  );
+  background-size: 200% 100%;
+  animation: premium-shimmer 1.4s linear infinite;
+}
+
+.bg-primary,
+[class*="bg-primary/"] {
+  animation: premium-glow 2.8s ease-in-out infinite;
+}
+
+button.bg-primary,
+a.bg-primary,
+[class*="bg-\[#142B6F\]"] {
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 12px 28px rgb(20 43 111 / 0.22),
+    inset 0 0 0 1px var(--brand-secondary-soft);
+}
+
+button.bg-primary::after,
+a.bg-primary::after,
+[class*="bg-\[#142B6F\]"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 0%, rgb(255 255 255 / 0.2) 48%, transparent 62%);
+  animation: premium-sheen 3.2s ease-in-out infinite;
+}
+
+/* Dashboard pages should stay clean and stable like analytics panels. */
+.dashboard-shell main > * {
+  animation: none;
+}
+
+/* Allow dashboard overlays to escape main stacking context. */
+.dashboard-shell main {
+  isolation: auto;
+}
+
+.dashboard-shell .bg-primary,
+.dashboard-shell [class*="bg-primary/"],
+.dashboard-shell [class*="bg-\[#142B6F\]"] {
+  animation: none !important;
+}
+
+.dashboard-shell button.bg-primary::after,
+.dashboard-shell a.bg-primary::after,
+.dashboard-shell [class*="bg-\[#142B6F\]"]::after {
+  display: none !important;
+}
+
+/* Keep dashboard modals above sidebar and fixed navbar, always full-screen. */
+.dashboard-shell [class*="fixed"][class*="inset-0"] {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483645 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

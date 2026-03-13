@@ -65,9 +65,9 @@ export function AdminNotificationDropdown() {
           if (!isOpen) refetch();
         }}
         aria-label={t("student_notifications.title")}
-        className="relative flex items-center justify-center w-10 h-10 rounded-full border border-[#C2B199] bg-[#FDF8F0] hover:bg-[#F3EFE6] transition-colors"
+        className="relative flex items-center justify-center w-10 h-10 rounded-full border border-[#E1DEE5] bg-[#FFFFFF] hover:bg-[#E1DEE5] transition-colors"
       >
-        <Bell size={20} className="text-[#2B1A10]" />
+        <Bell size={20} className="text-[#111111]" />
         {displayUnreadCount > 0 && (
           <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
             {displayUnreadCount > 9 ? "9+" : displayUnreadCount}
@@ -76,10 +76,10 @@ export function AdminNotificationDropdown() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-12 w-80 sm:w-96 max-h-[500px] overflow-hidden bg-white rounded-2xl border border-[#E1D2BD] shadow-xl z-50">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#E1D2BD]">
-            <h3 className="font-bold text-[#2B1A10]">{t("student_notifications.title")}</h3>
-            {displayUnreadCount > 0 && <span className="text-xs text-[#AE9E85]">{t("student_notifications.unread_count", { count: displayUnreadCount })}</span>}
+        <div className="absolute right-0 top-12 w-80 sm:w-96 max-h-[500px] overflow-hidden bg-white rounded-2xl border border-[#E1DEE5] shadow-xl z-50">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#E1DEE5]">
+            <h3 className="font-bold text-[#111111]">{t("student_notifications.title")}</h3>
+            {displayUnreadCount > 0 && <span className="text-xs text-[#142B6F]">{t("student_notifications.unread_count", { count: displayUnreadCount })}</span>}
           </div>
 
           <div className="max-h-96 overflow-y-auto">
@@ -93,7 +93,7 @@ export function AdminNotificationDropdown() {
                 <button
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
-                  className="w-full text-left px-4 py-3 border-b border-[#E1D2BD]/50 hover:bg-[#FDFAF6] transition-colors bg-blue-50/50"
+                  className="w-full text-left px-4 py-3 border-b border-[#E1DEE5]/50 hover:bg-[#FFFFFF] transition-colors bg-blue-50/50"
                 >
                   <div className="flex items-start gap-3">
                     <div
@@ -108,10 +108,10 @@ export function AdminNotificationDropdown() {
                       }`}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm line-clamp-2 font-medium text-[#2B1A10]">
+                      <p className="text-sm line-clamp-2 font-medium text-[#111111]">
                         {notification.message}
                       </p>
-                      <p className="text-xs text-[#AE9E85] mt-1">
+                      <p className="text-xs text-[#142B6F] mt-1">
                         {new Date(notification.created_at).toLocaleDateString()} • {notification.type}
                       </p>
                     </div>
@@ -120,14 +120,14 @@ export function AdminNotificationDropdown() {
                 </button>
               ))
             ) : (
-              <div className="p-8 text-center text-[#AE9E85] text-sm">{t("student_notifications.no_unread")}</div>
+              <div className="p-8 text-center text-[#142B6F] text-sm">{t("student_notifications.no_unread")}</div>
             )}
           </div>
 
-          <div className="p-3 border-t border-[#E1D2BD]">
+          <div className="p-3 border-t border-[#E1DEE5]">
             <button
               onClick={handleViewAll}
-              className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-[#2B1A10] hover:text-[#3B2718] transition-colors"
+              className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-[#111111] hover:text-[#111111] transition-colors"
             >
               {t("student_notifications.view_all")}
               <ChevronRight size={16} />

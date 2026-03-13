@@ -202,7 +202,7 @@ export default function AdminUsersPage() {
   const getRoleBadgeClassName = (user: User) => {
     if (user.is_blocked) return "bg-red-50 text-red-700";
     if (user.is_super_admin || user.role === "SUPER_ADMIN") return "bg-amber-50 text-amber-700";
-    if (user.role === "ADMIN") return "bg-[#F3EFE6] text-[#6C5236]";
+    if (user.role === "ADMIN") return "bg-[#E1DEE5] text-[#142B6F]";
     return "bg-green-50 text-green-700";
   };
 
@@ -307,12 +307,12 @@ export default function AdminUsersPage() {
     <div className="p-6 lg:p-12 space-y-8">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#2B1A10]">{t("admin_users.title")}</h1>
-          <p className="text-[#AE9E85] font-medium">
+          <h1 className="text-4xl lg:text-5xl font-serif font-extrabold text-[#111111]">{t("admin_users.title")}</h1>
+          <p className="text-[#142B6F] font-medium">
             {isSuperAdminViewer ? t("admin_users.subtitle_super") : t("admin_users.subtitle_admin")}
           </p>
           {isSuperAdminViewer ? (
-            <div className="mt-4 inline-flex rounded-xl border border-[#E1D2BD] bg-white p-1">
+            <div className="mt-4 inline-flex rounded-xl border border-[#E1DEE5] bg-white p-1">
               <button
                 type="button"
                 onClick={() => {
@@ -320,7 +320,7 @@ export default function AdminUsersPage() {
                   setCurrentPage(1);
                 }}
                 className={`px-4 py-2 text-xs font-bold rounded-lg ${
-                  activeTab === "STUDENTS" ? "bg-[#2B1A10] text-white" : "text-[#8B6B4A]"
+                  activeTab === "STUDENTS" ? "bg-[#142B6F] text-white" : "text-[#142B6F]"
                 }`}
               >
                 {t("admin_users.tabs.students")}
@@ -332,7 +332,7 @@ export default function AdminUsersPage() {
                   setCurrentPage(1);
                 }}
                 className={`px-4 py-2 text-xs font-bold rounded-lg ${
-                  activeTab === "ADMINS" ? "bg-[#2B1A10] text-white" : "text-[#8B6B4A]"
+                  activeTab === "ADMINS" ? "bg-[#142B6F] text-white" : "text-[#142B6F]"
                 }`}
               >
                 {t("admin_users.tabs.admins")}
@@ -341,7 +341,7 @@ export default function AdminUsersPage() {
           ) : null}
         </div>
         <div className="relative mt-2">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AE9E85]" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#142B6F]" />
           <input
             type="text"
             placeholder={t("admin_users.search_placeholder")}
@@ -350,29 +350,39 @@ export default function AdminUsersPage() {
               setSearch(e.target.value);
               setCurrentPage(1);
             }}
-            className="pl-9 pr-4 py-2.5 text-sm bg-white border border-[#E1D2BD] rounded-xl text-[#2B1A10] placeholder:text-[#C4B49E] w-56"
+            className="pl-9 pr-4 py-2.5 text-sm bg-white border border-[#E1DEE5] rounded-xl text-[#111111] placeholder:text-[#E1DEE5] w-56"
           />
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-visible">
+      <div className="bg-white rounded-2xl border border-[#E1DEE5]/50 overflow-visible">
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B6B4A]"></div>
+          <div className="p-6 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="grid grid-cols-[2fr_2fr_1.5fr_0.8fr_1.2fr_1fr_2fr] gap-4 items-center py-2">
+                <div className="h-4 rounded-lg bg-[#E1DEE5]/70 animate-pulse" />
+                <div className="h-4 rounded-lg bg-[#E1DEE5]/70 animate-pulse" />
+                <div className="h-4 rounded-lg bg-[#E1DEE5]/70 animate-pulse" />
+                <div className="h-4 rounded-lg bg-[#E1DEE5]/70 animate-pulse" />
+                <div className="h-4 rounded-lg bg-[#E1DEE5]/70 animate-pulse" />
+                <div className="h-4 w-20 rounded-lg bg-[#E1DEE5]/70 animate-pulse" />
+                <div className="h-8 w-8 ml-auto rounded-full bg-[#E1DEE5]/70 animate-pulse" />
+              </div>
+            ))}
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-[2fr_2fr_1.5fr_0.8fr_1.2fr_1fr_2fr] gap-4 px-6 py-3 border-b border-[#E1D2BD]/50 bg-[#FDFAF6]">
-              <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_users.table.name")}</span>
-              <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_users.table.email")}</span>
-              <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_users.table.id_no")}</span>
-              <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_users.table.year")}</span>
-              <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_users.table.phone_no")}</span>
-              <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_users.table.status")}</span>
-              <span className="text-[11px] font-bold text-[#AE9E85] uppercase">{t("admin_users.table.actions")}</span>
+            <div className="grid grid-cols-[2fr_2fr_1.5fr_0.8fr_1.2fr_1fr_2fr] gap-4 px-6 py-3 border-b border-[#E1DEE5]/50 bg-[#FFFFFF]">
+              <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_users.table.name")}</span>
+              <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_users.table.email")}</span>
+              <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_users.table.id_no")}</span>
+              <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_users.table.year")}</span>
+              <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_users.table.phone_no")}</span>
+              <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_users.table.status")}</span>
+              <span className="text-[11px] font-bold text-[#142B6F] uppercase">{t("admin_users.table.actions")}</span>
             </div>
             {paginated.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-[#AE9E85]">
+              <div className="flex flex-col items-center justify-center py-16 text-[#142B6F]">
                 <p className="text-sm font-medium">{t("admin_users.table.no_users")}</p>
               </div>
             ) : (
@@ -383,13 +393,13 @@ export default function AdminUsersPage() {
                   <div
                     key={user.id}
                     onClick={() => setSelectedUser(user)}
-                    className="grid grid-cols-[2fr_2fr_1.5fr_0.8fr_1.2fr_1fr_2fr] gap-4 items-center px-6 py-4 border-b border-[#E1D2BD]/30 hover:bg-[#FDFAF6] transition-colors cursor-pointer"
+                    className="grid grid-cols-[2fr_2fr_1.5fr_0.8fr_1.2fr_1fr_2fr] gap-4 items-center px-6 py-4 border-b border-[#E1DEE5]/30 hover:bg-[#FFFFFF] transition-colors cursor-pointer"
                   >
-                    <span className="text-sm font-bold text-[#2B1A10] truncate">{user.name}</span>
-                    <span className="text-sm text-[#8B6B4A] truncate">{user.email}</span>
-                    <span className="text-sm text-[#2B1A10]/70">{user.student_id || "—"}</span>
-                    <span className="text-sm text-[#2B1A10]/70">{user.year || "—"}</span>
-                    <span className="text-sm text-[#2B1A10]/70">{user.phone || "—"}</span>
+                    <span className="text-sm font-bold text-[#111111] truncate">{user.name}</span>
+                    <span className="text-sm text-[#142B6F] truncate">{user.email}</span>
+                    <span className="text-sm text-[#111111]/70">{user.student_id || "—"}</span>
+                    <span className="text-sm text-[#111111]/70">{user.year || "—"}</span>
+                    <span className="text-sm text-[#111111]/70">{user.phone || "—"}</span>
                     <span className={`text-xs font-bold px-2.5 py-1 rounded-lg w-fit ${getRoleBadgeClassName(user)}`}>
                       {getRoleLabel(user)}
                     </span>
@@ -399,13 +409,13 @@ export default function AdminUsersPage() {
                           type="button"
                           onClick={() => setOpenMenuUserId((current) => (current === user.id ? null : user.id))}
                           disabled={actions.length === 0}
-                          className="h-9 w-9 rounded-full border border-[#E1D2BD] bg-[#FFFDF9] text-[#8B6B4A] flex items-center justify-center disabled:opacity-40"
+                          className="h-9 w-9 rounded-full border border-[#E1DEE5] bg-[#FFFFFF] text-[#142B6F] flex items-center justify-center disabled:opacity-40"
                           aria-label={`Open actions for ${user.name}`}
                         >
                           <MoreHorizontal size={16} />
                         </button>
                         {openMenuUserId === user.id && actions.length > 0 ? (
-                          <div className="absolute right-0 top-11 z-2147483646 min-w-56 overflow-hidden rounded-xl border border-[#E6D7C4] bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
+                          <div className="absolute right-0 top-11 z-2147483646 min-w-56 overflow-hidden rounded-xl border border-[#E1DEE5] bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
                             {actions.map((action) => (
                               <button
                                 key={action.key}
@@ -417,7 +427,7 @@ export default function AdminUsersPage() {
                                     ? "text-red-700 hover:bg-red-50"
                                     : action.tone === "amber"
                                       ? "text-amber-700 hover:bg-amber-50"
-                                      : "text-[#2B1A10] hover:bg-[#F8F2E9]"
+                                      : "text-[#111111] hover:bg-[#FFFFFF]"
                                 }`}
                               >
                                 {action.label}
@@ -440,7 +450,7 @@ export default function AdminUsersPage() {
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#2B1A10]/60 disabled:opacity-30"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#111111]/60 disabled:opacity-30"
           >
             <ChevronLeft size={16} />
             {t("common.previous")}
@@ -450,7 +460,7 @@ export default function AdminUsersPage() {
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-8 h-8 rounded-lg text-sm font-bold ${page === currentPage ? "bg-[#2B1A10] text-white" : "text-[#2B1A10]/60 hover:bg-[#F3EFE6]"}`}
+                className={`w-8 h-8 rounded-lg text-sm font-bold ${page === currentPage ? "bg-[#142B6F] text-white" : "text-[#111111]/60 hover:bg-[#E1DEE5]"}`}
               >
                 {page}
               </button>
@@ -459,7 +469,7 @@ export default function AdminUsersPage() {
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#2B1A10]/60 disabled:opacity-30"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#111111]/60 disabled:opacity-30"
           >
             {t("common.next")}
             <ChevronRight size={16} />
@@ -471,16 +481,16 @@ export default function AdminUsersPage() {
         <div className="fixed inset-0 z-50 bg-black/20" onClick={() => setSelectedUser(null)}>
           <aside
             onClick={(e) => e.stopPropagation()}
-            className="absolute right-0 top-0 h-full w-full md:w-[40%] bg-[#FDF8F0] border-l border-[#E1D2BD] p-6 overflow-y-auto"
+            className="absolute right-0 top-0 h-full w-full md:w-[40%] bg-[#FFFFFF] border-l border-[#E1DEE5] p-6 overflow-y-auto"
           >
             <div className="flex items-start justify-between mb-5">
               <div>
-                <h2 className="text-2xl font-serif font-black text-[#2B1A10]">{selectedUser.name}</h2>
-                <p className="text-sm text-[#AE9E85]">{selectedUser.email}</p>
+                <h2 className="text-2xl font-serif font-black text-[#111111]">{selectedUser.name}</h2>
+                <p className="text-sm text-[#142B6F]">{selectedUser.email}</p>
               </div>
               <button
                 onClick={() => setSelectedUser(null)}
-                className="w-9 h-9 rounded-xl border border-[#E1D2BD] flex items-center justify-center text-[#AE9E85]"
+                className="w-9 h-9 rounded-xl border border-[#E1DEE5] flex items-center justify-center text-[#142B6F]"
                 title="Close user details"
                 aria-label="Close user details"
               >
@@ -495,31 +505,31 @@ export default function AdminUsersPage() {
                   <Card label={t("admin_users.insights.active_overdue")} value={String(insights.stats.activeOverdue)} />
                   <Card label={t("admin_users.insights.wishlist")} value={String(insights.stats.wishlistCount)} />
                 </div>
-                <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 p-4">
-                  <h3 className="text-sm font-bold text-[#2B1A10] mb-3">{t("admin_users.insights.favorite_categories")}</h3>
+                <div className="bg-white rounded-2xl border border-[#E1DEE5]/50 p-4">
+                  <h3 className="text-sm font-bold text-[#111111] mb-3">{t("admin_users.insights.favorite_categories")}</h3>
                   {insights.favoriteCategories.length === 0 ? (
-                    <p className="text-xs text-[#AE9E85]">{t("admin_users.insights.no_category_data")}</p>
+                    <p className="text-xs text-[#142B6F]">{t("admin_users.insights.no_category_data")}</p>
                   ) : (
                     insights.favoriteCategories.map((cat) => (
                       <div key={cat.name} className="flex items-center justify-between py-1.5 text-sm">
-                        <span className="text-[#2B1A10]">{cat.name}</span>
-                        <span className="text-[#AE9E85]">{cat.count}</span>
+                        <span className="text-[#111111]">{cat.name}</span>
+                        <span className="text-[#142B6F]">{cat.count}</span>
                       </div>
                     ))
                   )}
                 </div>
-                <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-[#E1D2BD]/40">
-                    <h3 className="text-sm font-bold text-[#2B1A10]">{t("admin_users.insights.borrowing_history")}</h3>
+                <div className="bg-white rounded-2xl border border-[#E1DEE5]/50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-[#E1DEE5]/40">
+                    <h3 className="text-sm font-bold text-[#111111]">{t("admin_users.insights.borrowing_history")}</h3>
                   </div>
                   <div className="max-h-95 overflow-y-auto">
                     {insights.history.length === 0 ? (
-                      <p className="p-4 text-xs text-[#AE9E85]">{t("admin_users.insights.history_empty")}</p>
+                      <p className="p-4 text-xs text-[#142B6F]">{t("admin_users.insights.history_empty")}</p>
                     ) : (
                       insights.history.map((item) => (
-                        <div key={item.id} className="p-4 border-b border-[#E1D2BD]/30 last:border-0">
-                          <p className="text-sm font-bold text-[#2B1A10]">{item.bookTitle}</p>
-                          <p className="text-xs text-[#AE9E85]">
+                        <div key={item.id} className="p-4 border-b border-[#E1DEE5]/30 last:border-0">
+                          <p className="text-sm font-bold text-[#111111]">{item.bookTitle}</p>
+                          <p className="text-xs text-[#142B6F]">
                             {t("admin_users.insights.due", { date: new Date(item.dueDate).toLocaleDateString() })} • {item.status}
                           </p>
                           <p className={`text-xs mt-1 ${item.isLate ? "text-red-700" : "text-green-700"}`}>
@@ -534,7 +544,7 @@ export default function AdminUsersPage() {
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-[#AE9E85]">{t("admin_users.insights.loading")}</p>
+              <p className="text-sm text-[#142B6F]">{t("admin_users.insights.loading")}</p>
             )}
           </aside>
         </div>
@@ -542,23 +552,23 @@ export default function AdminUsersPage() {
 
       {confirmDialog ? (
         <div
-          className="fixed inset-0 z-10000 bg-[#2B1A10]/35 flex items-center justify-center p-4"
+          className="fixed inset-0 z-10000 bg-[#142B6F]/35 flex items-center justify-center p-4"
           onClick={() => !isConfirming && setConfirmDialog(null)}
         >
           <div
             onClick={(event) => event.stopPropagation()}
-            className="w-full max-w-md rounded-[28px] border border-[#E1D2BD] bg-[#FFF9F1] p-6 shadow-2xl"
+            className="w-full max-w-md rounded-[28px] border border-[#E1DEE5] bg-[#FFFFFF] p-6 shadow-2xl"
           >
             <div className="space-y-2">
-              <h3 className="text-2xl font-serif font-black text-[#2B1A10]">{confirmDialog.title}</h3>
-              <p className="text-sm text-[#7B6853] leading-6">{confirmDialog.description}</p>
+              <h3 className="text-2xl font-serif font-black text-[#111111]">{confirmDialog.title}</h3>
+              <p className="text-sm text-[#142B6F] leading-6">{confirmDialog.description}</p>
             </div>
             <div className="mt-6 flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setConfirmDialog(null)}
                 disabled={isConfirming}
-                className="px-4 py-2.5 rounded-xl border border-[#D9C8B3] text-sm font-bold text-[#6C5236] disabled:opacity-40"
+                className="px-4 py-2.5 rounded-xl border border-[#E1DEE5] text-sm font-bold text-[#142B6F] disabled:opacity-40"
               >
                 {t("common.cancel")}
               </button>
@@ -571,7 +581,7 @@ export default function AdminUsersPage() {
                     ? "bg-red-700"
                     : confirmDialog.tone === "amber"
                       ? "bg-amber-700"
-                      : "bg-[#2B1A10]"
+                      : "bg-[#142B6F]"
                 }`}
               >
                 {isConfirming ? t("admin_users.actions.processing") : confirmDialog.confirmLabel}
@@ -586,9 +596,9 @@ export default function AdminUsersPage() {
 
 function Card({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E1D2BD]/50 p-3">
-      <p className="text-[11px] font-bold text-[#AE9E85] uppercase tracking-wider">{label}</p>
-      <p className="text-lg font-black text-[#2B1A10]">{value}</p>
+    <div className="bg-white rounded-2xl border border-[#E1DEE5]/50 p-3">
+      <p className="text-[11px] font-bold text-[#142B6F] uppercase tracking-wider">{label}</p>
+      <p className="text-lg font-black text-[#111111]">{value}</p>
     </div>
   );
 }

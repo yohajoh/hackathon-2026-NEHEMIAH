@@ -772,7 +772,7 @@ export default function BookDetailPage() {
                   className="object-cover"
                 />
                 <div
-                  className={`absolute top-4 right-4 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 backdrop-blur-md shadow-lg ${bookType === "digital" ? "bg-[#8B6B4A]/90 text-white" : bookType === "physical" && (book as PhysicalBook).available > 0 ? "bg-green-500/90 text-white" : "bg-red-500/90 text-white"}`}
+                  className={`absolute top-4 right-4 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 backdrop-blur-md shadow-lg ${bookType === "digital" ? "bg-[#142B6F]/90 text-white" : bookType === "physical" && (book as PhysicalBook).available > 0 ? "bg-green-500/90 text-white" : "bg-red-500/90 text-white"}`}
                 >
                   <BookIcon size={14} />
                   {bookType === "digital"
@@ -899,7 +899,7 @@ export default function BookDetailPage() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="bg-card rounded-2xl p-4 border border-border/50 text-center space-y-1">
                   <p className="text-[10px] uppercase tracking-widest text-secondary font-bold">{t("book_details.labels.rating")}</p>
-                  <div className="flex items-center justify-center gap-1 text-[#E58A00]">
+                  <div className="flex items-center justify-center gap-1 text-[#FFD602]">
                     <Star size={16} fill="currentColor" />
                     <span className="text-sm font-bold">
                       {book.rating.total > 0 ? book.rating.average.toFixed(1) : "N/A"}
@@ -976,7 +976,7 @@ export default function BookDetailPage() {
                             onClick={() => setReviewRating(n)}
                             title={`Rate ${n} star${n === 1 ? "" : "s"}`}
                             aria-label={`Rate ${n} star${n === 1 ? "" : "s"}`}
-                            className="text-[#E58A00]"
+                            className="text-[#FFD602]"
                           >
                             <Star size={18} fill={reviewRating >= n ? "currentColor" : "none"} />
                           </button>
@@ -1036,7 +1036,7 @@ export default function BookDetailPage() {
                                   key={i}
                                   size={14}
                                   fill={i <= review.rating ? "currentColor" : "none"}
-                                  className={i <= review.rating ? "text-[#E58A00]" : "text-secondary/30"}
+                                  className={i <= review.rating ? "text-[#FFD602]" : "text-secondary/30"}
                                 />
                               ))}
                             </div>

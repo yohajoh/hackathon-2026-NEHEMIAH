@@ -113,7 +113,7 @@ function NotificationsContent() {
             ))}
           </div>
         ) : (
-          <div className="py-16 text-center text-secondary text-sm bg-[#FDF9F0] rounded-2xl">
+          <div className="py-16 text-center text-secondary text-sm bg-[#FFFFFF] rounded-2xl">
             {t("student_notifications.no_notifications")}
           </div>
         )}

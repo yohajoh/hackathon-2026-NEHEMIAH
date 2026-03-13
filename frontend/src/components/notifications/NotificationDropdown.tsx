@@ -93,7 +93,7 @@ function NotificationDropdownContent() {
                 <button
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
-                  className="w-full text-left px-4 py-3 border-b border-border/50 hover:bg-[#FDF9F0] transition-colors"
+                  className="w-full text-left px-4 py-3 border-b border-border/50 hover:bg-[#FFFFFF] transition-colors"
                 >
                   <div className="flex items-start gap-3">
                     <div

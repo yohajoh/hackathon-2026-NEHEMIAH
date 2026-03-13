@@ -36,9 +36,10 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-        <p className="text-secondary">{t("common.dashboard_redirect")}</p>
+      <div className="w-full max-w-sm space-y-4 px-6">
+        <div className="h-5 w-44 rounded-lg bg-[#E1DEE5]/70 animate-pulse mx-auto" />
+        <div className="h-16 rounded-2xl bg-[#E1DEE5]/70 animate-pulse" />
+        <p className="text-secondary text-center">{t("common.dashboard_redirect")}</p>
       </div>
     </div>
   );

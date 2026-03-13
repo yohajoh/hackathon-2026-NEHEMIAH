@@ -77,7 +77,7 @@ export const BookCardGrid = ({ books, loading, listQuery = "" }: Props) => {
 
             {/* Availability Badge */}
             {book.type === "digital" ? (
-              <div className="absolute top-2 right-2 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 backdrop-blur-sm bg-[#8B6B4A]/90 text-white">
+              <div className="absolute top-2 right-2 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 backdrop-blur-sm bg-[#142B6F]/90 text-white">
                 <BookIcon size={10} />
                 {book.pdf_access === "RESTRICTED" ? "Read Only" : "Download"}
               </div>
@@ -109,7 +109,7 @@ export const BookCardGrid = ({ books, loading, listQuery = "" }: Props) => {
                 </h3>
               </Link>
               {book.rating.total > 0 && (
-                <div className="flex items-center gap-1 text-[#E58A00]">
+                <div className="flex items-center gap-1 text-[#FFD602]">
                   <Star size={12} fill="currentColor" />
                   <span className="text-[10px] font-bold">{book.rating.average.toFixed(1)}</span>
                 </div>

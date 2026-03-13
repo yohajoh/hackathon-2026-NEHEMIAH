@@ -59,7 +59,7 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
           )}
 
           <div className="space-y-1.5">
-            <label htmlFor="newPassword" className="text-xs font-medium text-[#3B2718]">
+            <label htmlFor="newPassword" className="text-xs font-medium text-[#111111]">
               New password
             </label>
             <input
@@ -68,13 +68,13 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
               type="password"
               required
               minLength={6}
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] placeholder:text-[#B09776] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] placeholder:text-[#142B6F] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
               placeholder="Create a strong password"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="confirmPassword" className="text-xs font-medium text-[#3B2718]">
+            <label htmlFor="confirmPassword" className="text-xs font-medium text-[#111111]">
               Confirm new password
             </label>
             <input
@@ -83,12 +83,12 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
               type="password"
               required
               minLength={6}
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] placeholder:text-[#B09776] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] placeholder:text-[#142B6F] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
               placeholder="Repeat new password"
             />
           </div>
 
-          <p className="text-[11px] text-[#8B6B4A]">
+          <p className="text-[11px] text-[#142B6F]">
             Use at least 6 characters, and avoid sharing this password with anyone. You can always update it later from
             your profile.
           </p>
@@ -96,7 +96,7 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
           <button
             type="submit"
             disabled={isLoading}
-            className="mt-1 inline-flex w-full items-center justify-center rounded-xl bg-[#4A2B0B] px-4 py-2.5 text-sm font-medium text-white shadow-[0_14px_40px_rgba(74,43,11,0.35)] hover:bg-[#5B3410] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C79E6C] focus-visible:ring-offset-2 focus-visible:ring-offset-white transition disabled:opacity-70 disabled:cursor-not-allowed"
+            className="mt-1 inline-flex w-full items-center justify-center rounded-xl bg-[#142B6F] px-4 py-2.5 text-sm font-medium text-white shadow-[0_14px_40px_rgba(74,43,11,0.35)] hover:bg-[#142B6F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD602] focus-visible:ring-offset-2 focus-visible:ring-offset-white transition disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isLoading ? "Saving password..." : "Save new password"}
           </button>

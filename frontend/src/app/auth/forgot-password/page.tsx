@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
           )}
 
           <div className="space-y-1.5">
-            <label htmlFor="email" className="text-xs font-medium text-[#3B2718]">
+            <label htmlFor="email" className="text-xs font-medium text-[#111111]">
               {t("auth.forgot_password.email_label")}
             </label>
             <input
@@ -61,19 +61,19 @@ export default function ForgotPasswordPage() {
               name="email"
               type="email"
               required
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] placeholder:text-[#B09776] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] placeholder:text-[#142B6F] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
               placeholder={t("auth.forgot_password.email_placeholder")}
             />
           </div>
 
-          <p className="text-[11px] text-[#8B6B4A]">
+          <p className="text-[11px] text-[#142B6F]">
             {t("auth.forgot_password.help_text")}
           </p>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="inline-flex w-full items-center justify-center rounded-xl bg-[#4A2B0B] px-4 py-2.5 text-sm font-medium text-white shadow-[0_14px_40px_rgba(74,43,11,0.35)] hover:bg-[#5B3410] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C79E6C] focus-visible:ring-offset-2 focus-visible:ring-offset-white transition disabled:opacity-70 disabled:cursor-not-allowed"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-[#142B6F] px-4 py-2.5 text-sm font-medium text-white shadow-[0_14px_40px_rgba(74,43,11,0.35)] hover:bg-[#142B6F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD602] focus-visible:ring-offset-2 focus-visible:ring-offset-white transition disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isLoading ? t("auth.forgot_password.submitting") : t("auth.forgot_password.submit")}
           </button>

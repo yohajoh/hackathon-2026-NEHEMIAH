@@ -97,7 +97,7 @@ export default function CompleteProfilePage() {
       imageAlt="Library shelves"
     >
       {loading ? (
-        <div className="text-sm text-[#8B6B4A]">Loading...</div>
+        <div className="text-sm text-[#142B6F]">Loading...</div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
@@ -107,19 +107,19 @@ export default function CompleteProfilePage() {
           )}
 
           <div className="space-y-1.5">
-            <label htmlFor="name" className="text-xs font-medium text-[#3B2718]">Full Name</label>
+            <label htmlFor="name" className="text-xs font-medium text-[#111111]">Full Name</label>
             <input
               id="name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="studentId" className="text-xs font-medium text-[#3B2718]">Student ID</label>
+            <label htmlFor="studentId" className="text-xs font-medium text-[#111111]">Student ID</label>
             <input
               id="studentId"
               type="text"
@@ -127,24 +127,24 @@ export default function CompleteProfilePage() {
               onChange={(e) => setStudentId(e.target.value)}
               required={!user?.student_id}
               disabled={Boolean(user?.student_id)}
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition disabled:opacity-70"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition disabled:opacity-70"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="phone" className="text-xs font-medium text-[#3B2718]">Phone</label>
+            <label htmlFor="phone" className="text-xs font-medium text-[#111111]">Phone</label>
             <input
               id="phone"
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="year" className="text-xs font-medium text-[#3B2718]">Year</label>
+            <label htmlFor="year" className="text-xs font-medium text-[#111111]">Year</label>
             <input
               id="year"
               type="text"
@@ -152,26 +152,26 @@ export default function CompleteProfilePage() {
               onChange={(e) => setYear(e.target.value)}
               required
               placeholder="e.g. 3rd Year"
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="department" className="text-xs font-medium text-[#3B2718]">Department</label>
+            <label htmlFor="department" className="text-xs font-medium text-[#111111]">Department</label>
             <input
               id="department"
               type="text"
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
               required
-              className="w-full rounded-xl border border-[#D2BFA3] bg-white px-3 py-2.5 text-sm text-[#3B2718] outline-none focus:border-[#7A4A1D] focus:ring-2 focus:ring-[#E1C6A1] transition"
+              className="w-full rounded-xl border border-[#E1DEE5] bg-white px-3 py-2.5 text-sm text-[#111111] outline-none focus:border-[#142B6F] focus:ring-2 focus:ring-[#FFD602] transition"
             />
           </div>
 
           <button
             type="submit"
             disabled={saving}
-            className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-[#4A2B0B] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#5B3410] transition disabled:opacity-70"
+            className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-[#142B6F] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#142B6F] transition disabled:opacity-70"
           >
             {saving ? "Saving..." : "Save and continue"}
           </button>

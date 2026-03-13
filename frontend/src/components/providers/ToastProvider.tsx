@@ -10,7 +10,7 @@ export function ToastProvider() {
       toastOptions={{
         style: {
           background: "white",
-          border: "1px solid #E1D2BD",
+          border: "1px solid #E1DEE5",
           borderRadius: "12px",
           padding: "12px 16px",
         },
