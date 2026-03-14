@@ -213,7 +213,10 @@ export default function BookDetailPage() {
   }, [book, reviewsPage]);
 
   const hasPrevReviews = reviewsPage > 0;
-  const hasNextReviews = Boolean(book?.reviews?.length) && (reviewsPage + 1) * REVIEWS_PER_PAGE < book.reviews.length;
+  const hasNextReviews =
+    Boolean(book?.reviews?.length) &&
+    book != null &&
+    (reviewsPage + 1) * REVIEWS_PER_PAGE < (book.reviews?.length ?? 0);
 
   const loadData = async () => {
     try {
