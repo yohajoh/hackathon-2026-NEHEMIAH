@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { fetchApi } from "@/lib/api";
 
-export default function ChapaReturnPage() {
+function ChapaReturnContent() {
   const searchParams = useSearchParams();
   const txRef = useMemo(
     () =>
@@ -16,145 +16,102 @@ export default function ChapaReturnPage() {
   );
 
   const [message, setMessage] = useState("Finalizing your payment...");
-  const [targetUrl, setTargetUrl] = useState("/dashboard/student/payments");
+  const targetUrl = useMemo(() => {
+    if (!txRef) return "/dashboard/student/payments";
+    return `/dashboard/student/payments?tx_ref=${encodeURIComponent(txRef)}`;
+  }, [txRef]);
+
+  const hasNavigated = useRef(false);
 
   useEffect(() => {
-    const navigateNow = (url: string) => {
-      const absoluteUrl = new URL(url, window.location.origin).toString();
-      setTargetUrl(absoluteUrl);
+    if (hasNavigated.current) return;
 
-      const forceCurrentTabNavigation = () => {
-        if (window.location.href === absoluteUrl) return;
-        window.location.replace(absoluteUrl);
-      };
+    const absoluteUrl = new URL(targetUrl, window.location.origin).toString();
 
-      // Chapa may render return_url inside a frame. Try escaping to top-level window first.
+    const doRedirect = () => {
+      if (hasNavigated.current) return;
+      hasNavigated.current = true;
+
+      // If inside a frame (e.g., Chapa webview), try to break out.
       try {
-        if (window.top && window.top !== window) {
-          window.top.location.replace(absoluteUrl);
+        if (window.top && window.top !== window.self) {
+          window.top.location.href = absoluteUrl;
+          return;
         }
       } catch {
-        // Ignore cross-origin frame access errors and continue with fallbacks.
+        // Cross-origin frame — fall through to current-window redirect.
       }
 
-      try {
-        if (window.parent && window.parent !== window) {
-          window.parent.location.replace(absoluteUrl);
-        }
-      } catch {
-        // Ignore and continue.
-      }
-
-      try {
-        if (window.opener && !window.opener.closed) {
-          window.opener.location.href = absoluteUrl;
-          window.close();
-        }
-      } catch {
-        // Ignore and continue.
-      }
-
-      forceCurrentTabNavigation();
-
-      // Fallback in case another context interception prevents replace from taking effect.
-      window.setTimeout(() => {
-        if (window.location.pathname.includes("/payment/chapa-return")) {
-          window.location.assign(absoluteUrl);
-        }
-      }, 300);
+      window.location.href = absoluteUrl;
     };
 
     if (!txRef) {
-      setMessage("Payment reference not found. Redirecting to your payments page...");
-      navigateNow("/dashboard/student/payments");
+      setMessage("Payment reference not found. Redirecting...");
+      doRedirect();
       return;
     }
 
-    let isCancelled = false;
-    let hasNavigated = false;
-    const nextUrl = `/dashboard/student/payments?tx_ref=${encodeURIComponent(txRef)}`;
-    setTargetUrl(nextUrl);
+    // Guarantee redirect within 2 seconds regardless of verification.
+    const fallbackTimer = window.setTimeout(() => {
+      setMessage("Redirecting to your payments...");
+      doRedirect();
+    }, 2000);
 
-    const ensureNavigate = () => {
-      if (hasNavigated || isCancelled) return;
-      hasNavigated = true;
-      navigateNow(nextUrl);
-    };
-
-    // Never let verification keep the user trapped on this page.
-    const redirectTimer = window.setTimeout(() => {
-      setMessage("Redirecting to your payment receipt...");
-      ensureNavigate();
-    }, 2500);
-
-    const finalize = async () => {
+    // Attempt verification in the background (non-blocking).
+    const verify = async () => {
       try {
         await Promise.race([
           fetchApi(`/payments/verify/${encodeURIComponent(txRef)}`),
-          new Promise((resolve) => window.setTimeout(resolve, 5000)),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("timeout")), 3000),
+          ),
         ]);
-        if (isCancelled) return;
-        setMessage("Payment verified. Redirecting...");
-        ensureNavigate();
-      } catch (error) {
-        if (isCancelled) return;
-        const text = error instanceof Error ? error.message : "Unable to verify payment right now.";
-        setMessage(`${text} Redirecting to payments...`);
-        ensureNavigate();
-      } finally {
-        window.clearTimeout(redirectTimer);
+      } catch {
+        // Verification failed or timed out — irrelevant, we redirect anyway.
       }
+      if (hasNavigated.current) return;
+      setMessage("Redirecting to your payments...");
+      clearTimeout(fallbackTimer);
+      doRedirect();
     };
 
-    finalize();
+    verify();
 
     return () => {
-      isCancelled = true;
-      window.clearTimeout(redirectTimer);
+      clearTimeout(fallbackTimer);
     };
-  }, [txRef]);
+  }, [targetUrl, txRef]);
 
   return (
+    <section className="mx-auto w-full max-w-lg rounded-2xl border border-border/60 bg-card p-6 text-center shadow-sm">
+      <h1 className="text-2xl font-serif font-extrabold text-primary">Completing Payment</h1>
+      <p className="mt-3 text-sm text-secondary">{message}</p>
+      <a
+        href={targetUrl}
+        className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-bold text-background"
+      >
+        Continue Now
+      </a>
+      <p className="mt-2 text-xs text-secondary/70">If redirect does not happen automatically, click above.</p>
+    </section>
+  );
+}
+
+function ChapaReturnFallback() {
+  return (
+    <section className="mx-auto w-full max-w-lg rounded-2xl border border-border/60 bg-card p-6 text-center shadow-sm">
+      <h1 className="text-2xl font-serif font-extrabold text-primary">Completing Payment</h1>
+      <p className="mt-3 text-sm text-secondary">Finalizing your payment...</p>
+    </section>
+  );
+}
+
+export default function ChapaReturnPage() {
+  return (
     <main className="min-h-screen bg-background px-4 py-16 text-foreground">
-      <section className="mx-auto w-full max-w-lg rounded-2xl border border-border/60 bg-card p-6 text-center shadow-sm">
-        <h1 className="text-2xl font-serif font-extrabold text-primary">Completing Payment</h1>
-        <p className="mt-3 text-sm text-secondary">{message}</p>
-        <button
-          type="button"
-          onClick={() => {
-            const absoluteUrl = new URL(targetUrl, window.location.origin).toString();
-            try {
-              if (window.top && window.top !== window) {
-                window.top.location.href = absoluteUrl;
-              }
-            } catch {
-              // Ignore and use fallback below.
-            }
-
-            if (window.location.href !== absoluteUrl) {
-              window.location.replace(absoluteUrl);
-            }
-
-            window.setTimeout(() => {
-              if (window.location.pathname.includes("/payment/chapa-return")) {
-                window.location.assign(absoluteUrl);
-              }
-            }, 300);
-          }}
-          className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-background"
-        >
-          Continue Now
-        </button>
-        <p className="mt-2 text-xs text-secondary/70">If redirect does not happen automatically, click Continue Now.</p>
-        <a
-          href={targetUrl}
-          target="_top"
-          rel="noopener noreferrer"
-          className="mt-2 inline-block text-xs font-semibold text-primary underline underline-offset-2"
-        >
-          Open Receipt Page
-        </a>
-      </section>
+      <Suspense fallback={<ChapaReturnFallback />}>
+        <ChapaReturnContent />
+      </Suspense>
     </main>
   );
 }
