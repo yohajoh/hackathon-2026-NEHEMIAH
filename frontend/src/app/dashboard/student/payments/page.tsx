@@ -75,7 +75,7 @@ function PaymentsContent() {
     };
 
     run();
-  }, [txRefFromQuery, refetchPayments]);
+  }, [t, txRefFromQuery, refetchPayments]);
 
   const payFine = async (rentalId: string) => {
     const result = await api.post<{ data: { chapaUrl: string } }>(`/payments/rental/${rentalId}/initiate`, {

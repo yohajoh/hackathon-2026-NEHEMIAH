@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 const getFirstParam = (params: URLSearchParams, keys: string[]) => {
   for (const key of keys) {
@@ -12,7 +12,6 @@ const getFirstParam = (params: URLSearchParams, keys: string[]) => {
 };
 
 export default function ChapaReturnPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const target = useMemo(() => {
@@ -28,8 +27,8 @@ export default function ChapaReturnPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    router.replace(target);
-  }, [router, target]);
+    window.location.replace(target);
+  }, [target]);
 
   return (
     <div style={{ padding: "2rem", textAlign: "center" }}>

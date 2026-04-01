@@ -56,7 +56,7 @@ const sanitizeChapaText = (value, fallback) => {
 const buildChapaReturnUrl = (txRef) => {
   const explicitReturnUrl = process.env.CHAPA_RETURN_URL;
   const frontendBase = process.env.FRONTEND_URL || "http://localhost:3000";
-  const returnPath = process.env.CHAPA_RETURN_PATH || "/payment/chapa-return";
+  const returnPath = process.env.CHAPA_RETURN_PATH || "/dashboard/student/payments";
 
   try {
     // If CHAPA_RETURN_URL is explicitly set, treat it as the full destination URL.
