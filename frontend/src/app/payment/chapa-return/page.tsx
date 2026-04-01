@@ -1,33 +1,40 @@
-import { redirect } from "next/navigation";
+"use client";
 
-type ChapaReturnPageProps = {
-  searchParams?: {
-    tx_ref?: string | string[];
-    trx_ref?: string | string[];
-    txRef?: string | string[];
-    reference?: string | string[];
-    status?: string | string[];
-  };
+import { useEffect, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+const getFirstParam = (params: URLSearchParams, keys: string[]) => {
+  for (const key of keys) {
+    const value = params.get(key);
+    if (value) return value;
+  }
+  return null;
 };
 
-const readParam = (value?: string | string[]) => {
-  if (Array.isArray(value)) return value[0];
-  return value;
-};
+export default function ChapaReturnPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-export default function ChapaReturnPage({ searchParams }: ChapaReturnPageProps) {
-  const txRef =
-    readParam(searchParams?.tx_ref) ||
-    readParam(searchParams?.trx_ref) ||
-    readParam(searchParams?.txRef) ||
-    readParam(searchParams?.reference);
+  const target = useMemo(() => {
+    const txRef = getFirstParam(searchParams, ["tx_ref", "trx_ref", "txRef", "reference"]);
+    const status = getFirstParam(searchParams, ["status"]);
 
-  const targetParams = new URLSearchParams();
-  if (txRef) targetParams.set("tx_ref", txRef);
+    const targetParams = new URLSearchParams();
+    if (txRef) targetParams.set("tx_ref", txRef);
+    if (status) targetParams.set("status", status);
 
-  const status = readParam(searchParams?.status);
-  if (status) targetParams.set("status", status);
+    const query = targetParams.toString();
+    return `/dashboard/student/payments${query ? `?${query}` : ""}`;
+  }, [searchParams]);
 
-  const target = `/dashboard/student/payments${targetParams.toString() ? `?${targetParams.toString()}` : ""}`;
-  redirect(target);
+  useEffect(() => {
+    router.replace(target);
+  }, [router, target]);
+
+  return (
+    <div style={{ padding: "2rem", textAlign: "center" }}>
+      <h1>Redirecting...</h1>
+      <p>Finishing your payment and taking you back to your dashboard.</p>
+    </div>
+  );
 }
