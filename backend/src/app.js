@@ -24,16 +24,11 @@ import reservationRoutes from "./routes/reservation.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import studentRoutes from "./routes/student.routes.js";
 
-import {
-  globalErrorHandler,
-  AppError,
-} from "./middlewares/error.middleware.js";
+import { globalErrorHandler, AppError } from "./middlewares/error.middleware.js";
 
 const app = express();
 const compressionLevel = Number(process.env.HTTP_COMPRESSION_LEVEL);
-const resolvedCompressionLevel = Number.isFinite(compressionLevel)
-  ? Math.max(1, Math.min(9, compressionLevel))
-  : 6;
+const resolvedCompressionLevel = Number.isFinite(compressionLevel) ? Math.max(1, Math.min(9, compressionLevel)) : 6;
 
 app.use(passport.initialize());
 app.disable("x-powered-by");
@@ -42,10 +37,7 @@ app.set("json spaces", 0);
 
 if (process.env.TRUST_PROXY) {
   const trustProxyValue = Number(process.env.TRUST_PROXY);
-  app.set(
-    "trust proxy",
-    Number.isNaN(trustProxyValue) ? process.env.TRUST_PROXY : trustProxyValue,
-  );
+  app.set("trust proxy", Number.isNaN(trustProxyValue) ? process.env.TRUST_PROXY : trustProxyValue);
 }
 
 app.use(
@@ -82,12 +74,7 @@ const corsOptions = {
     callback(new AppError(`Origin not allowed by CORS: ${origin}`, 403));
   },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "X-Requested-With",
-    "Accept",
-  ],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
   credentials: true,
   optionsSuccessStatus: 200,
 };
@@ -104,9 +91,7 @@ app.use(
   }),
 );
 app.use(express.json({ limit: "1mb", strict: false }));
-app.use(
-  express.urlencoded({ extended: false, limit: "50kb", parameterLimit: 100 }),
-);
+app.use(express.urlencoded({ extended: false, limit: "50kb", parameterLimit: 100 }));
 app.use(cookieParser());
 
 app.use("/api/auth", authRoutes);
@@ -139,12 +124,7 @@ app.use(registrationRoutes);
 app.use(invoiceRoutes);
 
 app.all("/{*splat}", (req, res, next) => {
-  next(
-    new AppError(
-      `Cannot find ${req.method} ${req.originalUrl} on this server`,
-      404,
-    ),
-  );
+  next(new AppError(`Cannot find ${req.method} ${req.originalUrl} on this server`, 404));
 });
 
 app.use(globalErrorHandler);
