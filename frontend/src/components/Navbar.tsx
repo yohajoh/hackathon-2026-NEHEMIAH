@@ -78,7 +78,7 @@ export const Navbar = () => {
               </button>
             ) : null}
             <Link href="/" className="flex items-center gap-2 shrink-0">
-              <Image src="/icons/book.svg" alt="Book icon" width={24} height={24} />
+              <Image src="/icons/icon.png" alt="Book icon" width={24} height={24} />
               <span className="hidden sm:inline text-lg font-serif font-bold tracking-tight text-primary">ብራና</span>
             </Link>
           </div>

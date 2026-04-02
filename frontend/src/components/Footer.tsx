@@ -17,7 +17,7 @@ export const Footer = () => {
         <div className="grid grid-cols-1 gap-10 md:grid-cols-3">
           <div className="space-y-6">
             <Link href="/" className="flex items-center gap-2">
-              <Image src="/icons/book.svg" alt="Book icon" width={36} height={36} />
+              <Image src="/icons/icon.png" alt="Book icon" width={36} height={36} />
               <span className="text-3xl font-serif font-bold tracking-tight text-[#142B6F]">ብራና</span>
             </Link>
 
