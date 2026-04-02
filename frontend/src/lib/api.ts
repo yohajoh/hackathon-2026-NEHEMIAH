@@ -1,5 +1,5 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-const CURRENT_USER_CACHE_TTL_MS = Math.max(0, Number(process.env.NEXT_PUBLIC_CURRENT_USER_CACHE_TTL_MS || 10000));
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const CURRENT_USER_CACHE_TTL_MS = Math.max(0, Number(process.env.NEXT_PUBLIC_CURRENT_USER_CACHE_TTL_MS));
 
 type CurrentUser = {
   id: string;
