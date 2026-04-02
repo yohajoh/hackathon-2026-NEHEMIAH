@@ -1,7 +1,7 @@
 import { prisma } from "../prisma.js";
 import * as authService from "../services/auth.service.js";
 import { AppError } from "../middlewares/error.middleware.js";
-import { sendTokenCookie } from "../utils/token.utils.js";
+import { getAuthCookieOptions, sendTokenCookie } from "../utils/token.utils.js";
 import { validationResult } from "express-validator";
 import { logAdminActivity } from "../services/adminActivity.service.js";
 import { invalidateAuthUserCache } from "../middlewares/auth.middleware.js";
@@ -51,14 +51,9 @@ export const login = async (req, res, next) => {
 };
 
 export const logout = (req, res) => {
-  const isProduction = process.env.NODE_ENV === "production";
-
   res.cookie("token", "none", {
+    ...getAuthCookieOptions(),
     expires: new Date(Date.now() + 10 * 1000),
-    httpOnly: true,
-    path: "/",
-    secure: isProduction,
-    sameSite: isProduction ? "none" : "lax",
   });
 
   res.status(200).json({

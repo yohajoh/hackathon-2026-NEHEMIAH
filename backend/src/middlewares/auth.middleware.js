@@ -1,4 +1,4 @@
-import { verifyToken } from "../utils/token.utils.js";
+import { verifyToken, getAuthCookieOptions } from "../utils/token.utils.js";
 import { prisma } from "../prisma.js";
 import { AppError } from "./error.middleware.js";
 
@@ -52,13 +52,9 @@ const isSchemaDriftError = (error) => {
 };
 
 const clearAuthCookie = (res) => {
-  const isProduction = process.env.NODE_ENV === "production";
   res.cookie("token", "", {
+    ...getAuthCookieOptions(),
     expires: new Date(0),
-    httpOnly: true,
-    path: "/",
-    secure: isProduction,
-    sameSite: isProduction ? "none" : "lax",
   });
 };
 

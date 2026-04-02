@@ -3,7 +3,7 @@ import * as authController from "../controllers/auth.controller.js";
 import * as authService from "../services/auth.service.js";
 import { body } from "express-validator";
 import passport from "passport";
-import { generateToken } from "../utils/token.utils.js";
+import { generateToken, getAuthCookieOptions } from "../utils/token.utils.js";
 import { protect, restrictTo } from "../middlewares/auth.middleware.js";
 import rateLimit from "express-rate-limit";
 import { google } from "googleapis";
@@ -81,14 +81,10 @@ router.get("/google/callback", (req, res, next) => {
     try {
       const context = await authService.resolveUserSessionContext(user.id);
       const token = generateToken(context.sessionPayload);
-      const isProduction = process.env.NODE_ENV === "production";
       /** @type {import('express').CookieOptions} */
       const cookieOptions = {
+        ...getAuthCookieOptions(),
         expires: new Date(Date.now() + Number(process.env.JWT_COOKIE_EXPIRE || 30) * 24 * 60 * 60 * 1000),
-        httpOnly: true,
-        path: "/",
-        secure: isProduction,
-        sameSite: isProduction ? "none" : "lax",
       };
       res.cookie("token", token, cookieOptions);
 
