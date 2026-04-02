@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useMyPayments, useMyRentals, useMyDebtSummary, api } from "@/lib/hooks/useQueries";
 import { useLanguage } from "@/components/providers/LanguageProvider";
 import { ColumnDef } from "@tanstack/react-table";
@@ -29,23 +29,27 @@ type RentalFine = {
 function PaymentsContent() {
   const { t } = useLanguage();
   const [txRefFromQuery, setTxRefFromQuery] = useState<string | null>(null);
-
   const [verifyingTx, setVerifyingTx] = useState<string | null>(null);
   const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
+  const hasVerifiedRef = useRef<string | null>(null); // Track if we've already verified this tx_ref
 
+  // Get tx_ref from URL only once on mount
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
-    setTxRefFromQuery(
+    const txRef =
       searchParams.get("tx_ref") ||
-        searchParams.get("trx_ref") ||
-        searchParams.get("reference") ||
-        searchParams.get("txRef"),
-    );
-  }, []);
+      searchParams.get("trx_ref") ||
+      searchParams.get("reference") ||
+      searchParams.get("txRef");
+
+    setTxRefFromQuery(txRef);
+  }, []); // Empty dependency array - only run once
 
   const { data: paymentsData, isLoading: paymentsLoading, refetch: refetchPayments } = useMyPayments("limit=100");
+
   const { data: rentalsData } = useMyRentals("status=PENDING&limit=100");
   const { data: debtSummaryData } = useMyDebtSummary();
+
   const payments: Payment[] = (paymentsData?.payments || []) as unknown as Payment[];
   const pendingFines: RentalFine[] = ((rentalsData?.rentals || []) as unknown as RentalFine[]).filter(
     (r) => Number(r.fine || 0) > 0,
@@ -54,18 +58,24 @@ function PaymentsContent() {
 
   const loading = paymentsLoading;
 
-  useEffect(() => {
-    const txRef = txRefFromQuery;
-    if (!txRef) return;
+  // Handle payment verification - wrapped in useCallback to prevent recreation
+  const verifyPayment = useCallback(
+    async (txRef: string) => {
+      // Skip if already verified this transaction
+      if (hasVerifiedRef.current === txRef) return;
 
-    const run = async () => {
       try {
         setVerifyingTx(txRef);
         setVerifyMessage(null);
+        hasVerifiedRef.current = txRef;
+
         const verifyRes = await api.get<{ data: { payment: { status: string } } }>(
           `/payments/verify/${encodeURIComponent(txRef)}`,
         );
+
+        // Refetch payments after verification
         await refetchPayments();
+
         const paymentStatus = verifyRes?.data?.payment?.status;
         if (paymentStatus === "SUCCESS") setVerifyMessage(t("student_payments.success_verify"));
         else if (paymentStatus === "PENDING") setVerifyMessage(t("student_payments.pending_verify"));
@@ -76,27 +86,43 @@ function PaymentsContent() {
       } finally {
         setVerifyingTx(null);
       }
-    };
+    },
+    [refetchPayments, t],
+  );
 
-    run();
-  }, [t, txRefFromQuery, refetchPayments]);
+  // Effect for verification - depends on txRefFromQuery and verifyPayment
+  useEffect(() => {
+    if (txRefFromQuery && !hasVerifiedRef.current) {
+      verifyPayment(txRefFromQuery);
+    }
+  }, [txRefFromQuery, verifyPayment]);
 
   const payFine = async (rentalId: string) => {
-    const result = await api.post<{ data: { chapaUrl: string } }>(`/payments/rental/${rentalId}/initiate`, {
-      method: "CHAPA",
-    });
-    const url = result?.data?.chapaUrl;
-    if (url) window.location.href = url;
+    try {
+      const result = await api.post<{ data: { chapaUrl: string } }>(`/payments/rental/${rentalId}/initiate`, {
+        method: "CHAPA",
+      });
+      const url = result?.data?.chapaUrl;
+      if (url) window.location.href = url;
+    } catch (error) {
+      console.error("Failed to initiate payment:", error);
+      setVerifyMessage(t("common.error_occurred"));
+    }
   };
 
   const retryPayment = async (payment: Payment) => {
-    const isBorrowPayment = payment.rental.status === "BORROWED" && Number(payment.rental.fine || 0) <= 0;
-    const result = await api.post<{ data: { chapaUrl: string } }>(`/payments/rental/${payment.rental.id}/initiate`, {
-      method: "CHAPA",
-      context: isBorrowPayment ? "BORROW" : "FINE",
-    });
-    const url = result?.data?.chapaUrl;
-    if (url) window.location.href = url;
+    try {
+      const isBorrowPayment = payment.rental.status === "BORROWED" && Number(payment.rental.fine || 0) <= 0;
+      const result = await api.post<{ data: { chapaUrl: string } }>(`/payments/rental/${payment.rental.id}/initiate`, {
+        method: "CHAPA",
+        context: isBorrowPayment ? "BORROW" : "FINE",
+      });
+      const url = result?.data?.chapaUrl;
+      if (url) window.location.href = url;
+    } catch (error) {
+      console.error("Failed to retry payment:", error);
+      setVerifyMessage(t("common.error_occurred"));
+    }
   };
 
   const actionablePayments = payments.filter((p) => p.status === "PENDING" || p.status === "FAILED");
@@ -155,12 +181,12 @@ function PaymentsContent() {
             {t("student_payments.outstanding_desc", { amount: Number(debtSummary.totalDebt || 0).toFixed(2) })}
           </p>
           <div className="space-y-1">
-            {debtSummary.overdueFines.slice(0, 4).map((entry) => (
+            {debtSummary.overdueFines?.slice(0, 4).map((entry: any) => (
               <p key={entry.rental_id} className="text-xs text-[#142B6F]">
                 • {entry.book_title}: {Number(entry.amount || 0).toFixed(2)} ETB
               </p>
             ))}
-            {debtSummary.overdueFines.length > 4 ? (
+            {debtSummary.overdueFines?.length > 4 ? (
               <p className="text-xs text-[#142B6F]">
                 {t("student_payments.more_overdue", { count: debtSummary.overdueFines.length - 4 })}
               </p>
