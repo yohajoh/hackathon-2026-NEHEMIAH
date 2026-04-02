@@ -56,6 +56,7 @@ const clearAuthCookie = (res) => {
   res.cookie("token", "", {
     expires: new Date(0),
     httpOnly: true,
+    path: "/",
     secure: isProduction,
     sameSite: isProduction ? "none" : "lax",
   });

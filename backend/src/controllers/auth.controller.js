@@ -51,9 +51,14 @@ export const login = async (req, res, next) => {
 };
 
 export const logout = (req, res) => {
+  const isProduction = process.env.NODE_ENV === "production";
+
   res.cookie("token", "none", {
     expires: new Date(Date.now() + 10 * 1000),
     httpOnly: true,
+    path: "/",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
   });
 
   res.status(200).json({

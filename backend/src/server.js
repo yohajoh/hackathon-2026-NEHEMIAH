@@ -21,16 +21,18 @@ const defaultParallelism = os.cpus().length;
 const CLUSTER_ENABLED = process.env.ENABLE_CLUSTER === "true";
 const WEB_CONCURRENCY = Math.max(1, Math.floor(toNumber(process.env.WEB_CONCURRENCY, defaultParallelism)));
 
+const normalizeOrigin = (origin) => origin.trim().replace(/\/$/, "");
+
 const envOrigins = (process.env.FRONTEND_URL || "")
   .split(",")
-  .map((origin) => origin.trim())
+  .map((origin) => normalizeOrigin(origin))
   .filter(Boolean);
 const allowedOrigins = Array.from(
   new Set([
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
+    normalizeOrigin("http://localhost:3000"),
+    normalizeOrigin("http://localhost:3001"),
+    normalizeOrigin("http://127.0.0.1:3000"),
+    normalizeOrigin("http://127.0.0.1:3001"),
     ...envOrigins,
   ]),
 );

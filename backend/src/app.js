@@ -51,23 +51,26 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
+const normalizeOrigin = (origin) => origin.trim().replace(/\/$/, "");
+
 const envOrigins = (process.env.FRONTEND_URL || "")
   .split(",")
-  .map((origin) => origin.trim())
+  .map((origin) => normalizeOrigin(origin))
   .filter(Boolean);
 const allowedOrigins = Array.from(
   new Set([
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
+    normalizeOrigin("http://localhost:3000"),
+    normalizeOrigin("http://localhost:3001"),
+    normalizeOrigin("http://127.0.0.1:3000"),
+    normalizeOrigin("http://127.0.0.1:3001"),
     ...envOrigins,
   ]),
 );
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    const normalizedOrigin = origin ? normalizeOrigin(origin) : origin;
+    if (!normalizedOrigin || allowedOrigins.includes(normalizedOrigin)) {
       callback(null, true);
       return;
     }
