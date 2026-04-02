@@ -25,12 +25,13 @@ export const verifyToken = (token) => {
 
 export const sendTokenCookie = (user, statusCode, res, tokenPayload) => {
   const token = generateToken(tokenPayload || user.id);
+  const isProduction = process.env.NODE_ENV === "production";
 
   const cookieOptions = {
     expires: new Date(Date.now() + Number(process.env.JWT_COOKIE_EXPIRE || 30) * 24 * 60 * 60 * 1000),
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "Strict",
+    secure: isProduction,
+    sameSite: isProduction ? "None" : "Lax",
   };
 
   user.password_hash = undefined;

@@ -52,11 +52,12 @@ const isSchemaDriftError = (error) => {
 };
 
 const clearAuthCookie = (res) => {
+  const isProduction = process.env.NODE_ENV === "production";
   res.cookie("token", "", {
     expires: new Date(0),
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "Strict",
+    secure: isProduction,
+    sameSite: isProduction ? "None" : "Lax",
   });
 };
 

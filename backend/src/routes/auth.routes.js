@@ -81,11 +81,13 @@ router.get("/google/callback", (req, res, next) => {
     try {
       const context = await authService.resolveUserSessionContext(user.id);
       const token = generateToken(context.sessionPayload);
+      const isProduction = process.env.NODE_ENV === "production";
+      /** @type {import('express').CookieOptions} */
       const cookieOptions = {
         expires: new Date(Date.now() + Number(process.env.JWT_COOKIE_EXPIRE || 30) * 24 * 60 * 60 * 1000),
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
       };
       res.cookie("token", token, cookieOptions);
 
